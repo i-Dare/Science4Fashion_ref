@@ -1,7 +1,6 @@
 {
   "db_name": "SocialMedia",
   "db_connection": "mssql+pymssql://sa:1715@192.168.0.171:1435/",
-  "db_connection": "mssql+pymssql://sa:1715@192.168.0.171:1435/",
   "port": "1435",
   "db_server": "192.168.0.171",
   "db_username": "sa",
