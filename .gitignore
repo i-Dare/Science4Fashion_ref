@@ -1,3 +1,6 @@
 
 __pycache__/constants.cpython-37.pyc
 *.pyc
+WebCrawlers/.vscode/settings.json
+.vscode/launch.json
+WebCrawlers/.vscode/launch.json
