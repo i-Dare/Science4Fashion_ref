@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-############ Import all the libraries needed ############
+########### Import all the libraries needed ###########
 import os
 import json
 import time
@@ -15,8 +15,7 @@ from datetime import datetime
 # temporaty imports
 # import psycopg2
 
-
-############ This function will be called every new keyword line is encountered and will start scraping the amazon web page of the search result according to the text mention in the keywords text file ############
+########### This function will be called every new keyword line is encountered and will start scraping the amazon web page of the search result according to the text mention in the keywords text file ###########
 def performScraping(urlReceived, keywords, breakPointNumber):
     # initialize scraping
     start_time = time.time()
@@ -25,20 +24,19 @@ def performScraping(urlReceived, keywords, breakPointNumber):
     numImagesDown = 0
 
     # Get all relevant results for searh term
-    refDF = helper_functions.resultDataframeAsos(urlReceived, 'reference')
+    refDF = helper_functions.resultDataframeZalando(urlReceived, 'reference')
     # Get trending products
-    trendDF = helper_functions.resultDataframeAsos(urlReceived, 'trend', breakPointNumber)
+    trendDF = helper_functions.resultDataframeZalando(urlReceived, 'trend', breakPointNumber)
     # Iterate trending products
     for i, row in trendDF.iterrows():
         trendOrder = row['trendOrder']
         url = row['Url']
         imgURL = row['imgURL']
-        price = row['price']
         # Retrieve reference order
         referenceOrder = refDF.loc[refDF['Url']==url, 'referenceOrder'].values[0]
         # Find fields from product's webpage
         soup = helper_functions.get_content(url)
-        head, brand, color, genderid, meta = helper_functions.parseAsosFields(soup, url)
+        price, head, brand, color, genderid, meta = helper_functions.parseZalandoFields(soup, url)
 
         # Check if url already exists in the PRODUCT table
         # If TRUE update the latest record in PRODUCTHISTORY table
@@ -60,8 +58,7 @@ def performScraping(urlReceived, keywords, breakPointNumber):
             print('Image number %s: %s' % (trendOrder, imageFilePath.split(os.sep)[-1]))
 
             # Create new entry in PRODUCT table
-            helper_functions.addNewProduct(
-                site, folderName, imageFilePath, empPhoto, url, imgURL, head, color, genderid, brand, meta)
+            helper_functions.addNewProduct(site, folderName, imageFilePath, empPhoto, url, imgURL, head, color, genderid, brand, meta)
 
             # Create new entry in PRODUCTHISTORY table
             helper_functions.addNewProductHistory(url, referenceOrder, trendOrder, price)
@@ -72,24 +69,24 @@ def performScraping(urlReceived, keywords, breakPointNumber):
     print("\nTime to scrape this query is %s seconds ---" % round(time.time() - start_time, 2))
 
 
-############ The main function of our program ############
+########### The main function of our program ###########
 if __name__ == '__main__':
     start_time_all = time.time()
-
+    
     cwd = helper_functions.CWD
     engine = helper_functions.engine
     # Webpage URL
-    standardUrl = 'https://www.asos.com/uk/search/?q='
+    standardUrl = 'https://www.zalando.co.uk/catalog/?q='
     site = str((standardUrl.split('.')[1]).capitalize())
 
-    ############ Open the file with read only permit ############
+    ########### Open the file with read only permit ###########
     file = open('keywords.txt', "r")
 
-    ############ Use readlines to read all lines in the file ############
-    lines = file.readlines()  # The variable "lines" is a list containing all lines in the file
+    ########### Use readlines to read all lines in the file ###########
+    lines = file.readlines() # The variable "lines" is a list containing all lines in the file
     file.close()  # Close the file after reading the lines.
-    
-    ############ The File stores Input data as "<Number Of Images Required><<SPACE>><Search Text With Spaces>" ############
+
+    ########### The File stores Input data as "<Number Of Images Required><<SPACE>><Search Text With Spaces>" ###########
     for i in range(len(lines)):
         keys = lines[i]
         keys = keys.replace('\n', '')
@@ -99,11 +96,10 @@ if __name__ == '__main__':
         keywords = keys.split(" ")
 
         breakNumber = int(keywords[0])
-        keyUrl = standardUrl + '%20'.join(keywords[1:])
+        keyUrl = standardUrl + '+'.join(keywords[1:])
 
         print('Page to be crawled: ' + str(keyUrl))
         print("Number of crawled images wanted: " + str(breakNumber))
 
         performScraping(keyUrl, folderName, breakNumber)
-    print("\nTime to scrape ALL queries is %s seconds ---" % (time.time() - start_time_all))
-
+    print("\nTime to scrape ALL queries is %s seconds ---" % round(time.time() - start_time_all, 2))
