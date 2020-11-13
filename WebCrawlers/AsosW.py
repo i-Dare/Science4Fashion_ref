@@ -1,21 +1,25 @@
 # -*- coding: utf-8 -*-
-########################################### Import all the libraries needed ###########################################
+##### Import all the libraries needed #####
 import os
+from bs4 import BeautifulSoup, ResultSet
+import regex as re
 import json
 import time
 import requests
+from datetime import datetime
+import pandas as pd
 import sqlalchemy
 import helper_functions
-import pandas as pd
-import regex as re
 
-from bs4 import BeautifulSoup, ResultSet
-from datetime import datetime
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver import ActionChains
 
 
 ############ This function will be called every new keyword line is encountered and will start scraping the amazon web page of the search result according to the text mention in the keywords text file ############
 def performScraping(urlReceived, category):
-   # initialize scraping
+
+    # Start time for counting how long does it take a query to scrape
     start_time = time.time()
     # stats counters
     numUrlExist = 0
@@ -28,28 +32,27 @@ def performScraping(urlReceived, category):
 
     soup = helper_functions.get_content(urlReceived)
     # Get all relevant results for searh term
-    refDF = helper_functions.resultDataframeSOliver(urlReceived, 'reference')
+    refDF = helper_functions.resultDataframeAsos(urlReceived, 'reference')
     # Get trending products
-    trendDF = helper_functions.resultDataframeSOliver(urlReceived, 'trend')
+    trendDF = helper_functions.resultDataframeAsos(urlReceived, 'trend')
 
     # Iterate trending products
     for i, row in trendDF.iterrows():
         trendOrder = row['trendOrder']
         url = row['URL']
         imgURL = row['imgURL']
+        price = row['price']
+
         # Retrieve reference order
         if not refDF.loc[refDF['URL']==url, 'referenceOrder'].empty:
             referenceOrder = refDF.loc[refDF['URL']==url, 'referenceOrder'].values[0]
         else:
             referenceOrder = 0
-
-        # Find fields from product's webpage
-        soup = helper_functions.get_content(url)
-        price, head, brand, color, genderid, meta, sku, isActive = helper_functions.parseSOliverFields(soup, url, imgURL)
-
-        url=url.replace("'", "''")
+        
+        # Check if url already exists in the PRODUCT table
+        url = url.replace("'", "''")        
         # querydf = pd.read_sql_query("SELECT * FROM %s.dbo.PRODUCT WHERE %s.dbo.PRODUCT.url = '%s'" % (dbName, dbName, url), engine)
-        querydf = pd.read_sql_query("SELECT * FROM public.\"Product\" WHERE public.\"Product\".\"URL\" = '%s'" %  url.replace("%", "%%"), engine)
+        querydf = pd.read_sql_query("SELECT * FROM public.\"Product\" WHERE public.\"Product\".\"URL\" = '%s'" %  url, engine)
         if not querydf.empty:
             # Update ProductHistory
             prdno = querydf['Oid'].values[0]
@@ -67,7 +70,10 @@ def performScraping(urlReceived, category):
             numImagesDown += 1
             print('Image number %s: %s' % (trendOrder, imageFilePath.split(os.sep)[-1]))
 
-             # Create new entry in PRODUCT table
+            ## Find fields from product's webpage
+            soup = helper_functions.get_content(url)
+            head, brand, color, genderid, meta, sku, isActive = helper_functions.parseAsosFields(soup, url)
+            # Create new entry in PRODUCT table
             helper_functions.addNewProduct(
                 site, category, imageFilePath, empPhoto, url, imgURL, head, color, genderid, brand, meta, sku, isActive)
 
@@ -80,6 +86,7 @@ def performScraping(urlReceived, category):
     print("\nTime to scrape category %s: %s seconds ---" % (category, round(time.time() - start_time, 2)))
 
 
+
 ############ Main function ############
 if __name__ == '__main__':
     start_time_all = time.time()
@@ -88,24 +95,37 @@ if __name__ == '__main__':
     engine = helper_functions.ENGINE
     dbName = helper_functions.DB_NAME
     # Webpage URL
-    standardUrl = 'https://www.soliver.eu/'    
+    standardUrl = 'https://www.asos.com/'
     site = str((standardUrl.split('.')[1]).capitalize())
+    soup = helper_functions.get_content(standardUrl)
+    categoryDF = pd.DataFrame(columns=['Category', 'CategoryUrl'])
+    
+    # Capture genders form header
+    genders = []
+    for li in soup.find('div', {'data-testid': 'header'}).findAll('li'):
+        if li.find('a', {'id': re.compile('.+floor')}):
+            genders.append(li.find('a', {'id': re.compile('.+floor')}).text)
+
     # Capture categories and category URLs form header
-    soup = helper_functions.get_content(standardUrl)    
-    category, categoryURLs = [], []
-    jsonInfo = json.loads(soup.findAll('span', {'data-pagecontext': re.compile('showAllProducts')})[0].get('data-pagecontext'))
-    for element in jsonInfo['global']['navigationTree']:
-        for child in element['childs']:
-            if element['name'].lower() in ['men', 'women', 'man', 'woman'] and re.match('cloth.+', child['name'], re.IGNORECASE):
-                category.append(child['name'])
-                categoryURLs.append(standardUrl + child['url'])
-            elif child['name'].lower() in ['boys', 'girls', 'baby']:
-                for c in child['childs']:
-                    category.append(child['name'])
-                    categoryURLs.append(standardUrl + c['url'])
-            
+    category, categoryURLs, gensearch = [], [], []
+    for gender in genders:
+        genderURL = 'https://www.asos.com/' + gender
+        soup = helper_functions.get_content(genderURL)
+        buttons = soup.findAll('button')
+        for b in buttons:
+            for span in b.findAll('span', text=re.compile('cloth.+', re.IGNORECASE)):
+                gensearch.append(span.findParent('button').get('data-id'))
+                break
+    for gender,search in zip(genders,gensearch):            
+        catpage = soup.find('ul', {'data-id':re.compile(search)})
+        categories = catpage.findAll('a', {'data-testid': re.compile("text-link")})
+        for cat in categories:
+            category.append(cat.text)
+            categoryURLs.append(cat.get('href'))
+ 
     for cat,url in zip(category, categoryURLs):
         print('Category: %s, URL: %s' % (cat, url))
         performScraping(url, cat)
 
     print("Time to scrape ALL queries is %s seconds ---" % (time.time() - start_time_all))
+
