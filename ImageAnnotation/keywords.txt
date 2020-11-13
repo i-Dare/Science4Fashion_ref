@@ -1,2 +1,0 @@
-amount keywords
-232 gfg

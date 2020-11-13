@@ -15,3 +15,8 @@ WebCrawlers/SoliverImages
 WebCrawlers/ZalandoImages
 WebCrawlers/temp
 *.jpeg
+ImageAnnotation/keywords.txt
+WebCrawlers/keywords.txt
+ImageAnnotation/keywords.txt
+*Untitled*.ipynb
+config_test.json
