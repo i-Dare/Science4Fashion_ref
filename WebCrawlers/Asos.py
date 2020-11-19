@@ -60,7 +60,7 @@ def performScraping(urlReceived, keywords, breakPointNumber):
             referenceOrder = 0
         # Check if url already exists in the PRODUCT table
         # If TRUE update the latest record in ProductHistory table
-        # Otherwise download product image and create new product entry in PRODUCT and ProductHistory tables
+        # Otherwise download product image and create new product entry in Product and ProductHistory tables
         # querydf = pd.read_sql_query(
         #     "SELECT * FROM public.\"PRODUCT\" WHERE public.\"PRODUCT\".url = '{}'".format(url), engine)
         url = url.replace("'", "''")

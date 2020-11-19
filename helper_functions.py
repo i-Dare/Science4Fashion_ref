@@ -50,7 +50,7 @@ def get_content(url, suffix=''):
     if req.history:
         print('Request redirected to %s ' % (req.url+suffix))
         new_req = requests.get(req.url+suffix, headers=headers)
-        soup = BeautifulSoup(req.content, 'html.parser')
+        soup = BeautifulSoup(new_req.content, 'html.parser')
     else:
         soup = BeautifulSoup(req.content, 'html.parser')
 

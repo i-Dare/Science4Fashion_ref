@@ -4,5 +4,7 @@
   "port": "1435",
   "db_server": "192.168.0.171",
   "db_username": "sa",
-  "db_pass": "1715"
+  "db_pass": "1715",
+  "pinterest_username": "idare.issel@gmail.com",
+  "pinterest_password": "science4f"
 }

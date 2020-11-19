@@ -27,6 +27,13 @@ RECOMMENDER = os.path.join(PROJECT_HOME, 'Recommender')
 WEB_CRAWLERS = os.path.join(PROJECT_HOME, 'WebCrawlers')
 
 #
+########### WebCrawler variables ###########
+#
+# Pinterest fields
+PINTEREST_USERNAME = config['pinterest_username']
+PINTEREST_PASSWORD = config['pinterest_password']
+
+#
 ########### TextMining variables ###########
 #
 # UPDATESQLQUERY = """
@@ -36,7 +43,6 @@ WEB_CRAWLERS = os.path.join(PROJECT_HOME, 'WebCrawlers')
 #     WHERE Product.Oid = temp_table.Oid;
 #     DROP TABLE temp_table;
 # """
-
 UPDATESQLQUERY = """
     UPDATE "Product" 
     SET "ProductCategory" = temp_table."ProductCategory", "ProductSubcategory" = temp_table."ProductSubcategory", "Length" = temp_table."Length", "Sleeve" = temp_table."Sleeve", "CollarDesign" = temp_table."CollarDesign", "NeckDesign" = temp_table."NeckDesign", "Fit" = temp_table."Fit"

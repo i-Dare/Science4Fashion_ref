@@ -11,10 +11,6 @@ import pandas as pd
 import sqlalchemy
 import helper_functions
 
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver import ActionChains
-
 
 ############ This function will be called every new keyword line is encountered and will start scraping the amazon web page of the search result according to the text mention in the keywords text file ############
 def performScraping(urlReceived, category):
