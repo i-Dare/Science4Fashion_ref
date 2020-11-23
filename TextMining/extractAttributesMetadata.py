@@ -37,8 +37,8 @@ def editStrings(s):
 
 
 if __name__ == "__main__":
-#DATABASE#
-    ###Read Table Products from S4F DB###
+# DATABASE #
+    ### Read Table Products from S4F database ###
     currendDir = helper_functions.TEXT_MINING
     engine = helper_functions.ENGINE
     dbName = helper_functions.DB_NAME
@@ -48,38 +48,35 @@ if __name__ == "__main__":
 
     labelsDF = pd.DataFrame()
     
-    ###Filter the old elements with the new one, Keep only the non-updated elements to improve efficiency, reset index due to slice###
+    ### Filter the old elements with the new one, Keep only the non-updated elements to improve efficiency, reset index due to slice ###
     # productsDF = productsDF[productsDF.loc[:, (config.NRGATTRIBUTESID + config.DEEPFASHIONATTRIBUTESID)].isnull().apply(lambda x: all(x), axis=1)]
     productsDF = productsDF[productsDF.loc[:, config.NRGATTRIBUTESID].isnull().apply(lambda x: all(x), axis=1)]
     productsDF = productsDF.reset_index(drop=True)
-    #productsDF = productsDF.drop(config.NRGATTRIBUTESID + config.DEEPFASHIONATTRIBUTESID, axis = 1)
+    # productsDF = productsDF.drop(config.NRGATTRIBUTESID + config.DEEPFASHIONATTRIBUTESID, axis = 1)
     labelsDF['Oid'] = productsDF['Oid'].copy()
-    ###Metadata and Headline consists of information related to each row###
+    ### Metadata and Headline consists of information related to each row ###
 
     metadata = productsDF['Metadata'].str.upper()
     headline = productsDF['Description'].str.upper()
 
-    ###Read possible labels###
+    ### Read possible labels###
 
     labelsNRG = pd.read_excel(config.NRGATTRIBUTESPATH, sheet_name=config.SHEETNAME)
     
-    ###Create Variables with same name as the Energiers column names, to store the labels. Create new columns at assos with Energiers column names###
+    # Create Variables with same name as the Energiers column names, to store the labels. Create new columns at assos with Energiers column names #
     attrDict = {}
     for attr in config.NRGATTRIBUTES:
         attrDict[str(attr)] = list(labelsNRG[attr].replace(' ', np.nan).dropna().unique())
         attrDict[str(attr)] = [la.upper() for la in attrDict[str(attr)]]
         labelsDF[attr] = np.empty((len(productsDF), 0)).tolist()
 
-#Preprocessing#
+### Preprocessing ###
         
-    #DES LIGO TO TRAINING STO PYTORCH ME TO PREPROCESSING GIA METADATA KAI HEADLINE SAN TRAIN KAI TEST
-
-    ###Convert every label, metadata and headline to uppercase###
+    # Convert every label, metadata and headline to uppercase #
     splitted_metadata = [s.split() if isinstance(s,str) else " " for s in metadata]
-    splitted_headline = [s.split() if isinstance(s,str) else " " for s in headline]
+    splitted_headline = [s.split() if isinstance(s,str) else " " for s in headline]    
     
-    
-    ###Search for occurences of labels in metadata and headline. For category length if the next word is not a kind of cat (Trousers etc) then it is propably wrong so we get rid of it.###
+    ### Search for occurences of labels in metadata and headline. For category length if the next word is not a kind of cat (Trousers etc) then it is propably wrong so we get rid of it. ###
     cat = 'ProductCategory'
     # for attr in (config.NRGATTRIBUTES + config.DEEPFASHIONATTRIBUTES):
     for attr in config.NRGATTRIBUTES:
@@ -95,14 +92,13 @@ if __name__ == "__main__":
                         if sen == s[1] and 'SLEEVE' == strSen[j+1] and flag == 0:
                             flag = 1             
                 if flag == 1:
-                    #print(labelsDF.loc[s[0], attr])
                     labelsDF.loc[s[0], attr].remove((s[1], s[2], s[3]))
     
-    ###Find similar words, for example -> rounded and round and one of them is discarded###
+    ### Find similar words, for example -> rounded and round and one of them is discarded ###
 
     # for attr in (config.NRGATTRIBUTES + config.DEEPFASHIONATTRIBUTES):
     for attr in config.NRGATTRIBUTES:
-        #Τhe next line sorts the elements of the respective columns based on position and on metadata or headline (headline first and then position on each string)
+        # Τhe next line sorts the elements of the respective columns based on position and on metadata or headline (headline first and then position on each string)
         labelsDF.loc[:, attr] = pd.Series([sorted(list(ele), key = lambda tup: (tup[2], tup[1])) for ele in labelsDF.loc[:, attr]])
         labelsDF.loc[:, attr] = pd.Series([list(map(lambda x: x[0], ele)) for ele in labelsDF.loc[:, attr]])
         saved = defaultdict(list)
@@ -115,20 +111,20 @@ if __name__ == "__main__":
         for key,value in saved.items():
             uni = np.unique(value, axis = 0)
             for index, x in uni:
-                #We reverse because remove always pop outs the first element while we want the last
+                # We reverse because remove always pop outs the first element while we want the last
                 labelsDF.loc[key, attr].reverse()
                 labelsDF.loc[key, attr].remove(x)
                 labelsDF.loc[key, attr].reverse()
 
-    ##Kane to sort se ola -> applymap
-    ###Check if list is empty and in this case make it None###
+    ## Kane to sort se ola -> applymap
+    ### Check if list is empty and in this case make it None ###
     # for attr in (config.NRGATTRIBUTES + config.DEEPFASHIONATTRIBUTES):
     for attr in config.NRGATTRIBUTES:
         labelsDF.loc[:, attr] = labelsDF[attr].apply(lambda x: ','.join(x) if x else None)
     #Extract unique labels from metadata and headline
     labelsUnique = {attr:set([l for label in labelsDF[attr].unique() if label for l in label.split(',')]) for attr in labelsDF.loc[:, config.NRGATTRIBUTES].columns}
 
-    #Read from database the labels 
+    # Read from database the labels 
     # for name in (config.NRGATTRIBUTES + config.DEEPFASHIONATTRIBUTES):
     dfDict = {}
     for attr in config.NRGATTRIBUTES:

@@ -6,11 +6,22 @@ import time
 import random
 import sqlalchemy
 import json
+import string
+import numpy as np
+
 import pandas as pd
 import regex as re
 import config
 from bs4 import BeautifulSoup, ResultSet
 from datetime import datetime
+
+import nltk
+from nltk.corpus import wordnet as wn
+from nltk.stem.wordnet import WordNetLemmatizer
+from nltk.tokenize import TweetTokenizer
+from nltk import pos_tag
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -26,9 +37,18 @@ IMAGE_ANNOTATION = config.IMAGE_ANNOTATION
 RECOMMENDER = config.RECOMMENDER
 WEB_CRAWLERS = config.WEB_CRAWLERS
 
+# Define stop words
+STOP_WORDS = set(nltk.corpus.stopwords.words('english'))
+STOP_WORDS = STOP_WORDS.union(set(nltk.corpus.stopwords.words('italian')),
+                              set(nltk.corpus.stopwords.words('german')),
+                              set(nltk.corpus.stopwords.words('french')),
+                              set(nltk.corpus.stopwords.words('spanish')))
+# Removed 'man', included in german stop_words as it is an English word
+STOP_WORDS.remove('man')
+# Add 'via' in stop_words
+STOP_WORDS.add('via')
 
-########### Common functionality ###########
-########### This function returns the folder name removing the number of images range from they line of keywords file ###########
+########### General functionality ###########
 ########### This function will create a soup and returns which is the parsed html format for extracting html tags of the webpage ###########
 def get_content(url, suffix=''):
     user_agent_list = [
@@ -57,7 +77,7 @@ def get_content(url, suffix=''):
     return soup
     
 
-
+########### This function returns the folder name removing the number of images range from they line of keywords file ###########
 def getFolderName(wholeName):
     argList = wholeName.split(' ')
     if len(argList)==1:
@@ -220,7 +240,47 @@ def updateProductHistory(prdno, referenceOrder, trendOrder, price, url):
         updatedf.to_sql("ProductHistory", con=ENGINE, if_exists='replace', index=False)
 
 
-########### Custom functionality, specific to each website ###########
+########### Natural Language Processing Functionality ###########
+def preprocess_words(words_list):
+    lemmatizer = WordNetLemmatizer()
+    preprocessed_words = []
+    for word in words_list:
+        preprocessed_words.append(lemmatizer.lemmatize(word.lower(), "n"))
+    return preprocessed_words
+
+def lemmatize(token, pos_tag):
+    lemmatizer = WordNetLemmatizer()
+    tag = {'N': wn.NOUN, 'V': wn.VERB, 'R': wn.ADV, 'J': wn.ADJ}.get(pos_tag[0], wn.NOUN)
+    return lemmatizer.lemmatize(token, tag)
+
+def preprocess_metadata(doc):
+    # Convert to lowercase
+    doc = doc.lower()
+    # Remove URLs
+    doc = re.sub(r'(www\S+)*(.\S+\.com)', '', doc)
+    # Remove punctuation
+    doc = re.sub('[' + re.escape(string.punctuation) + ']+', ' ', doc)
+    # Remove two letter words
+    doc = ' '.join([word for word in doc.split() if len(word)>2])
+    # Remove numbers and words with number
+    doc = re.sub(r'([a-z]*[0-9]+[a-z]*)', '', doc)
+    # Remove non-ASCII characters 
+    doc = re.sub(r'(\w+[^a-z]\w+)*[^a-z\s]*', '', doc)
+    # Remove excess whitespace
+    doc = re.sub(r'\s+', ' ', doc)
+    # Remove stop words
+    doc = ' '.join([word for word in doc.split() if word not in STOP_WORDS])
+    
+    # Tokenize
+    tokenizer = TweetTokenizer(reduce_len=True)
+    tokens = tokenizer.tokenize(doc)
+    # Lemmatize
+    tokens = [lemmatize(word, tag) for word,tag in pos_tag(tokens)]
+    # Merge together
+    return ' '.join(tokens)
+
+
+########### Web crawler functionality, specific for each website ###########
 ########### Asos specific functionality ###########
 ########### Fetch search results form Asos according to 'order' parameter ###########
 def resultDataframeAsos(keyUrl, order, breakPointNumber=9999999):

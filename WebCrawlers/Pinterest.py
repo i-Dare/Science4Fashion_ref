@@ -46,3 +46,7 @@ if __name__ == '__main__':
         print('Query: ' + str(keyUrl))
         print("Number of crawled images wanted: " + str(breakNumber))
         pins = pinterest.search_pins(query=keyUrl, threshold=breakNumber)
+        # Store results in the database ranked by the relevance of the experts terminology
+        pinterest.rankedSave(pins)
+                
+    print("\nTime to scrape ALL queries is %s seconds ---" % round(time.time() - start_time_all, 2))
