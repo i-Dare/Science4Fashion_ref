@@ -45,7 +45,7 @@ if __name__ == '__main__':
     engine = helper_functions.ENGINE
     dbName = helper_functions.DB_NAME
     
-    modelPath = config.MODELPATH
+    modelPath = config.COLOR_MODELPATH
     #Segmentation Background & Person
     labels = np.asarray(config.CLASSES)
     odapi = segmentation.DeepLabModel(tarball_path=modelPath, labels=labels)

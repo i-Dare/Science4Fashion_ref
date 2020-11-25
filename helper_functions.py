@@ -8,6 +8,9 @@ import sqlalchemy
 import json
 import string
 import numpy as np
+import cv2
+from PIL import Image as PILImage
+from fastai.vision import *
 
 import pandas as pd
 import regex as re
@@ -93,6 +96,16 @@ def hyphen_split(a):
         return "/".join(a.split("/", 3)[:3])
 
 
+def updateAttribute(modeldictionary, image, model):
+    ###Call this function for each image for each model to extract the predicted label###
+    x = pil2tensor(image, np.float32)
+    x = x/255
+    pred_class,pred_idx,outputs = model.predict(Image(x))
+    #Convert label from model to database format
+    label = modeldictionary[int(pred_idx.numpy())]
+    return label
+
+
 ########### Convert digital data to binary format ###########
 def convertToBinaryData(filename):
     '''
@@ -101,6 +114,21 @@ def convertToBinaryData(filename):
     with open(filename, 'rb') as file:
         blobData = file.read()
     return blobData
+
+
+def convertBlobToImage(blob):
+    ###Convert blob to img###
+    x = np.frombuffer(blob, dtype='uint8')
+    # decode the array into an image
+    img = cv2.imdecode(x, cv2.IMREAD_UNCHANGED)
+    return img
+
+
+def convertCVtoPIL(img):
+    ###Convert image fron OpenCV to PIL
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    im_pil = PILImage.fromarray(img)
+    return im_pil    
 
 
 ########### Set image destination path ###########

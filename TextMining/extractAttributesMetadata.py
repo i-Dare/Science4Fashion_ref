@@ -161,7 +161,10 @@ if __name__ == "__main__":
         mergedDF = labelsDF.merge(dfDict[str(attr)+'_DB'], left_on=attr, right_on='Description')[['Oid_x', 'Oid_y']]
         productsDF.loc[productsDF['Oid'].isin(mergedDF['Oid_x'].values), attr] = mergedDF['Oid_y'].values
     # Execute Product update query
-    updateQuery(productsDF, engine)
+    # productsDF.to_sql("temp_table", schema='%s.dbo' % dbName, con=engine, if_exists='replace', index=False)
+    productsDF.to_sql("temp_table", con = engine, if_exists = 'replace', index = False)
+    with engine.begin() as conn:
+        conn.execute(config.UPDATESQLQUERY)
 
     print("--- %s seconds ---" % (time.time() - start_time))
 
