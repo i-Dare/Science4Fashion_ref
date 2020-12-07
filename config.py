@@ -7,8 +7,8 @@ import json
 #
 CWD = os.getcwd()
 PROJECT_HOME = os.environ['PROJECT_HOME']
-# PROJECT_CONFIG = os.path.join(PROJECT_HOME, 'config.json')
-PROJECT_CONFIG = os.path.join(PROJECT_HOME, 'config_test.json')
+PROJECT_CONFIG = os.path.join(PROJECT_HOME, 'config.json')
+#PROJECT_CONFIG = os.path.join(PROJECT_HOME, 'config_test.json')
 # Get project's configuration file
 with open(PROJECT_CONFIG) as f:
     config = json.load(f)
@@ -32,6 +32,9 @@ WEB_CRAWLERS = os.path.join(PROJECT_HOME, 'WebCrawlers')
 # Pinterest fields
 PINTEREST_USERNAME = config['pinterest_username']
 PINTEREST_PASSWORD = config['pinterest_password']
+# Instagram fields
+INSTAGRAM_USERNAME = config['pinterest_username']
+INSTAGRAM_PASSWORD = config['pinterest_password']
 
 #
 ########### TextMining variables ###########
