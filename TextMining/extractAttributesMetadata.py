@@ -8,7 +8,6 @@ from difflib import SequenceMatcher
 import time
 import helper_functions
 import config
-start_time = time.time()
 
 def updateQuery(df, engine):
     ###Create temp table and then update only the rows that belong to temp AND product###
@@ -37,8 +36,11 @@ def editStrings(s):
 
 
 if __name__ == "__main__":
-# DATABASE #
+    # Begin Counting Time
+    start_time = time.time() 
     ### Read Table Products from S4F database ###
+    print('Loading Product table...')
+    #Connect to database with sqlalchemy
     currendDir = helper_functions.TEXT_MINING
     engine = helper_functions.ENGINE
     dbName = helper_functions.DB_NAME
@@ -49,10 +51,10 @@ if __name__ == "__main__":
     labelsDF = pd.DataFrame()
     
     ### Filter the old elements with the new one, Keep only the non-updated elements to improve efficiency, reset index due to slice ###
-    # productsDF = productsDF[productsDF.loc[:, (config.NRGATTRIBUTESID + config.DEEPFASHIONATTRIBUTESID)].isnull().apply(lambda x: all(x), axis=1)]
-    productsDF = productsDF[productsDF.loc[:, config.NRGATTRIBUTESID].isnull().apply(lambda x: all(x), axis=1)]
+    # productsDF = productsDF[productsDF.loc[:, (config.PRODUCT_ATTRIBUTES + config.DEEPFASHIONATTRIBUTESID)].isnull().apply(lambda x: all(x), axis=1)]
+    productsDF = productsDF[productsDF.loc[:, config.PRODUCT_ATTRIBUTES].isnull().apply(lambda x: all(x), axis=1)]
     productsDF = productsDF.reset_index(drop=True)
-    # productsDF = productsDF.drop(config.NRGATTRIBUTESID + config.DEEPFASHIONATTRIBUTESID, axis = 1)
+    # productsDF = productsDF.drop(config.PRODUCT_ATTRIBUTES + config.DEEPFASHIONATTRIBUTESID, axis = 1)
     labelsDF['Oid'] = productsDF['Oid'].copy()
     ### Metadata and Headline consists of information related to each row ###
 
@@ -61,25 +63,25 @@ if __name__ == "__main__":
 
     ### Read possible labels###
 
-    labelsNRG = pd.read_excel(config.NRGATTRIBUTESPATH, sheet_name=config.SHEETNAME)
+    expertAttributesDF = pd.read_excel(config.PRODUCT_ATTRIBUTES_PATH, sheet_name=config.SHEETNAME)
     
     # Create Variables with same name as the Energiers column names, to store the labels. Create new columns at assos with Energiers column names #
     attrDict = {}
-    for attr in config.NRGATTRIBUTES:
-        attrDict[str(attr)] = list(labelsNRG[attr].replace(' ', np.nan).dropna().unique())
+    for attr in config.PRODUCT_ATTRIBUTES:
+        attrDict[str(attr)] = list(expertAttributesDF[attr].replace(' ', np.nan).dropna().unique())
         attrDict[str(attr)] = [la.upper() for la in attrDict[str(attr)]]
         labelsDF[attr] = np.empty((len(productsDF), 0)).tolist()
-
-### Preprocessing ###
-        
+    
+    ### Preprocessing ###
+    print('Preprocessing metadata...')    
     # Convert every label, metadata and headline to uppercase #
     splitted_metadata = [s.split() if isinstance(s,str) else " " for s in metadata]
     splitted_headline = [s.split() if isinstance(s,str) else " " for s in headline]    
     
     ### Search for occurences of labels in metadata and headline. For category length if the next word is not a kind of cat (Trousers etc) then it is propably wrong so we get rid of it. ###
     cat = 'ProductCategory'
-    # for attr in (config.NRGATTRIBUTES + config.DEEPFASHIONATTRIBUTES):
-    for attr in config.NRGATTRIBUTES:
+    # for attr in (config.PRODUCT_ATTRIBUTES + config.DEEPFASHIONATTRIBUTES):
+    for attr in config.PRODUCT_ATTRIBUTES:
         saved_meta = [(index, label, s.find(label), 1) for label in (attrDict[str(attr)]) for index,s in enumerate(metadata) if contains_word(s, label)]
         saved_head = [(index, label, s.find(label), 0) for label in (attrDict[str(attr)]) for index,s in enumerate(headline) if contains_word(s, label)]
         for s in (saved_meta + saved_head):
@@ -95,9 +97,8 @@ if __name__ == "__main__":
                     labelsDF.loc[s[0], attr].remove((s[1], s[2], s[3]))
     
     ### Find similar words, for example -> rounded and round and one of them is discarded ###
-
-    # for attr in (config.NRGATTRIBUTES + config.DEEPFASHIONATTRIBUTES):
-    for attr in config.NRGATTRIBUTES:
+    # for attr in (config.PRODUCT_ATTRIBUTES + config.DEEPFASHIONATTRIBUTES):
+    for attr in config.PRODUCT_ATTRIBUTES:
         # Τhe next line sorts the elements of the respective columns based on position and on metadata or headline (headline first and then position on each string)
         labelsDF.loc[:, attr] = pd.Series([sorted(list(ele), key = lambda tup: (tup[2], tup[1])) for ele in labelsDF.loc[:, attr]])
         labelsDF.loc[:, attr] = pd.Series([list(map(lambda x: x[0], ele)) for ele in labelsDF.loc[:, attr]])
@@ -116,18 +117,17 @@ if __name__ == "__main__":
                 labelsDF.loc[key, attr].remove(x)
                 labelsDF.loc[key, attr].reverse()
 
-    ## Kane to sort se ola -> applymap
     ### Check if list is empty and in this case make it None ###
-    # for attr in (config.NRGATTRIBUTES + config.DEEPFASHIONATTRIBUTES):
-    for attr in config.NRGATTRIBUTES:
+    # for attr in (config.PRODUCT_ATTRIBUTES + config.DEEPFASHIONATTRIBUTES):
+    for attr in config.PRODUCT_ATTRIBUTES:
         labelsDF.loc[:, attr] = labelsDF[attr].apply(lambda x: ','.join(x) if x else None)
     #Extract unique labels from metadata and headline
-    labelsUnique = {attr:set([l for label in labelsDF[attr].unique() if label for l in label.split(',')]) for attr in labelsDF.loc[:, config.NRGATTRIBUTES].columns}
+    labelsUnique = {attr:set([l for label in labelsDF[attr].unique() if label for l in label.split(',')]) for attr in labelsDF.loc[:, config.PRODUCT_ATTRIBUTES].columns}
 
     # Read from database the labels 
-    # for name in (config.NRGATTRIBUTES + config.DEEPFASHIONATTRIBUTES):
+    # for name in (config.PRODUCT_ATTRIBUTES + config.DEEPFASHIONATTRIBUTES):
     dfDict = {}
-    for attr in config.NRGATTRIBUTES:
+    for attr in config.PRODUCT_ATTRIBUTES:
         # dfDict[str(attr)+'_DB'] = pd.read_sql_query("SELECT * FROM %s.dbo.%s" % (dbName, attr), engine)
         dfDict[str(attr)+'_DB'] = pd.read_sql_query(' SELECT * FROM public.\"%s\"' % str(attr), engine)
 
@@ -146,15 +146,16 @@ if __name__ == "__main__":
                     # submitdf.to_sql(label, schema='%s.dbo' % dbName, con=engine, if_exists='append', index=False)
                     submitdf.to_sql(label, con=engine, if_exists='append', index=False)
         
+    print('Update product attributes')  
     ## Update Product table with the foreign key values of the updated attributes
     # re-load from database the updated attribute tables and create a dataframe for each 
     dfDict = {}
-    for attr in config.NRGATTRIBUTES:
+    for attr in config.PRODUCT_ATTRIBUTES:
         # dfDict[str(attr)+'_DB'] = pd.read_sql_query(''' SELECT * FROM %s.dbo.%s''' % (dbName, str(attr)), engine)
         dfDict[str(attr)+'_DB'] = pd.read_sql_query(''' SELECT * FROM public.\"%s\"''' % str(attr), engine)
 
     # Update Products table for each attribute
-    for attr in config.NRGATTRIBUTES:
+    for attr in config.PRODUCT_ATTRIBUTES:
         # If there are multiple attributes, select the first
         labelsDF.loc[labelsDF[attr].notnull(), attr] = labelsDF[labelsDF[attr].notnull()][attr].apply(lambda x: x.split(',')[0] if x else None)
         # Merge the updated attribute values to Product table
