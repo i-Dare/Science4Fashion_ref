@@ -22,3 +22,8 @@ ImageAnnotation/keywords.txt
 config_test.json
 .idea/Science4Fashion_ref.iml
 .idea/misc.xml
+ImageAnnotation/Prediction/models/sleeve.pkl
+ImageAnnotation/Prediction/models/neckline.pkl
+ImageAnnotation/Prediction/models/length.pkl
+ImageAnnotation/Prediction/models/fit.pkl
+ImageAnnotation/Prediction/models/collar.pkl
