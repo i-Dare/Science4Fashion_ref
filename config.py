@@ -30,6 +30,8 @@ UPDATESQLQUERY = """
     WHERE public."Product"."Oid" = public."temp_table"."Oid";
     DROP TABLE public."temp_table";
 """
+
+
 #
 ########### Modules paths ###########
 #
@@ -39,6 +41,7 @@ CLUSTERING = os.path.join(PROJECT_HOME, 'Clustering')
 IMAGE_ANNOTATION = os.path.join(PROJECT_HOME, 'ImageAnnotation')
 RECOMMENDER = os.path.join(PROJECT_HOME, 'Recommender')
 WEB_CRAWLERS = os.path.join(PROJECT_HOME, 'WebCrawlers')
+
 
 #
 ########### WebCrawler variables ###########
@@ -50,17 +53,16 @@ PINTEREST_PASSWORD = config['pinterest_password']
 INSTAGRAM_USERNAME = config['pinterest_username']
 INSTAGRAM_PASSWORD = config['pinterest_password']
 
+
 #
 ########### TextMining variables ###########
 #
-NRGATTRIBUTESPATH = TEXT_MINING +'\\data_exploration1.xlsx'
-ORIGINALNRGATTRIBUTESPATH = TEXT_MINING + '\\data_exploration2.xlsx'
+PRODUCT_ATTRIBUTES_PATH = TEXT_MINING +'\\data_exploration1.xlsx'
+# ORIGINALNRGATTRIBUTESPATH = TEXT_MINING + '\\data_exploration2.xlsx'
 SHEETNAME = 'data_exploration2'
 # DEEPFASHIONPATH = TEXT_MINING + '\\list_attr_cloth.txt'
-NRGATTRIBUTES = ['ProductCategory', 'ProductSubcategory', 'Length', 'Sleeve', 'CollarDesign', 'NeckDesign', 'Fit']
-# DEEPFASHIONATTRIBUTES = ['Texture','Fabric','Shape','Part','Style']
-NRGATTRIBUTESID = ['ProductCategory', 'ProductSubcategory', 'Length', 'Sleeve', 'CollarDesign', 'NeckDesign', 'Fit']
-# DEEPFASHIONATTRIBUTESID = ['Texture','Fabric','Shape','Part','Style']
+PRODUCT_ATTRIBUTES = ['ProductCategory', 'ProductSubcategory', 'Length', 'Sleeve', 'CollarDesign', 'NeckDesign', 'Fit']
+
 
 #
 ########### ImageAnnotation variables ###########
@@ -72,13 +74,13 @@ CLASSES = [
             'car', 'cat', 'chair', 'cow', 'diningtable', 'dog', 'horse', 'motorbike',
             'person', 'pottedplant', 'sheep', 'sofa', 'train', 'tv' 
         ]
+#        
 # Attribute prediction variables
 ATTRIBUTE_COLUMNS = ['Length', 'Sleeve', 'CollarDesign', 'NeckDesign', 'Fit']
 #Device to test
 DEVICE = 'cpu'
 #MODEL PATHS
 ATTRIBUTE_MODELPATH = os.path.join(IMAGE_ANNOTATION, 'Prediction', 'models')
-
 # Dictionaries to map the predicted label to the possible labels and the respective models
 # -1 is the Strapless we don't know how to handle it yet
 #Neckline
@@ -96,3 +98,62 @@ MODELCOLLAR = "collar.pkl"
 #Fit
 DICTFIT = {0:2, 1:1, 2:3, 3:4}
 MODELFIT = "fit.pkl"
+
+
+#
+########### Clustering variables ###########
+#
+# KModes clustering variables
+# Number of clusters
+CLUSTERING_PRODUCT_ATTRIBUTES = ['RetailPrice', 'Gender'] + PRODUCT_ATTRIBUTES
+N_CLUSTERS = 6
+INITKMODES = 'Cao'
+# UPDATE_CLUSTERS_QUERY = """
+#     UPDATE Cluster
+#     SET Cluster.Cluster = temp_table.Cluster, Cluster.ProductCategory = temp_table.ProductCategory, Cluster.ProductSubcategory = temp_table.ProductSubcategory, Cluster.Gender = temp_table.Gender,
+#         Cluster.LifeStage = temp_table.LifeStage, Cluster.Length = temp_table.Length, Cluster.Sleeve = temp_table.Sleeve, Cluster.CollarDesign = temp_table.CollarDesign, Cluster.NeckDesign = temp_table.NeckDesign, Cluster.Fit = temp_table.Fit
+#     FROM Cluster
+#     WHERE Cluster.Cluster = temp_table.Cluster
+# """
+# K-Modes clustering
+UPDATE_CLUSTERS_QUERY = """
+    UPDATE "Cluster" 
+    SET "Oid" = "temp_table"."Cluster", "ProductCategory" = "temp_table"."ProductCategory", "ProductSubcategory" = "temp_table"."ProductSubcategory", "Gender" = "temp_table"."Gender",
+        "LifeStage" = "temp_table"."LifeStage", "Length" = "temp_table"."Length", "Sleeve" = "temp_table"."Sleeve", "CollarDesign" = "temp_table"."CollarDesign", "NeckDesign" = "temp_table"."NeckDesign", "Fit" = "temp_table"."Fit"
+    FROM temp_table 
+    WHERE public."Cluster"."Oid" = "temp_table"."Cluster"
+"""
+
+# UPDATE_PRODUCT_CLUSTERS_QUERY = """
+#     UPDATE Product
+#     SET Product.Cluster = temp_table.Cluster
+#     FROM temp_table
+#     WHERE Product.Oid = temp_table.Oid;
+#     DROP TABLE temp_table;
+# """
+UPDATE_PRODUCT_CLUSTERS_QUERY = """
+    UPDATE "Product"
+    SET "Cluster" = "temp_table"."Cluster"
+    FROM "temp_table"
+    WHERE "Product"."Oid" = "temp_table"."Oid";
+    DROP TABLE public."temp_table";
+"""
+
+# Consensus Clustering variables
+FAMD_COMPONENTS = config['clustering']['famd_components']
+LINKAGE = config['clustering']['linkage']
+DISTANCE_THRESHOLD = config['clustering']['distance_threshold']
+# UPDATE_PRODUCT_CONSENSUS_CLUSTERS_QUERY = """
+#     UPDATE Product
+#     SET Product.ConsensusCluster = temp_table.ConsensusCluster
+#     FROM temp_table
+#     WHERE Product.Oid = temp_table.Oid;
+#     DROP TABLE temp_table;
+# """
+UPDATE_PRODUCT_CONSENSUS_CLUSTERS_QUERY = """
+    UPDATE "Product"
+    SET "ConsensusCluster" = "temp_table"."ConsensusCluster"
+    FROM "temp_table"
+    WHERE "Product"."Oid" = "temp_table"."Oid";
+    DROP TABLE public."temp_table";
+"""
