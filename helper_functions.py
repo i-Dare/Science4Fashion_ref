@@ -153,18 +153,18 @@ def addNewBrand(brand, isActive):
     '''
     Adds new brand info to the Brand table if it does not exist. 
     '''
-    # branddf = pd.read_sql_query("SELECT * FROM %s.dbo.Brand" % DB_NAME, ENGINE)
-    branddf = pd.read_sql_query("SELECT * FROM public.\"Brand\"", ENGINE)
+    branddf = pd.read_sql_query("SELECT * FROM %s.dbo.Brand" % DB_NAME, ENGINE)
+    # branddf = pd.read_sql_query("SELECT * FROM public.\"Brand\"", ENGINE)
     if brand:
         brand = brand.replace("'", "''")
         if branddf.loc[branddf['Description']==brand].empty:
             print('Adding new brand')
             querydf = pd.DataFrame([{'Description': brand, 'AlternativeDescription': None, 
                                     'Active': isActive, 'Ordering': 0, 'OptimisticLockField': None}])   
-            # querydf.to_sql("Brand", schema='%s.dbo' % DB_NAME, con=ENGINE, if_exists='append', index=False)                                       
-            querydf.to_sql("Brand", con=ENGINE, if_exists='append', index=False)                                       
-            # querydf = pd.read_sql_query("SELECT * FROM %s.dbo.Brand" % DB_NAME, ENGINE)        
-            querydf = pd.read_sql_query("SELECT * FROM public.\"Brand\"", ENGINE)
+            querydf.to_sql("Brand", schema='%s.dbo' % DB_NAME, con=ENGINE, if_exists='append', index=False)
+            # querydf.to_sql("Brand", con=ENGINE, if_exists='append', index=False)
+            querydf = pd.read_sql_query("SELECT * FROM %s.dbo.Brand" % DB_NAME, ENGINE)
+            #querydf = pd.read_sql_query("SELECT * FROM public.\"Brand\"", ENGINE)
             querydf = querydf[(querydf['UpdatedOn']==querydf['UpdatedOn'].max()) & (querydf['Description']==brand)]
             return querydf['Oid'].values[0]
         else:
@@ -193,8 +193,8 @@ def addNewProduct(site, keywords, imageFilePath, empPhoto, url, imgsrc, head, co
                               'InspirationBackground': None, 'Gender': genderid, 'BusinessUnit': None, 
                               'Season': None, 'Cluster': None, 'FinancialCluster': None, 'SumOfPercentage': None,
                               'OptimisticLockField': None}])
-    # submitdf.to_sql("Product", schema='%s.dbo' % DB_NAME, con=ENGINE, if_exists='append', index=False)
-    submitdf.to_sql('Product', con=ENGINE, if_exists='append', index=False)
+    submitdf.to_sql("Product", schema='%s.dbo' % DB_NAME, con=ENGINE, if_exists='append', index=False)
+    # submitdf.to_sql('Product', con=ENGINE, if_exists='append', index=False)
                     
 
 
@@ -205,16 +205,16 @@ def addNewProductHistory(url, referenceOrder, trendOrder, price):
     '''
     print('Adding new product history')    
     url = url.replace("'", "''")
-    # querydf = pd.read_sql_query(
-    #     "SELECT * FROM %s.dbo.Product WHERE %s.dbo.Product.url = '%s'" % (DB_NAME, DB_NAME, url), ENGINE)
     querydf = pd.read_sql_query(
-        "SELECT * FROM public.\"Product\" WHERE public.\"Product\".\"URL\" = '{}'".format(url.replace("%", "%%")), ENGINE)
+         "SELECT * FROM %s.dbo.Product WHERE %s.dbo.Product.url = '%s'" % (DB_NAME, DB_NAME, url), ENGINE)
+    # querydf = pd.read_sql_query(
+    #    "SELECT * FROM public.\"Product\" WHERE public.\"Product\".\"URL\" = '{}'".format(url.replace("%", "%%")), ENGINE)
     if not querydf.empty:
         prdno = querydf['Oid'].values[0]
         submitdf = pd.DataFrame(
             [{'Product': prdno, 'ReferenceOrder': referenceOrder, 'TrendingOrder': trendOrder, 'Price': price, 'OptimisticLockField': None}])
-        # submitdf.to_sql("ProductHistory", schema='%s.dbo' % DB_NAME, con=ENGINE, if_exists='append', index=False)
-        submitdf.to_sql("ProductHistory", con=ENGINE, if_exists='append', index=False)
+        submitdf.to_sql("ProductHistory", schema='%s.dbo' % DB_NAME, con=ENGINE, if_exists='append', index=False)
+        # submitdf.to_sql("ProductHistory", con=ENGINE, if_exists='append', index=False)
     else:
         print('WARNING: Product history for product at %s was not added...' % url)
 
@@ -226,8 +226,8 @@ def updateProductHistory(prdno, referenceOrder, trendOrder, price, url):
     Updates product's latest entry in ProductHistory table
     '''    
     # Get info from most recent product record from ProductHistory table
-    # updatedf = pd.read_sql_query("SELECT * FROM %s.dbo.ProductHistory" % DB_NAME, ENGINE)
-    updatedf = pd.read_sql_query("SELECT * FROM public.\"ProductHistory\"", ENGINE)
+    updatedf = pd.read_sql_query("SELECT * FROM %s.dbo.ProductHistory" % DB_NAME, ENGINE)
+    # updatedf = pd.read_sql_query("SELECT * FROM public.\"ProductHistory\"", ENGINE)
     if updatedf.loc[(updatedf['SearchDate']== updatedf['SearchDate'].max()) & (updatedf['Product']== prdno)].empty:
         # Create new entry in ProductHistory table
         print('Product %s history not found' % prdno)
@@ -236,8 +236,8 @@ def updateProductHistory(prdno, referenceOrder, trendOrder, price, url):
         print('Product already exists, updating history')
         updatedf.loc[(updatedf['SearchDate']== updatedf['SearchDate'].max()) & (updatedf['Product']== prdno), 
                     ['ReferenceOrder', 'TrendingOrder', 'Price']] = [referenceOrder, trendOrder, price]
-        # updatedf.to_sql("ProductHistory", schema='%s.dbo' % DB_NAME, con=ENGINE, if_exists='replace', index=False)
-        updatedf.to_sql("ProductHistory", con=ENGINE, if_exists='replace', index=False)
+        updatedf.to_sql("ProductHistory", schema='%s.dbo' % DB_NAME, con=ENGINE, if_exists='replace', index=False)
+        # updatedf.to_sql("ProductHistory", con=ENGINE, if_exists='replace', index=False)
 
 
 ########### Natural Language Processing Functionality ###########
