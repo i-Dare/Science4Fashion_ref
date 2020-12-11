@@ -8,6 +8,7 @@ import sqlalchemy
 import webcolors
 import matplotlib.colors as mc
 from matplotlib import pyplot as plt
+import time
 
 import helper_functions
 import config
@@ -15,6 +16,7 @@ import config
 from cloth import Cloth
 import imageUtils
 import segmentation
+
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 CSS4LIST = mc.CSS4_COLORS
 
@@ -41,6 +43,10 @@ def get_colour_name(rgb_triplet):
 
 
 if __name__ == '__main__':
+    # Begin Counting Time
+    start_time = time.time() 
+    ### Read Table Products from S4F database ###
+    print('Loading Product table...')    
     #Connect to database with sqlalchemy
     engine = helper_functions.ENGINE
     dbName = helper_functions.DB_NAME
@@ -65,7 +71,7 @@ if __name__ == '__main__':
 
     #Create CSV to save the colors
     #Colors dataframe
-    for rows in range(len(productDF))[:100]:
+    for _, row in productDF.iterrows():
         #Read Color and ColorRGB from database
 #         colorQuery = '''SELECT * FROM %s.dbo.ProductColor''' % dbName
         colorQuery = '''SELECT * FROM public."ProductColor"''' 
@@ -74,14 +80,14 @@ if __name__ == '__main__':
         colorRGBQuery = '''SELECT * FROM public."ColorRGB"'''
         colorRGBDF = pd.read_sql_query(colorRGBQuery, engine)
         # Image path
-        imgPath = str(productDF.loc[rows,'Photo'])
+        imgPath = row['Photo']
         if os.path.exists(imgPath):
             print('Processing image: %s' % imgPath)
             # Open image for unicode file paths
             imgStream = open(imgPath, "rb")
             imgArray = np.asarray(bytearray(imgStream.read()), dtype=np.uint8)
             image = cv2.imdecode(imgArray, cv2.IMREAD_UNCHANGED)
-                        
+
             # Initialize Cloth seperation module
             cloth = Cloth(imgPath, imgBGR=image)
 
@@ -104,35 +110,39 @@ if __name__ == '__main__':
                 cloth.colors = [(0., color_fail)] * 5
 
             # Save color information to database by updating ProductColor, ColorRGB and Product tables
-            # DataFrame for Color table ("ProductNo","ColorID","Percentage","Ranking")
+            # DataFrame for ProductColor table ('Product','ColorRGP','Percentage','Ranking')
             colorCols = ['Product','ColorRGP','Percentage','Ranking']
             newEntryColorDF = pd.DataFrame(columns=colorCols)
-            colorRGBCols = ['Red','Green','Blue','Label','LabelDetailed']
-            newEntryColorRGBDF = pd.DataFrame(columns=colorRGBCols)
 
             for ranking in range(5):
                 color = cloth.colors[ranking][1].tolist()
                 colorPercentage = cloth.colors[ranking][0]
                 # Search if the color already exists in the ColorRGB table
-                position = [index+1 if list(row) == color else None for index, row in colorRGBDF[['Red','Green','Blue']].iterrows()]
-                res = [pos for pos in position if pos]
-                if not res: # Check if empty list so there is no match
+                colorList = colorRGBDF[['Red','Green','Blue']].values.tolist()
+                
+                if color not in colorList: # Check if empty list so there is no match
                     colorName = get_colour_name(color)
                     colorNameDetails = get_colour_nameDetailed(color) 
                     colorRow = color + [colorName] + [colorNameDetails]
-                    colorSeries = pd.Series({column:value for column,value in zip(newEntryColorRGBDF.columns, colorRow)})
-                    
-                    colID = colorRGBDF.shape[0] + 1
+                    colorRGBCols = ['Red','Green','Blue','Label','LabelDetailed']
+                    colorSeries = pd.Series({column:value for column,value in zip(colorRGBCols, colorRow)})
                     colorRGBDF = colorRGBDF.append(colorSeries, ignore_index=True)
+                    # DataFrame for ColorRGB table ('Red','Green','Blue','Label','LabelDetailed')                    
+                    newEntryColorRGBDF = pd.DataFrame(columns=colorRGBCols)
                     newEntryColorRGBDF = newEntryColorRGBDF.append(colorSeries, ignore_index=True)
+                    # newEntryColorRGBDF.to_sql('ColorRGB', schema='dbo', con = engine, if_exists = 'append', index = False)
+                    newEntryColorRGBDF.to_sql('ColorRGB', con = engine, if_exists = 'append', index = False)
                     print('Adding color \"%s\" - \"%s\" %s in ColorRGB table' % (colorName, colorNameDetails, str(color)))
+                    colorRGBDF = pd.read_sql_query(colorRGBQuery, engine)
+                    colID = colorRGBDF['Oid'].values[-1]
                 else: # not empty so there is a match
-                    colID = colorRGBDF.loc[res.pop() - 1, 'Oid']
+                    colID = colorRGBDF.loc[colorList.index(color), 'Oid']
 
-                newEntryColorDF.loc[ranking] = [productDF.loc[rows,'Oid'][0]] + [colID] + [colorPercentage] + [ranking + 1]
-            
-#             newEntryColorRGBDF.to_sql('ColorRGB', schema='dbo', con = engine, if_exists = 'append', index = False)
-            newEntryColorRGBDF.to_sql('ColorRGB', con = engine, if_exists = 'append', index = False)
+                newEntryColorDF.loc[ranking] = [row['Oid'][0]] + [colID] + [colorPercentage] + [ranking + 1]
+
 #             newEntryColorDF.to_sql('ProductColor', schema='dbo', con = engine, if_exists = 'append', index = False)
             newEntryColorDF.to_sql('ProductColor', con = engine, if_exists = 'append', index = False)
-
+        else:
+            print('Cannot find image with ID %s at path %s' % (row['Oid'], imgPath))
+    # End Counting Time
+    print("--- %s seconds ---" % (time.time() - start_time))

@@ -19,8 +19,13 @@ class Cloth:
     def __init__(self, path = None, human = 0, imgBGR = None, segBackgroundMask = None, catsSegment = 0, skinMask = None, clothMask = None, clothImg = None, colors = None):
         self.path = path
         self.human = human
-        self.imgBGR = imgBGR
-        self.imgRGB = cv2.cvtColor(self.imgBGR, cv2.COLOR_BGR2RGB)
+        # Check if image is in grayscale and convert to BGR
+        if len(imgBGR.shape) < 3:
+            self.imgBGR = cv2.cvtColor(imgBGR, cv2.COLOR_GRAY2BGR)
+        else:
+            self.imgBGR = imgBGR
+        
+        self.imgRGB = cv2.cvtColor(self.imgBGR, cv2.COLOR_BGR2RGB)            
         self.segBackgroundMask = segBackgroundMask
         self.catsSegment = catsSegment
         self.skinMask = skinMask
