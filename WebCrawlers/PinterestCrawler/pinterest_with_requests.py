@@ -64,8 +64,8 @@ class PinterestScraper:
         fashion_att = fashion_att_file.read().split(',')
         fashion_att_file.close()
         # Image annotation labels
-        fashionLabels = pd.read_excel(config.NRGATTRIBUTESPATH, sheet_name=config.SHEETNAME)
-        attributList = np.hstack([fashionLabels[attr].replace(' ', np.nan).dropna().unique() for attr in config.NRGATTRIBUTES]).tolist()
+        fashionLabels = pd.read_excel(config.PRODUCT_ATTRIBUTES_PATH, sheet_name=config.SHEETNAME)
+        attributList = np.hstack([fashionLabels[attr].replace(' ', np.nan).dropna().unique() for attr in config.PRODUCT_ATTRIBUTES]).tolist()
         fashion_att = helper_functions.preprocess_words(fashion_att + attributList)
         self.fashion_att = fashion_att
 

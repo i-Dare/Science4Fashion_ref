@@ -27,7 +27,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 import warnings
-warnings.simplefilter(action='ignore', category=FutureWarning)
+warnings.filterwarnings('ignore')
 
 # Database variables
 DB_CONNECTION = config.DB_CONNECTION
@@ -82,6 +82,7 @@ def get_content(url, suffix=''):
 
 ########### This function returns the folder name removing the number of images range from they line of keywords file ###########
 def getFolderName(wholeName):
+    wholeName = re.sub(r'[0-9]', '', wholeName).strip()
     argList = wholeName.split(' ')
     if len(argList)==1:
         return  argList[0]
@@ -100,7 +101,7 @@ def updateAttribute(modeldictionary, image, model):
     ###Call this function for each image for each model to extract the predicted label###
     x = pil2tensor(image, np.float32)
     x = x/255
-    pred_class,pred_idx,outputs = model.predict(Image(x))
+    _, pred_idx, _ = model.predict(Image(x))
     #Convert label from model to database format
     label = modeldictionary[int(pred_idx.numpy())]
     return label
@@ -203,7 +204,7 @@ def addNewBrand(brand, isActive):
     
 
 ########### Add new product to the Product table ###########
-def addNewProduct(site, keywords, imageFilePath, empPhoto, url, imgsrc, head, color, genderid, brand, meta, sku, isActive):
+def addNewProduct(site, keywords, imageFilePath, empPhoto, url, imgsrc, head, color, genderid, brand, meta, sku, isActive, price=None):
     '''
     Adds new product info to the Product table. 
     '''
@@ -213,7 +214,7 @@ def addNewProduct(site, keywords, imageFilePath, empPhoto, url, imgsrc, head, co
     submitdf = pd.DataFrame([{'Description': keywords, 'AlternativeDescription': None, 'Active': isActive, 
                               'Ordering': 0, 'ProductCode': sku, 'ProductTitle': head, 'Composition': None, 
                               'ForeignComposition': None, 'SiteHeadline': head, 'ColorsDescription': color, 'Metadata': meta, 
-                              'SamplePrice': None, 'ProductionPrice': None, 'WholesalePrice': None, 'RetailPrice': None, 
+                              'SamplePrice': None, 'ProductionPrice': None, 'WholesalePrice': None, 'RetailPrice': price, 
                               'Image': empPhoto, 'Photo': imageFilePath, 'Sketch': None, 'URL': url, 'ImageSource': imgsrc,
                               'Brand': brandID, 'Fit': None, 'CollarDesign': None, 'SampleManufacturer': None, 
                               'ProductionManufacturer': None, 'Length': None, 'NeckDesign': None, 'ProductCategory': None, 
@@ -629,10 +630,7 @@ def parseSOliverFields(soup, url, imgURL):
 
     # price
     try:
-        price = jsonInfo['priceData']['listPrice']['value']
-        sales_price = jsonInfo['priceData']['salePrice']['value']
-        isSale = jsonInfo['priceData']['isSale']
-        price = sales_price if isSale else price
+        price = jsonInfo['priceData']['salePrice']['value']
     except:
         price = None
         print("Price not captured at %s" % url)
@@ -833,7 +831,7 @@ def parseZalandoFields(soup, url, imgURL):
     try:
         # parse metadata
         parseInfo = soup.find(text=re.compile(r'heading_details'))
-        jsonInfo = parseInfo[parse_info.find('{'):len(parseInfo)-parseInfo[::-1].find('}')]
+        jsonInfo = parseInfo[parseInfo.find('{'):len(parseInfo)-parseInfo[::-1].find('}')]
         attr_list = []
         for field in json.loads(jsonInfo)['model']['productDetailsCluster']:
             for data in field['data']:
