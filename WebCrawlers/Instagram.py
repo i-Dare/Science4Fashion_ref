@@ -69,7 +69,7 @@ def r(insta):
     instaDF['query'] = instaDF['query'].apply(lambda row: ' '.join(helper_functions.preprocess_words(row.split())))
 
     ## Calculate a factor for tokens that appear in metatdata
-    keywords = instaDF[0]['query']
+    keywords = instaDF.iloc[0]['query']
     instaDF['factor'] = instaDF['processed_metadata'].apply(
         lambda row: len(set([word for word in row if word in keywords])) / len(keywords))
 
@@ -116,7 +116,7 @@ def r(insta):
                                        None,
                                        meta,
                                        None,
-                                       None)
+                                       True)
 
 
 
@@ -132,7 +132,6 @@ if __name__ == '__main__':
     ########################################### Use readlines to read all lines in the file ###########################################
     lines = file.readlines()  # The variable "lines" is a list containing all lines in the file
     file.close()  # Close the file after reading the lines.
-
 
     ########################################### SCRAPE IMAGES FOR EVERY ENTRY IN KEYWORDS ###########################################
     print(len(lines))
@@ -179,14 +178,14 @@ if __name__ == '__main__':
                 post_date = post.date
                 insta.append(({'query': hashtagtext,
                                'timestamp': post_date,
-                               'url': post_url,
+                               'URL': post_url,
                                'imgURL': imgsource,
                                'imageFilePath':imageFilePath,
                                'title': None,
                                'description': post_info}))
-            if count > threshold:
+            if count >= threshold:
                 break
-        r(insta)
+    r(insta)
 
 
 
