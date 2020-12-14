@@ -23,8 +23,8 @@ def performScraping(urlReceived, keywords, breakPointNumber):
     ## Check no results page
     # Get search results page
     soup = helper_functions.get_content(urlReceived)
-    noResultsMessage = soup.find('h1', {'class': re.compile(r'ov__titlename')}).text.strip()
-    if noResultsMessage.startswith('Unfortunately, your search for'):
+    noResultsMessage = soup.find('h1', {'class': re.compile(r'ov__titlename')})
+    if noResultsMessage:
         print('Unfortunately, your search for produced no results.')
         return 0
     ## Get reference and trend order. Handle the case where the user enters the exact product 
@@ -82,8 +82,7 @@ def performScraping(urlReceived, keywords, breakPointNumber):
             print('Image number %s: %s' % (trendOrder, imageFilePath.split(os.sep)[-1]))
 
             # Create new entry in PRODUCT table
-            helper_functions.addNewProduct(
-                site, folderName, imageFilePath, empPhoto, url, imgURL, head, color, genderid, brand, meta, sku, isActive)
+            helper_functions.addNewProduct(site, folderName, imageFilePath, empPhoto, url, imgURL, head, color, genderid, brand, meta, sku, isActive, price)
 
             # Create new entry in ProductHistory table
             helper_functions.addNewProductHistory(url, referenceOrder, trendOrder, price)

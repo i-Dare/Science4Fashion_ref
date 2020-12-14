@@ -83,8 +83,7 @@ def performScraping(urlReceived, keywords, breakPointNumber):
             soup = helper_functions.get_content(url)
             head, brand, color, genderid, meta, sku, isActive = helper_functions.parseAsosFields(soup, url)
             # Create new entry in PRODUCT table
-            helper_functions.addNewProduct(
-                site, folderName, imageFilePath, empPhoto, url, imgURL, head, color, genderid, brand, meta, sku, isActive)
+            helper_functions.addNewProduct(site, folderName, imageFilePath, empPhoto, url, imgURL, head, color, genderid, brand, meta, sku, isActive, price)
 
             # Create new entry in ProductHistory table
             helper_functions.addNewProductHistory(url, referenceOrder, trendOrder, price)

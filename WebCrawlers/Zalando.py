@@ -72,7 +72,7 @@ def performScraping(urlReceived, keywords, breakPointNumber):
             print('Image number %s: %s' % (trendOrder, imageFilePath.split(os.sep)[-1]))
 
             # Create new entry in PRODUCT table
-            helper_functions.addNewProduct(site, folderName, imageFilePath, empPhoto, url, imgURL, head, color, genderid, brand, meta, sku, isActive)
+            helper_functions.addNewProduct(site, folderName, imageFilePath, empPhoto, url, imgURL, head, color, genderid, brand, meta, sku, isActive, price)
 
             # Create new entry in ProductHistory table
             helper_functions.addNewProductHistory(url, referenceOrder, trendOrder, price)

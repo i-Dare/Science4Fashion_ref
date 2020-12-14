@@ -8,6 +8,9 @@ import sqlalchemy
 import json
 import string
 import numpy as np
+import cv2
+from PIL import Image as PILImage
+from fastai.vision import *
 
 import pandas as pd
 import regex as re
@@ -24,7 +27,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 import warnings
-warnings.simplefilter(action='ignore', category=FutureWarning)
+warnings.filterwarnings('ignore')
 
 # Database variables
 DB_CONNECTION = config.DB_CONNECTION
@@ -79,6 +82,7 @@ def get_content(url, suffix=''):
 
 ########### This function returns the folder name removing the number of images range from they line of keywords file ###########
 def getFolderName(wholeName):
+    wholeName = re.sub(r'[0-9]', '', wholeName).strip()
     argList = wholeName.split(' ')
     if len(argList)==1:
         return  argList[0]
@@ -93,6 +97,16 @@ def hyphen_split(a):
         return "/".join(a.split("/", 3)[:3])
 
 
+def updateAttribute(modeldictionary, image, model):
+    ###Call this function for each image for each model to extract the predicted label###
+    x = pil2tensor(image, np.float32)
+    x = x/255
+    _, pred_idx, _ = model.predict(Image(x))
+    #Convert label from model to database format
+    label = modeldictionary[int(pred_idx.numpy())]
+    return label
+
+
 ########### Convert digital data to binary format ###########
 def convertToBinaryData(filename):
     '''
@@ -101,6 +115,21 @@ def convertToBinaryData(filename):
     with open(filename, 'rb') as file:
         blobData = file.read()
     return blobData
+
+
+def convertBlobToImage(blob):
+    ###Convert blob to img###
+    x = np.frombuffer(blob, dtype='uint8')
+    # decode the array into an image
+    img = cv2.imdecode(x, cv2.IMREAD_UNCHANGED)
+    return img
+
+
+def convertCVtoPIL(img):
+    ###Convert image fron OpenCV to PIL
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    im_pil = PILImage.fromarray(img)
+    return im_pil    
 
 
 ########### Set image destination path ###########
@@ -175,7 +204,7 @@ def addNewBrand(brand, isActive):
     
 
 ########### Add new product to the Product table ###########
-def addNewProduct(site, keywords, imageFilePath, empPhoto, url, imgsrc, head, color, genderid, brand, meta, sku, isActive):
+def addNewProduct(site, keywords, imageFilePath, empPhoto, url, imgsrc, head, color, genderid, brand, meta, sku, isActive, price=None):
     '''
     Adds new product info to the Product table. 
     '''
@@ -185,7 +214,7 @@ def addNewProduct(site, keywords, imageFilePath, empPhoto, url, imgsrc, head, co
     submitdf = pd.DataFrame([{'Description': keywords, 'AlternativeDescription': None, 'Active': isActive, 
                               'Ordering': 0, 'ProductCode': sku, 'ProductTitle': head, 'Composition': None, 
                               'ForeignComposition': None, 'SiteHeadline': head, 'ColorsDescription': color, 'Metadata': meta, 
-                              'SamplePrice': None, 'ProductionPrice': None, 'WholesalePrice': None, 'RetailPrice': None, 
+                              'SamplePrice': None, 'ProductionPrice': None, 'WholesalePrice': None, 'RetailPrice': price, 
                               'Image': empPhoto, 'Photo': imageFilePath, 'Sketch': None, 'URL': url, 'ImageSource': imgsrc,
                               'Brand': brandID, 'Fit': None, 'CollarDesign': None, 'SampleManufacturer': None,
                               'ProductionManufacturer': None, 'Length': None, 'NeckDesign': None, 'ProductCategory': None, 
@@ -601,10 +630,7 @@ def parseSOliverFields(soup, url, imgURL):
 
     # price
     try:
-        price = jsonInfo['priceData']['listPrice']['value']
-        sales_price = jsonInfo['priceData']['salePrice']['value']
-        isSale = jsonInfo['priceData']['isSale']
-        price = sales_price if isSale else price
+        price = jsonInfo['priceData']['salePrice']['value']
     except:
         price = None
         print("Price not captured at %s" % url)
@@ -805,7 +831,7 @@ def parseZalandoFields(soup, url, imgURL):
     try:
         # parse metadata
         parseInfo = soup.find(text=re.compile(r'heading_details'))
-        jsonInfo = parseInfo[parse_info.find('{'):len(parseInfo)-parseInfo[::-1].find('}')]
+        jsonInfo = parseInfo[parseInfo.find('{'):len(parseInfo)-parseInfo[::-1].find('}')]
         attr_list = []
         for field in json.loads(jsonInfo)['model']['productDetailsCluster']:
             for data in field['data']:

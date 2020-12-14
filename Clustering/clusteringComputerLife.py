@@ -1,83 +1,76 @@
 import pyodbc
 import pandas as pd
 import numpy as np
+import time 
 from kmodes.kmodes import KModes
 from kmodes.kprototypes import KPrototypes
 
 from sklearn import metrics
 import sqlalchemy
-import constants
 
-#X = pd.DataFrame(columns = ['Price'] + constants.ATTRIBUTESSOCIALMEDIA[1:])
-X = np.empty((0, len(constants.ATTRIBUTESSOCIALMEDIA)))
-engine = {}
-#Iter through dbs
-for name in constants.DBNAMES:
-    engine[name] = sqlalchemy.create_engine(constants.CONNECTION + name)
-    SQL_Query = pd.read_sql_query(constants.SELECTSQLQUERY.format(name), engine[name])
-    df = pd.DataFrame(SQL_Query)
-    df = df.fillna(0)
-    if name == 'SocialMedia':
-        sth = df[constants.ATTRIBUTESSOCIALMEDIA] #'Inspiration_Background'
-        ###Read all the tables of features from SocialMedia DB to match id to genID###
-        for names in (constants.MIDTABLESSOCIALMEDIA):
-            locals()[str(names)+'_DB'] = pd.read_sql_query(constants.SELECTQUERYMID + str(names.upper()), engine[name])
+import helper_functions
+import config
 
-        ### Merging mid tables with product to create the product with values not id.
-        for col in (constants.MIDTABLESSOCIALMEDIA):
-            testing = sth.merge(locals()[str(col)+'_DB'], how = 'left', on=(str(col)+'ID'))
-            sth.loc[:,str(col)+'ID'] = testing.loc[:,'Gen' + str(col) + 'ID']
-            # labelsDF.loc[:,str(col)] = testing.loc[:,str(col)]
-        ProductSo = df['ProductNo']
-    else:
-        sth = df[constants.ATTRIBUTESNRGSEARCH]
-        ProductNo = df['ProductNo']
-        socialLen = X.shape[0]
-
-    sth = sth.to_numpy()
-    sth[:, 1:] = sth[:,1:].astype('int')
-    #X contains elements from both social media and nrgsearch
-    X = np.append(X, sth, axis = 0)
+if __name__ == "__main__":
+    # Begin Counting Time
+    start_time = time.time()    
     
-# Clustering process using 6 clusters
-kproto = KModes(n_clusters=6, init=constants.INITKMODES, verbose=2)
-clusters = kproto.fit_predict(X,  categorical=[1, 2, 3, 4, 5, 6, 7, 8, 9])
-center = kproto.cluster_centroids_
-centerNew = np.zeros((6,11))
-centerNew[:,0] = range(6)
-centerNew[:,1:5] = center[:,:4]
-centerNew[:,5] = -1
-centerNew[:,6:] = center[:,4:]
-centerNew = pd.DataFrame(centerNew)
-#print(centerNew.iloc[:, 2:].astype('int'))
+    # Database settings
+    engine = helper_functions.ENGINE
+    dbName = helper_functions.DB_NAME
+    # query = ''' SELECT * FROM %s.dbo.Product ''' % dbName
+    query = '''SELECT * FROM "%s".public."Product"''' % dbName
+    productDF = pd.read_sql_query(query, engine)
+    
+    labelsDF = productDF[config.CLUSTERING_PRODUCT_ATTRIBUTES].copy() #'Inspiration_Background'
+    labelsDF.fillna(0, inplace=True)
+    # Read all the tables of features from S4F DB to match id to genID
+    attrDict = {}
+    for attr in (config.PRODUCT_ATTRIBUTES):
+        # query = ''' SELECT * FROM %s.dbo.%s ''' % (dbName, attr)
+        query = '''SELECT * FROM "%s".public."%s"''' % (dbName, attr)
+        attrDict[str(attr)+'DF'] = pd.read_sql_query(query, engine)
+        
+    # Merging tables with product to create the product with values not id.
+    for attr in (config.PRODUCT_ATTRIBUTES):
+        _tempDF = labelsDF.merge(attrDict[str(attr)+'DF'], how = 'left', left_on=str(attr), right_on='Oid')
+        labelsDF.loc[:,str(attr)] = _tempDF.loc[:,str(attr)]
+    
+    ## Clustering process
+    #
+    # Prepare data for clustering (skip RetailPrice column)
+    X = labelsDF.to_numpy()[:,1:].astype('int')
+    kmodes = KModes(n_clusters=config.N_CLUSTERS, init=config.INITKMODES, verbose=2)
+    clusters = kmodes.fit_predict(X)
+    centroids = kmodes.cluster_centroids_
+    clustering_dict = {attr:centroids[:,i] for i,attr in enumerate(labelsDF.columns[1:])}
+    clustering_dict['Cluster'] = range(config.N_CLUSTERS)
+    clustering_dict['RetailPrice'] = config.N_CLUSTERS * [None]
+    clustering_dict['LifeStage'] = config.N_CLUSTERS * [None]
+    clusteringDF = pd.DataFrame(clustering_dict)
 
-# Center of each cluster
-centerNew[[0, 2, 3, 4, 5, 6, 7, 8, 9, 10]] = centerNew[[0, 2, 3, 4, 5, 6, 7, 8, 9, 10]].astype('int')
-centerNew.rename(columns=constants.COLUMNS, inplace=True)
+    ## Update Cluster table
+    #
+    # clusteringDF.to_sql("temp_table", schema='%s.dbo' % dbName, con=engine, if_exists='replace', index=False)
+    clusteringDF.to_sql("temp_table", con = engine, if_exists = 'replace', index = False)
+    with engine.begin() as conn:
+        conn.execute(config.UPDATE_CLUSTERS_QUERY)
 
-
-# Saving clusters to db and updating centers
-for name in constants.DBNAMES:
-    use = 'ProductNo'
-    centerNew.to_sql("temp_table", schema='dbo', con=engine[name], if_exists='replace', index=False)
-    with engine[name].begin() as conn:
-        conn.execute(constants.UPDATESQLQUERY)
-    #IT DEPENDS ON THE DATABASE
-    if name == 'SocialMedia':
-        data = pd.DataFrame({'ProductNo': ProductSo, 'ClusterID': clusters[:socialLen]})
-    else:
-        data = pd.DataFrame({'ProductNo': ProductNo, 'ClusterID': clusters[socialLen:]})
-
-    data.to_sql("temp_table", schema='dbo', con=engine[name], if_exists='replace', index=False)
-    with engine[name].begin() as conn:
-        conn.execute(constants.UPDATESQLQUERY2.format(use,use,use,use))
-
-# Print training statistics
-# print(kproto.cost_)
-# print(kproto.n_iter_)
+    ## Update Product table
+    #
+    dataDF = pd.DataFrame({'Oid': productDF['Oid'], 'Cluster': clusters})
+    # dataDF.to_sql("temp_table", schema='%s.dbo' % dbName, con=engine, if_exists='replace', index=False)
+    dataDF.to_sql("temp_table", con = engine, if_exists = 'replace', index = False)
+    with engine.begin() as conn:
+        conn.execute(config.UPDATE_PRODUCT_CLUSTERS_QUERY) 
+        
+    # End Counting Time
+    print("--- %s seconds ---" % (time.time() - start_time))
+    
+    
 
 # Save to db:   a) a table with the product id and the cluster id: < df[['Product_No']], clusters >
-#               b) a table with 6 rows (equal to the number of clusters) with the cendroids: < kproto.cluster_centroids_ >
+#               b) a table with 6 rows (equal to the number of clusters) with the cendroids: < kmodes.cluster_centroids_ >
 
 
 

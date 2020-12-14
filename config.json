@@ -8,5 +8,8 @@
   "pinterest_username": "idare.issel@gmail.com",
   "pinterest_password": "science4f",
   "instagram_username": "fashion_idare",
-  "instagram_password": "science4f"
+  "instagram_password": "science4f",
+  "clustering":{"famd_components": 4,
+                "linkage":"complete",
+                "distance_threshold": 0.35}
 }

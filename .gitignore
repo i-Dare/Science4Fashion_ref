@@ -4,12 +4,8 @@ __pycache__/constants.cpython-37.pyc
 WebCrawlers/.vscode/settings.json
 .vscode/launch.json
 WebCrawlers/.vscode/launch.json
-TextMining/.ipynb_checkpoints/Untitled-checkpoint.ipynb
 TextMining/.vscode/launch.json
 TextMining/helper___functions.py
-TextMining/Untitled.ipynb
-WebCrawlers/.ipynb_checkpoints/Untitled-checkpoint.ipynb
-WebCrawlers/Untitled.ipynb
 WebCrawlers/AsosImages
 WebCrawlers/SoliverImages
 WebCrawlers/ZalandoImages
@@ -22,3 +18,25 @@ ImageAnnotation/keywords.txt
 config_test.json
 .idea/Science4Fashion_ref.iml
 .idea/misc.xml
+ImageAnnotation/Prediction/models/sleeve.pkl
+ImageAnnotation/Prediction/models/neckline.pkl
+ImageAnnotation/Prediction/models/length.pkl
+ImageAnnotation/Prediction/models/fit.pkl
+ImageAnnotation/Prediction/models/collar.pkl
+ImageAnnotation/Color/.ipynb_checkpoints/Color Calculation-checkpoint.ipynb
+TextMining/.ipynb_checkpoints/TextMining-checkpoint.ipynb
+ImageAnnotation/Color/Color Calculation.ipynb
+Clustering/Full clustering evaluation.ipynb
+Clustering/Clustering.ipynb
+Clustering/Clustering evaluation.ipynb
+Clustering/.ipynb_checkpoints/Full clustering evaluation-checkpoint.ipynb
+Clustering/.ipynb_checkpoints/Clustering-checkpoint.ipynb
+Clustering/.ipynb_checkpoints/Clustering evaluation-checkpoint.ipynb
+ImageAnnotation/Color/Color Calculation.ipynb
+Clustering/Cluster_Ensembles.h5
+ImageAnnotation/Prediction/pytorchPredictAttributes.py
+ImageAnnotation/Prediction/evaluateResults.py
+ImageAnnotation/Prediction/constants.py
+WebCrawlers/PinterestCrawler/scraper_data/idare.issel@gmail.com/registry.dat
+TextMining/TextMining.ipynb
+run_all.py
