@@ -164,7 +164,6 @@ if __name__ == '__main__':
         insta = []
 
         for post in hashtag.get_posts():
-            count = count + 1;
             post_url = "https://www.instagram.com/p/" + str(post.shortcode) + "/"
             imgsource = post.url
             testdf = sqlsocial.loc[sqlsocial['URL'] == post_url]
@@ -172,6 +171,7 @@ if __name__ == '__main__':
             # print(helper_functions.setImageFilePath(post_url, hashtagtext,count))
             imageFilePath = helper_functions.setImageFilePath(post_url, hashtagtext,count)
             if testdf.empty and not video:
+                count = count + 1;
                 post_info = " ".join(re.findall("[a-zA-Z]+", post.caption))
                 post_hashtags = post.caption_hashtags
                 post_likes = post.likes
@@ -185,7 +185,7 @@ if __name__ == '__main__':
                                'description': post_info}))
             if count >= threshold:
                 break
-    r(insta)
+        r(insta)
 
 
 

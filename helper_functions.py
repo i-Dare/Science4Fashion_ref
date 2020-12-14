@@ -187,7 +187,7 @@ def addNewProduct(site, keywords, imageFilePath, empPhoto, url, imgsrc, head, co
                               'ForeignComposition': None, 'SiteHeadline': head, 'ColorsDescription': color, 'Metadata': meta, 
                               'SamplePrice': None, 'ProductionPrice': None, 'WholesalePrice': None, 'RetailPrice': None, 
                               'Image': empPhoto, 'Photo': imageFilePath, 'Sketch': None, 'URL': url, 'ImageSource': imgsrc,
-                              'Brand': brandID, 'Fit': None, 'CollarDesign': None, 'SampleManufacturer': None, 
+                              'Brand': brandID, 'Fit': None, 'CollarDesign': None, 'SampleManufacturer': None,
                               'ProductionManufacturer': None, 'Length': None, 'NeckDesign': None, 'ProductCategory': None, 
                               'ProductSubcategory': None, 'Sleeve': None, 'LifeStage': None, 'TrendTheme': None,
                               'InspirationBackground': None, 'Gender': genderid, 'BusinessUnit': None, 
@@ -265,7 +265,7 @@ def preprocess_metadata(doc):
     # Remove numbers and words with number
     doc = re.sub(r'([a-z]*[0-9]+[a-z]*)', '', doc)
     # Remove non-ASCII characters 
-    doc = re.sub(r'(\w+[^a-z]\w+)*[^a-z\s]*', '', doc)
+    #doc = re.sub(r'(\w+[^a-z]\w+)*[^a-z\s]*', '', doc)
     # Remove excess whitespace
     doc = re.sub(r'\s+', ' ', doc)
     # Remove stop words
