@@ -122,15 +122,13 @@ if __name__ == '__main__':
         keywords = keys.split(" ")
 
         try:
-            breakNumber = int(keywords[0])
-            keyUrl = standardUrl + '%20'.join(keywords[1:])
+            threshold = int(keywords[0])
+            query = standardUrl + '%20'.join(keywords[1:])
         except:
-            breakNumber = 0
-            keyUrl = standardUrl + '%20'.join(keywords)
+            threshold = 0
+            query = standardUrl + '%20'.join(keywords)
 
-        print('Page to be crawled: ' + str(keyUrl))
-        print("Number of crawled images wanted: " + str(breakNumber))
-
-        performScraping(keyUrl, folderName, breakNumber)
+        print('Parsing: ' + str(query))
+        performScraping(query, folderName, threshold)
     print("\nTime to scrape ALL queries is %s seconds ---" % round(time.time() - start_time_all, 2))
 

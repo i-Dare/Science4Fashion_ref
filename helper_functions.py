@@ -25,6 +25,9 @@ from nltk.tokenize import TweetTokenizer
 from nltk import pos_tag
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.preprocessing import MinMaxScaler
+import wordsegment
+wordsegment.load()
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -182,8 +185,8 @@ def addNewBrand(brand, isActive):
     '''
     Adds new brand info to the Brand table if it does not exist. 
     '''
-    branddf = pd.read_sql_query("SELECT * FROM %s.dbo.Brand" % DB_NAME, ENGINE)
-    # branddf = pd.read_sql_query("SELECT * FROM public.\"Brand\"", ENGINE)
+    # branddf = pd.read_sql_query("SELECT * FROM %s.dbo.Brand" % DB_NAME, ENGINE)
+    branddf = pd.read_sql_query("SELECT * FROM public.\"Brand\"", ENGINE)
     if brand:
         brand = brand.replace("'", "''")
         if branddf.loc[branddf['Description']==brand].empty:
@@ -200,7 +203,6 @@ def addNewBrand(brand, isActive):
             return branddf.loc[branddf['Description']==brand, 'Oid'].values[0]
     else:
         return None
-
     
 
 ########### Add new product to the Product table ###########
@@ -222,10 +224,9 @@ def addNewProduct(site, keywords, imageFilePath, empPhoto, url, imgsrc, head, co
                               'InspirationBackground': None, 'Gender': genderid, 'BusinessUnit': None, 
                               'Season': None, 'Cluster': None, 'FinancialCluster': None, 'SumOfPercentage': None,
                               'OptimisticLockField': None}])
-    submitdf.to_sql("Product", schema='%s.dbo' % DB_NAME, con=ENGINE, if_exists='append', index=False)
-    # submitdf.to_sql('Product', con=ENGINE, if_exists='append', index=False)
+    # submitdf.to_sql("Product", schema='%s.dbo' % DB_NAME, con=ENGINE, if_exists='append', index=False)
+    submitdf.to_sql('Product', con=ENGINE, if_exists='append', index=False)
                     
-
 
 ########### Add new product to the ProductHistory table ###########
 def addNewProductHistory(url, referenceOrder, trendOrder, price):
@@ -246,7 +247,6 @@ def addNewProductHistory(url, referenceOrder, trendOrder, price):
         # submitdf.to_sql("ProductHistory", con=ENGINE, if_exists='append', index=False)
     else:
         print('WARNING: Product history for product at %s was not added...' % url)
-
 
 
 ########### Update product history ###########
@@ -270,6 +270,20 @@ def updateProductHistory(prdno, referenceOrder, trendOrder, price, url):
 
 
 ########### Natural Language Processing Functionality ###########
+
+def get_fashion_attributes():
+    # Load custom attributes from fashio word list and custom attributes used in the image annotation module:
+    # Fashion attributes
+    file_path = os.path.join(WEB_CRAWLERS, 'PinterestCrawler', 'fashion_words_700.txt')
+    fashion_att_file = open(file_path, "r")
+    fashion_att = fashion_att_file.read().split(',')
+    fashion_att_file.close()
+    # Image annotation labels
+    fashionLabels = pd.read_excel(config.PRODUCT_ATTRIBUTES_PATH, sheet_name=config.SHEETNAME)
+    attributList = np.hstack([fashionLabels[attr].replace(' ', np.nan).dropna().unique() for attr in config.PRODUCT_ATTRIBUTES]).tolist()
+    fashion_att = preprocess_words(fashion_att + attributList)
+    return fashion_att
+
 def preprocess_words(words_list):
     lemmatizer = WordNetLemmatizer()
     preprocessed_words = []
@@ -277,16 +291,21 @@ def preprocess_words(words_list):
         preprocessed_words.append(lemmatizer.lemmatize(word.lower(), "n"))
     return preprocessed_words
 
+
 def lemmatize(token, pos_tag):
     lemmatizer = WordNetLemmatizer()
     tag = {'N': wn.NOUN, 'V': wn.VERB, 'R': wn.ADV, 'J': wn.ADJ}.get(pos_tag[0], wn.NOUN)
     return lemmatizer.lemmatize(token, tag)
 
-def preprocess_metadata(doc):
+
+def preprocess_metadata(doc, segmentation=False):
     # Convert to lowercase
     doc = doc.lower()
     # Remove URLs
     doc = re.sub(r'(www\S+)*(.\S+\.com)', '', doc)
+    # Word segmentation, used for compound words, hashtags and spelling errors
+    if segmentation:
+        doc = ' '.join(wordsegment.segment(doc))
     # Remove punctuation
     doc = re.sub('[' + re.escape(string.punctuation) + ']+', ' ', doc)
     # Remove two letter words
@@ -294,7 +313,7 @@ def preprocess_metadata(doc):
     # Remove numbers and words with number
     doc = re.sub(r'([a-z]*[0-9]+[a-z]*)', '', doc)
     # Remove non-ASCII characters 
-    doc = re.sub(r'(\w+[^a-z]\w+)*[^a-z\s]*', '', doc)
+    doc = str(doc).encode("ascii", errors="ignore").decode()
     # Remove excess whitespace
     doc = re.sub(r'\s+', ' ', doc)
     # Remove stop words
@@ -308,7 +327,65 @@ def preprocess_metadata(doc):
     # Merge together
     return ' '.join(tokens)
 
+def social_media_rank(query_result, login_page, segmentation=False):
+    dataDF = pd.DataFrame(query_result)
+    # Form metadata column
+    dataDF['metadata'] = dataDF['title'].str.cat(dataDF['description'].astype(str), sep=' ')
+    # Preprocess metadata
+    dataDF['processed_metadata'] = dataDF['metadata'].apply(lambda row: preprocess_metadata(row, segmentation))
+    # Preprocess query
+    dataDF['query'] = dataDF['query'].apply(lambda row: ' '.join(preprocess_words(row.split())))
 
+    ## Calculate a factor for tokens that appear in metatdata
+    keywords = dataDF.iloc[0]['query'].split()
+    dataDF['factor'] = dataDF['processed_metadata'].apply(lambda row: len(set([word for word in row.split() if word in keywords])) / len(keywords))
+
+    ## Calculate a factor based on the cosine similarity of TFIDF transformation of the query terms and 
+    # the processed metadata using the fashion expert terminology as vocabulary
+    vectorizer = TfidfVectorizer(analyzer='word', ngram_range=(1,2), min_df=2)
+    vectorizer.fit_transform(get_fashion_attributes())
+    metadata_tfidf = vectorizer.transform(dataDF['processed_metadata'])
+    query_tfidf = vectorizer.transform(dataDF['query'])
+
+    ## Calculate cosine similarity
+    cosine_vector = cosine_similarity(query_tfidf[0], metadata_tfidf)
+    dataDF['cosine_ranking_score'] = np.hstack(cosine_vector).tolist() * dataDF['factor']
+
+    ## Calculate a factor based on the social media recommendation algorithm (order of appearence)
+    scaler = MinMaxScaler((0.5, 1.))
+    social_media_score = scaler.fit_transform(np.arange(len(dataDF)).reshape(-1, 1))[::-1]
+    dataDF.loc[dataDF.sort_values(by ='timestamp', ascending=False).index, 'social_media_score'] = social_media_score
+    
+    ## Calculate Final Ranking Score giving the cosine similarity factor a greater score than the 
+    # factor based on the social media recommendation algorithm (order of appearence)
+    dataDF['final_score'] = (dataDF['cosine_ranking_score'] * 0.7) + (dataDF['social_media_score'] * 0.3)
+    dataDF.sort_values(by ='final_score', ascending=False, inplace=True)
+
+    # Save ranked results to the database
+    for _, row in dataDF.iterrows():
+        site = login_page
+        searchwords = query_result[0]['query']
+        imageFilePath = row['imageFilePath']    
+        url = row['URL']
+        imgURL = row['imgURL']
+        empPhoto = getImage(imgURL, imageFilePath)
+        head = row['title']
+        meta = row['description']
+        addNewProduct(site, 
+                        searchwords, 
+                        imageFilePath, 
+                        empPhoto, 
+                        url,
+                        imgURL, 
+                        head, 
+                        None, 
+                        None, 
+                        None, 
+                        meta, 
+                        None, 
+                        None)
+    return dataDF
+                         
 ########### Web crawler functionality, specific for each website ###########
 ########### Asos specific functionality ###########
 ########### Fetch search results form Asos according to 'order' parameter ###########

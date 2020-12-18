@@ -7,8 +7,8 @@ import json
 #
 CWD = os.getcwd()
 PROJECT_HOME = os.environ['PROJECT_HOME']
-PROJECT_CONFIG = os.path.join(PROJECT_HOME, 'config.json')
-#PROJECT_CONFIG = os.path.join(PROJECT_HOME, 'config_test.json')
+# PROJECT_CONFIG = os.path.join(PROJECT_HOME, 'config.json')
+PROJECT_CONFIG = os.path.join(PROJECT_HOME, 'config_test.json')
 # Get project's configuration file
 with open(PROJECT_CONFIG) as f:
     config = json.load(f)
@@ -58,9 +58,7 @@ INSTAGRAM_PASSWORD = config['pinterest_password']
 ########### TextMining variables ###########
 #
 PRODUCT_ATTRIBUTES_PATH = TEXT_MINING +'\\data_exploration1.xlsx'
-# ORIGINALNRGATTRIBUTESPATH = TEXT_MINING + '\\data_exploration2.xlsx'
 SHEETNAME = 'data_exploration2'
-# DEEPFASHIONPATH = TEXT_MINING + '\\list_attr_cloth.txt'
 PRODUCT_ATTRIBUTES = ['ProductCategory', 'ProductSubcategory', 'Length', 'Sleeve', 'CollarDesign', 'NeckDesign', 'Fit']
 
 
