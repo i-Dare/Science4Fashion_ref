@@ -40,3 +40,8 @@ ImageAnnotation/Prediction/constants.py
 WebCrawlers/PinterestCrawler/scraper_data/idare.issel@gmail.com/registry.dat
 TextMining/TextMining.ipynb
 run_all.py
+WebCrawlers/debug.log
+WebCrawlers/.ipynb_checkpoints/Pinterest-checkpoint.ipynb
+WebCrawlers/.ipynb_checkpoints/Instagram-checkpoint.ipynb
+Clustering/.ipynb_checkpoints/Consensus Clustering-checkpoint.ipynb
+Clustering/.ipynb_checkpoints/K-Modes Clustering-checkpoint.ipynb
