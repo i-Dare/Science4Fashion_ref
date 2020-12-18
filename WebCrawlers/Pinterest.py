@@ -2,28 +2,25 @@ import os
 import time
 import helper_functions
 import config
-from WebCrawlers.PinterestCrawler.pinterest_with_requests import PinterestScraper
+from WebCrawlers.SocialMedia.SocialMediaCrawlers import PinterestCrawler, save_ranked
 
 
 if __name__ == '__main__':
     start_time_all = time.time()
-    # ==================================================================================================
-    # Login and Scrape Pinterest
-    # ==================================================================================================
+    
     currendDir = helper_functions.WEB_CRAWLERS
     engine = helper_functions.ENGINE
     dbName = helper_functions.DB_NAME    
-    
+
+    # ==========================================================================================
+    # Login and Scrape Pinterest
+    # ==========================================================================================
     username = config.PINTEREST_USERNAME
     password = config.PINTEREST_PASSWORD
 
-    pinterest = PinterestScraper(username_or_email=username, password=password)
-    logged_in = pinterest.login()
+    pinterest = PinterestCrawler(username=username, password=password)
+    pinterest.login()
 
-    if logged_in is True:
-        print('Logged in successfully')
-        
-        
     ############ Open the file with read only permit ############
     file = open(os.path.join(currendDir, 'keywords.txt'), "r")
 
@@ -38,15 +35,16 @@ if __name__ == '__main__':
 
         keywords = keys.split(" ")
         keyLen = len(keywords)
-        keyUrl = keywords[1].strip('"')
-        breakNumber = int(keywords[0])
+        query = keywords[1].strip('"')
+        threshold = int(keywords[0])
         for j in range(2, keyLen):
-            keyUrl = keyUrl + ' ' + keywords[j].strip('"')
+            query = query + ' ' + keywords[j].strip('"')
 
-        print('Query: ' + str(keyUrl))
-        print("Number of crawled images wanted: " + str(breakNumber))
-        pins = pinterest.search_pins(query=keyUrl, threshold=breakNumber)
+        print('Query: ' + str(query))
+
+        pins = pinterest.search_query(query=query, threshold=threshold)
         # Store results in the database ranked by the relevance of the experts terminology
-        pinterest.rankedSave(pins)
-                
+        dataDF = save_ranked(pins, pinterest.home_page)
+
+        print('Images requested: %s,   Images Downloaded: %s (%s%%)' % (threshold, len(dataDF), round(len(dataDF)/threshold,2 ) * 100)) 
     print("\nTime to scrape ALL queries is %s seconds ---" % round(time.time() - start_time_all, 2))
