@@ -23,9 +23,6 @@ from nltk.corpus import wordnet as wn
 from nltk.stem.wordnet import WordNetLemmatizer
 from nltk.tokenize import TweetTokenizer
 from nltk import pos_tag
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
-from sklearn.preprocessing import MinMaxScaler
 import wordsegment
 wordsegment.load()
 
@@ -42,6 +39,7 @@ CLUSTERING = config.CLUSTERING
 IMAGE_ANNOTATION = config.IMAGE_ANNOTATION
 RECOMMENDER = config.RECOMMENDER
 WEB_CRAWLERS = config.WEB_CRAWLERS
+RESOURCESDIR = config.RESOURCESDIR
 
 # Define stop words
 STOP_WORDS = set(nltk.corpus.stopwords.words('english'))
@@ -152,7 +150,7 @@ def setImageFilePath(standardUrl, keyword, i):
     ImageType = ".jpeg"
     imgSiteFolder = (standardUrl.split('.')[1]).capitalize() + 'Images'
     # Creates the path where the images will be stored
-    imageDir = os.path.join(WEB_CRAWLERS, imgSiteFolder, keyword)
+    imageDir = os.path.join(RESOURCESDIR, imgSiteFolder, keyword)
     # Create The folder according to search name
     if not os.path.exists(imageDir):
         os.makedirs(imageDir)
@@ -160,10 +158,10 @@ def setImageFilePath(standardUrl, keyword, i):
     return imageFilePath
 
 
-########### Get image info according to a valid adentifier ###########
+########### Get image from a URL and saves it to given file path ###########
 def getImage(imgURL, imageFilePath):
     '''
-    Gets image info according to a valid adentifier.
+    Gets image from a URL and saves it to given file path
     - Input:
         imgURL: image URI
         imageFilePath: image destination directory
@@ -274,7 +272,7 @@ def updateProductHistory(prdno, referenceOrder, trendOrder, price, url):
 def get_fashion_attributes():
     # Load custom attributes from fashio word list and custom attributes used in the image annotation module:
     # Fashion attributes
-    file_path = os.path.join(WEB_CRAWLERS, 'PinterestCrawler', 'fashion_words_700.txt')
+    file_path = config.FASHION_WORDS
     fashion_att_file = open(file_path, "r")
     fashion_att = fashion_att_file.read().split(',')
     fashion_att_file.close()
@@ -326,65 +324,6 @@ def preprocess_metadata(doc, segmentation=False):
     tokens = [lemmatize(word, tag) for word,tag in pos_tag(tokens)]
     # Merge together
     return ' '.join(tokens)
-
-def social_media_rank(query_result, login_page, segmentation=False):
-    dataDF = pd.DataFrame(query_result)
-    # Form metadata column
-    dataDF['metadata'] = dataDF['title'].str.cat(dataDF['description'].astype(str), sep=' ')
-    # Preprocess metadata
-    dataDF['processed_metadata'] = dataDF['metadata'].apply(lambda row: preprocess_metadata(row, segmentation))
-    # Preprocess query
-    dataDF['query'] = dataDF['query'].apply(lambda row: ' '.join(preprocess_words(row.split())))
-
-    ## Calculate a factor for tokens that appear in metatdata
-    keywords = dataDF.iloc[0]['query'].split()
-    dataDF['factor'] = dataDF['processed_metadata'].apply(lambda row: len(set([word for word in row.split() if word in keywords])) / len(keywords))
-
-    ## Calculate a factor based on the cosine similarity of TFIDF transformation of the query terms and 
-    # the processed metadata using the fashion expert terminology as vocabulary
-    vectorizer = TfidfVectorizer(analyzer='word', ngram_range=(1,2), min_df=2)
-    vectorizer.fit_transform(get_fashion_attributes())
-    metadata_tfidf = vectorizer.transform(dataDF['processed_metadata'])
-    query_tfidf = vectorizer.transform(dataDF['query'])
-
-    ## Calculate cosine similarity
-    cosine_vector = cosine_similarity(query_tfidf[0], metadata_tfidf)
-    dataDF['cosine_ranking_score'] = np.hstack(cosine_vector).tolist() * dataDF['factor']
-
-    ## Calculate a factor based on the social media recommendation algorithm (order of appearence)
-    scaler = MinMaxScaler((0.5, 1.))
-    social_media_score = scaler.fit_transform(np.arange(len(dataDF)).reshape(-1, 1))[::-1]
-    dataDF.loc[dataDF.sort_values(by ='timestamp', ascending=False).index, 'social_media_score'] = social_media_score
-    
-    ## Calculate Final Ranking Score giving the cosine similarity factor a greater score than the 
-    # factor based on the social media recommendation algorithm (order of appearence)
-    dataDF['final_score'] = (dataDF['cosine_ranking_score'] * 0.7) + (dataDF['social_media_score'] * 0.3)
-    dataDF.sort_values(by ='final_score', ascending=False, inplace=True)
-
-    # Save ranked results to the database
-    for _, row in dataDF.iterrows():
-        site = login_page
-        searchwords = query_result[0]['query']
-        imageFilePath = row['imageFilePath']    
-        url = row['URL']
-        imgURL = row['imgURL']
-        empPhoto = getImage(imgURL, imageFilePath)
-        head = row['title']
-        meta = row['description']
-        addNewProduct(site, 
-                        searchwords, 
-                        imageFilePath, 
-                        empPhoto, 
-                        url,
-                        imgURL, 
-                        head, 
-                        None, 
-                        None, 
-                        None, 
-                        meta, 
-                        None, 
-                        None)
-    return dataDF
                          
 ########### Web crawler functionality, specific for each website ###########
 ########### Asos specific functionality ###########

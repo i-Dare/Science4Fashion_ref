@@ -69,7 +69,6 @@ if __name__ == '__main__':
                WHERE PC."Product" IS NULL'''
     productDF = pd.read_sql_query(query, engine)
 
-    #Create CSV to save the colors
     #Colors dataframe
     for _, row in productDF.iterrows():
         #Read Color and ColorRGB from database

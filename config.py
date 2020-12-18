@@ -41,32 +41,36 @@ CLUSTERING = os.path.join(PROJECT_HOME, 'Clustering')
 IMAGE_ANNOTATION = os.path.join(PROJECT_HOME, 'ImageAnnotation')
 RECOMMENDER = os.path.join(PROJECT_HOME, 'Recommender')
 WEB_CRAWLERS = os.path.join(PROJECT_HOME, 'WebCrawlers')
+RESOURCESDIR = os.path.join(PROJECT_HOME, config['resources']['resourcesDir'])
+MODELSDIR = os.path.join(PROJECT_HOME, RESOURCESDIR,config['resources']['models']['modelsDir'])
+COLOR_MODEL_DIR = os.path.join(PROJECT_HOME, RESOURCESDIR, MODELSDIR, config['resources']['models']['color_model']['directory'])
+PRODUCT_ATTRIBUTE_MODEL_DIR = os.path.join(PROJECT_HOME, RESOURCESDIR, MODELSDIR, config['resources']['models']['product_attribute_model']['directory'])
 
 
 #
 ########### WebCrawler variables ###########
 #
 # Pinterest fields
-PINTEREST_USERNAME = config['pinterest_username']
-PINTEREST_PASSWORD = config['pinterest_password']
+PINTEREST_USERNAME = config['social_media']['pinterest_username']
+PINTEREST_PASSWORD = config['social_media']['pinterest_password']
 # Instagram fields
-INSTAGRAM_USERNAME = config['pinterest_username']
-INSTAGRAM_PASSWORD = config['pinterest_password']
+INSTAGRAM_USERNAME = config['social_media']['pinterest_username']
+INSTAGRAM_PASSWORD = config['social_media']['pinterest_password']
 
 
 #
 ########### TextMining variables ###########
 #
-PRODUCT_ATTRIBUTES_PATH = TEXT_MINING +'\\data_exploration1.xlsx'
-SHEETNAME = 'data_exploration2'
+PRODUCT_ATTRIBUTES_PATH = os.path.join(RESOURCESDIR, config['resources']['product_attributes'])
+SHEETNAME = 'product_attributes_sheet'
+FASHION_WORDS = os.path.join(RESOURCESDIR, config['resources']['fashion_words'])
 PRODUCT_ATTRIBUTES = ['ProductCategory', 'ProductSubcategory', 'Length', 'Sleeve', 'CollarDesign', 'NeckDesign', 'Fit']
-
 
 #
 ########### ImageAnnotation variables ###########
 #
 # calcColor variables
-COLOR_MODELPATH = os.path.join(IMAGE_ANNOTATION, 'Color', 'deeplabv3_mnv2_pascal_train_aug_2018_01_29.tar.gz')
+COLOR_MODELPATH = os.path.join(COLOR_MODEL_DIR, config['resources']['models']['color_model']['model'])
 CLASSES = [
             'background', 'aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus',
             'car', 'cat', 'chair', 'cow', 'diningtable', 'dog', 'horse', 'motorbike',
@@ -77,25 +81,23 @@ CLASSES = [
 ATTRIBUTE_COLUMNS = ['Length', 'Sleeve', 'CollarDesign', 'NeckDesign', 'Fit']
 #Device to test
 DEVICE = 'cpu'
-#MODEL PATHS
-ATTRIBUTE_MODELPATH = os.path.join(IMAGE_ANNOTATION, 'Prediction', 'models')
 # Dictionaries to map the predicted label to the possible labels and the respective models
 # -1 is the Strapless we don't know how to handle it yet
 #Neckline
 DICTNECKLINE = {0:2,1:7, 2:4, 3:6, 4:1, 5:3, 6:5}
-MODELNECKLINE = "neckline.pkl"
+MODELNECKLINE = config['resources']['models']['product_attribute_model']['model']['neckline']
 #Sleeve
 DICTSLEEVE = {0:8, 1:2, 2:6, 3:1, 4:4}
-MODELSLEEVE = "sleeve.pkl"
+MODELSLEEVE = config['resources']['models']['product_attribute_model']['model']['sleeve']
 #Length
 DICTLENGTH = {0:4, 1:2, 2:3, 3:1}
-MODELLENGTH = "length.pkl"
+MODELLENGTH = config['resources']['models']['product_attribute_model']['model']['length']
 #Collar
 DICTCOLLAR = {0:4, 1:-1, 2:1}
-MODELCOLLAR = "collar.pkl"
+MODELCOLLAR = config['resources']['models']['product_attribute_model']['model']['collar']
 #Fit
 DICTFIT = {0:2, 1:1, 2:3, 3:4}
-MODELFIT = "fit.pkl"
+MODELFIT = config['resources']['models']['product_attribute_model']['model']['fit']
 
 
 #

@@ -45,3 +45,8 @@ WebCrawlers/.ipynb_checkpoints/Pinterest-checkpoint.ipynb
 WebCrawlers/.ipynb_checkpoints/Instagram-checkpoint.ipynb
 Clustering/.ipynb_checkpoints/Consensus Clustering-checkpoint.ipynb
 Clustering/.ipynb_checkpoints/K-Modes Clustering-checkpoint.ipynb
+resources/models/product_attributes/collar.pkl
+resources/models/product_attributes/fit.pkl
+resources/models/product_attributes/length.pkl
+resources/models/product_attributes/neckline.pkl
+resources/models/product_attributes/sleeve.pkl

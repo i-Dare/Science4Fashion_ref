@@ -17,11 +17,11 @@ if __name__ == "__main__":
     defaults.device = torch.device(config.DEVICE)
 
     # Initialize Learners (5/5)
-    necklineLearner = load_learner(config.ATTRIBUTE_MODELPATH, config.MODELNECKLINE)
-    sleeveLearner = load_learner(config.ATTRIBUTE_MODELPATH, config.MODELSLEEVE)
-    lengthLearner = load_learner(config.ATTRIBUTE_MODELPATH, config.MODELLENGTH)
-    collarLearner = load_learner(config.ATTRIBUTE_MODELPATH, config.MODELCOLLAR)
-    fitLearner = load_learner(config.ATTRIBUTE_MODELPATH, config.MODELFIT)
+    necklineLearner = load_learner(config.PRODUCT_ATTRIBUTE_MODEL_DIR, config.MODELNECKLINE)
+    sleeveLearner = load_learner(config.PRODUCT_ATTRIBUTE_MODEL_DIR, config.MODELSLEEVE)
+    lengthLearner = load_learner(config.PRODUCT_ATTRIBUTE_MODEL_DIR, config.MODELLENGTH)
+    collarLearner = load_learner(config.PRODUCT_ATTRIBUTE_MODEL_DIR, config.MODELCOLLAR)
+    fitLearner = load_learner(config.PRODUCT_ATTRIBUTE_MODEL_DIR, config.MODELFIT)
 
     # Database settings
     engine = helper_functions.ENGINE
@@ -30,9 +30,10 @@ if __name__ == "__main__":
     query = '''SELECT * FROM "%s".public."Product"''' % dbName
 
     productDF = pd.read_sql_query(query, engine)
-
-    productDF = productDF.loc[productDF.loc[:,(config.ATTRIBUTE_COLUMNS)].sum(axis=1) != len(config.ATTRIBUTE_COLUMNS)]
+    # Select only unlabeled products
+    productDF = productDF.loc[productDF.loc[:,(config.ATTRIBUTE_COLUMNS)].fillna(value=0).astype('int64').sum(axis=1) != len(config.ATTRIBUTE_COLUMNS)]
     # Each entry
+    print("Product attribute annotation for %s unlabeled products" % len(productDF))
     for index, row in productDF.iterrows():
         if index==1:
             break
