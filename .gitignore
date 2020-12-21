@@ -51,3 +51,15 @@ resources/models/product_attributes/length.pkl
 resources/models/product_attributes/neckline.pkl
 resources/models/product_attributes/sleeve.pkl
 .vscode/settings.json
+WebCrawlers/Pinterest-checkpoint.ipynb
+WebCrawlers/Instagram.ipynb
+WebCrawlers/Instagram-checkpoint.ipynb
+TextMining/TextMining-checkpoint.ipynb
+ImageAnnotation/Color/pdfimagesagain.ipynb
+ImageAnnotation/Color/Color Calculation-checkpoint.ipynb
+Clustering/K-Modes Clustering.ipynb
+Clustering/K-Modes Clustering-checkpoint.ipynb
+Clustering/Full clustering evaluation-checkpoint.ipynb
+Clustering/Consensus Clustering.ipynb
+Clustering/Consensus Clustering-checkpoint.ipynb
+WebCrawlers/Pinterest.ipynb
