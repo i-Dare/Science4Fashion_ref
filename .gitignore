@@ -50,3 +50,4 @@ resources/models/product_attributes/fit.pkl
 resources/models/product_attributes/length.pkl
 resources/models/product_attributes/neckline.pkl
 resources/models/product_attributes/sleeve.pkl
+.vscode/settings.json
