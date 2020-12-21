@@ -7,8 +7,8 @@ import json
 #
 CWD = os.getcwd()
 PROJECT_HOME = os.environ['PROJECT_HOME']
-# PROJECT_CONFIG = os.path.join(PROJECT_HOME, 'config.json')
-PROJECT_CONFIG = os.path.join(PROJECT_HOME, 'config_test.json')
+PROJECT_CONFIG = os.path.join(PROJECT_HOME, 'config.json')
+#PROJECT_CONFIG = os.path.join(PROJECT_HOME, 'config_test.json')
 # Get project's configuration file
 with open(PROJECT_CONFIG) as f:
     config = json.load(f)
