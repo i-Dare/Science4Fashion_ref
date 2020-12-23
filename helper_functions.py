@@ -328,9 +328,11 @@ def preprocess_metadata(doc, segmentation=False):
 ########### Web crawler functionality, specific for each website ###########
 ########### Asos specific functionality ###########
 ########### Fetch search results form Asos according to 'order' parameter ###########
-def resultDataframeAsos(keyUrl, order, breakPointNumber=9999999):
+def resultDataframeAsos(keyUrl, order, filterDF=pd.DataFrame([]), breakPointNumber=9999999):
     '''
-     Fetches search results form s.Oliver according to 'order' parameter.
+     Fetches search results form Asos according to 'order' parameter. Parameter "filterDF" is 
+     filled with the trending order dataframe to call the script with reference order and get the reference order
+     only for the trending items.
     - Input:
         keyUrl: search URL according to keywords
         order: ordering of results, valid values are 'reference' and 'trend'
@@ -387,13 +389,23 @@ def resultDataframeAsos(keyUrl, order, breakPointNumber=9999999):
             series = pd.Series({'URL': productPage.replace("'", "''").replace("%", "%%"),
                                 'imgURL': productImg,
                                 'price': price},
-                               index=resultsDF.columns)
-            parsedItems += 1
-            resultsDF = resultsDF.append(series, ignore_index=True)
+                               index=resultsDF.columns)            
+            
             # Return if number of wanted results is reached
-            if len(resultsDF) > breakPointNumber-1:
-                resultsDF[ordering] = range(1, len(resultsDF)+1)
-                return resultsDF
+            if not filterDF.empty :
+                if series['URL'] in filterDF['URL'].values:
+                    resultsDF = resultsDF.append(series, ignore_index=True)
+                    parsedItems += 1
+                    if len(resultsDF) >= len(filterDF):
+                        resultsDF[ordering] = range(1, len(resultsDF)+1)
+                        return resultsDF
+            else:
+                resultsDF = resultsDF.append(series, ignore_index=True)
+                parsedItems += 1
+                if len(resultsDF) > breakPointNumber-1:
+                    resultsDF[ordering] = range(1, len(resultsDF)+1)
+                    return resultsDF
+
         # Prepare next result page URL
         pageNo += 1
         paging = '&page=%s' % pageNo
@@ -506,9 +518,11 @@ def parseAsosFields(soup, url):
 
 ########### sOliver specific functionality ###########
 ########### Fetch search results form s.Oliver according to 'order' parameter ###########
-def resultDataframeSOliver(keyUrl, order, breakPointNumber=9999999):
+def resultDataframeSOliver(keyUrl, order, filterDF=pd.DataFrame([]), breakPointNumber=9999999):
     '''
-     Fetches search results form s.Oliver according to 'order' parameter.
+     Fetches search results form s.Oliver according to 'order' parameter. Parameter "filterDF" is 
+     filled with the trending order dataframe to call the script with reference order and get the reference order
+     only for the trending items.
     - Input:
         keyUrl: search URL according to keywords
         order: ordering of results, valid values are 'reference' and 'trend'
@@ -575,11 +589,19 @@ def resultDataframeSOliver(keyUrl, order, breakPointNumber=9999999):
             series = pd.Series({'URL': productPage.rsplit('?', 1)[0].replace("'", "''").replace("%", "%%"),
                                 'imgURL': productImg},
                             index=resultsDF.columns)
-            resultsDF = resultsDF.append(series, ignore_index=True)
+            
             # Return if number of wanted results is reached
-            if len(resultsDF) > breakPointNumber-1:
-                resultsDF[ordering] = range(1, len(resultsDF)+1)
-                return resultsDF
+            if not filterDF.empty :
+                if series['URL'] in filterDF['URL'].values:
+                    resultsDF = resultsDF.append(series, ignore_index=True)
+                    if len(resultsDF) >= len(filterDF):
+                        resultsDF[ordering] = range(1, len(resultsDF)+1)
+                        return resultsDF
+            else:
+                resultsDF = resultsDF.append(series, ignore_index=True)
+                if len(resultsDF) > breakPointNumber-1:
+                    resultsDF[ordering] = range(1, len(resultsDF)+1)
+                    return resultsDF
 
         if start + step >= maxItems:
             break
@@ -705,9 +727,11 @@ def parseSOliverFields(soup, url, imgURL):
 
 ########### Zalando specific functionality ###########
 ########### Fetch search results form Zalando according to 'order' parameter ###########
-def resultDataframeZalando(keyUrl, order, breakPointNumber=9999999):
+def resultDataframeZalando(keyUrl, order, filterDF=pd.DataFrame([]), breakPointNumber=9999999):
     '''
-     Fetches search results form s.Oliver according to 'order' parameter.
+     Fetches search results form Zalando according to 'order' parameter. Parameter "filterDF" is 
+     filled with the trending order dataframe to call the script with reference order and get the reference order
+     only for the trending items.
     - Input:
         keyUrl: search URL according to keywords
         order: ordering of results, valid values are 'reference' and 'trend'
@@ -753,11 +777,18 @@ def resultDataframeZalando(keyUrl, order, breakPointNumber=9999999):
             series = pd.Series({'URL': productPage.rsplit('?', 1)[0].replace("'", "''").replace("%", "%%"),
                                 'imgURL': productImg},
                                index=resultsDF.columns)
-            # Update trend DateFrame
-            resultsDF = resultsDF.append(series, ignore_index=True)
-            if len(resultsDF) > breakPointNumber-1:
-                resultsDF[ordering] = range(1, len(resultsDF)+1)
-                return resultsDF
+            # Return if number of wanted results is reached
+            if not filterDF.empty :
+                if series['URL'] in filterDF['URL'].values:
+                    resultsDF = resultsDF.append(series, ignore_index=True)
+                    if len(resultsDF) >= len(filterDF):
+                        resultsDF[ordering] = range(1, len(resultsDF)+1)
+                        return resultsDF
+            else:
+                resultsDF = resultsDF.append(series, ignore_index=True)
+                if len(resultsDF) > breakPointNumber-1:
+                    resultsDF[ordering] = range(1, len(resultsDF)+1)
+                    return resultsDF
 
         # Prepare next request
         pageNo += 1

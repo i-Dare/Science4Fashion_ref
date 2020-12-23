@@ -30,14 +30,16 @@ def performScraping(urlReceived, keywords, breakPointNumber):
     ## Get reference and trend order. Handle the case where the user enters the exact product   
     # name as search terms, and the webpage skips search results page and redirects to the product page    
     try:
-        # Get all relevant results for searh term
-        refDF = helper_functions.resultDataframeAsos(urlReceived, 'reference', breakPointNumber)
-        # In case no 'breakpoint' fetch all the results
+        # In case no 'breakpoint' fetch 10 results
         if breakPointNumber==0:
-            breakPointNumber = len(refDF) 
+            breakPointNumber = 10
         # Get trending products
-        trendDF = helper_functions.resultDataframeAsos(urlReceived, 'trend', breakPointNumber)
-    except:
+        trendDF = helper_functions.resultDataframeAsos(urlReceived, 'trend', breakPointNumber=breakPointNumber)
+        # Get all relevant results for searh term
+        refDF = helper_functions.resultDataframeAsos(urlReceived, 'reference', filterDF=trendDF)    
+        
+    except Exception as e:        
+        print('Exception: %s' % e)
         soup = helper_functions.get_content(urlReceived)
         trendDF = pd.DataFrame(columns=['trendOrder', 'URL', 'imgURL', 'price'])
         refDF = pd.DataFrame(columns=['referenceOrder', 'URL', 'imgURL'])
@@ -72,7 +74,7 @@ def performScraping(urlReceived, keywords, breakPointNumber):
             print('Info for product %s updated' % prdno)
         else:
             # Download product image
-            imageFilePath = helper_functions.setImageFilePath(standardUrl, keywords, trendOrder)
+            imageFilePath = helper_functions.setImageFilePath(standardUrl, ''.join(keywords.split()), trendOrder)
             empPhoto = helper_functions.getImage(imgURL, imageFilePath)
             numImagesDown += 1
             print('Image number %s: %s' % (trendOrder, imageFilePath.split(os.sep)[-1]))
@@ -118,7 +120,7 @@ if __name__ == '__main__':
         folderName = helper_functions.getFolderName(keys)
 
         keywords = keys.split(" ")
-
+        search_term = ' '.join(keywords[1:])
         try:
             threshold = int(keywords[0])
             query = standardUrl + '%20'.join(keywords[1:])
@@ -127,6 +129,6 @@ if __name__ == '__main__':
             query = standardUrl + '%20'.join(keywords)
 
         print('Parsing: ' + str(query))
-        performScraping(query, folderName, breakPointNumber=threshold)
+        performScraping(query, search_term, breakPointNumber=threshold)
     print("\nTime to scrape ALL queries is %s seconds ---" % round(time.time() - start_time_all, 2))
 
