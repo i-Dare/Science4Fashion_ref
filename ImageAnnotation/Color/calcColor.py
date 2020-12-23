@@ -57,26 +57,26 @@ if __name__ == '__main__':
     odapi = segmentation.DeepLabModel(tarball_path=modelPath, labels=labels)
 
     #Read data from database
-#     query = '''SELECT *
-#                 FROM %s.dbo.Product AS PR
-#                 LEFT JOIN %s.dbo.ProductColor AS PC
-#                 ON PR.Oid=PC.Product
-#                 WHERE PC.Oid IS NULL''' % (str(dbName), str(dbName))
     query = '''SELECT *
-               FROM public."Product" AS PR
-               LEFT JOIN public."ProductColor" AS PC
-               ON PR."Oid"=PC."Product"
-               WHERE PC."Product" IS NULL'''
+                FROM %s.dbo.Product AS PR
+                LEFT JOIN %s.dbo.ProductColor AS PC
+                ON PR.Oid=PC.Product
+                WHERE PC.Oid IS NULL''' % (str(dbName), str(dbName))
+    # query = '''SELECT *
+    #            FROM public."Product" AS PR
+    #            LEFT JOIN public."ProductColor" AS PC
+    #            ON PR."Oid"=PC."Product"
+    #            WHERE PC."Product" IS NULL'''
     productDF = pd.read_sql_query(query, engine)
 
     #Colors dataframe
     for _, row in productDF.iterrows():
         #Read Color and ColorRGB from database
-#         colorQuery = '''SELECT * FROM %s.dbo.ProductColor''' % dbName
-        colorQuery = '''SELECT * FROM public."ProductColor"''' 
+        colorQuery = '''SELECT * FROM %s.dbo.ProductColor''' % dbName
+        # colorQuery = '''SELECT * FROM public."ProductColor"''' 
         colorDF = pd.read_sql_query(colorQuery, engine)
-#         colorRGBQuery = '''SELECT * FROM %s.dbo.ColorRGB''' % dbName
-        colorRGBQuery = '''SELECT * FROM public."ColorRGB"'''
+        colorRGBQuery = '''SELECT * FROM %s.dbo.ColorRGB''' % dbName
+        # colorRGBQuery = '''SELECT * FROM public."ColorRGB"'''
         colorRGBDF = pd.read_sql_query(colorRGBQuery, engine)
         # Image path
         imgPath = row['Photo']
@@ -109,8 +109,8 @@ if __name__ == '__main__':
                 cloth.colors = [(0., color_fail)] * 5
 
             # Save color information to database by updating ProductColor, ColorRGB and Product tables
-            # DataFrame for ProductColor table ('Product','ColorRGP','Percentage','Ranking')
-            colorCols = ['Product','ColorRGP','Percentage','Ranking']
+            # DataFrame for ProductColor table ('Product','ColorRGB','Percentage','Ranking')
+            colorCols = ['Product','ColorRGB','Percentage','Ranking']
             newEntryColorDF = pd.DataFrame(columns=colorCols)
 
             for ranking in range(5):
@@ -129,8 +129,8 @@ if __name__ == '__main__':
                     # DataFrame for ColorRGB table ('Red','Green','Blue','Label','LabelDetailed')                    
                     newEntryColorRGBDF = pd.DataFrame(columns=colorRGBCols)
                     newEntryColorRGBDF = newEntryColorRGBDF.append(colorSeries, ignore_index=True)
-                    # newEntryColorRGBDF.to_sql('ColorRGB', schema='dbo', con = engine, if_exists = 'append', index = False)
-                    newEntryColorRGBDF.to_sql('ColorRGB', con = engine, if_exists = 'append', index = False)
+                    newEntryColorRGBDF.to_sql('ColorRGB', schema='dbo', con = engine, if_exists = 'append', index = False)
+                    # newEntryColorRGBDF.to_sql('ColorRGB', con = engine, if_exists = 'append', index = False)
                     print('Adding color \"%s\" - \"%s\" %s in ColorRGB table' % (colorName, colorNameDetails, str(color)))
                     colorRGBDF = pd.read_sql_query(colorRGBQuery, engine)
                     colID = colorRGBDF['Oid'].values[-1]
@@ -139,8 +139,8 @@ if __name__ == '__main__':
 
                 newEntryColorDF.loc[ranking] = [row['Oid'][0]] + [colID] + [colorPercentage] + [ranking + 1]
 
-#             newEntryColorDF.to_sql('ProductColor', schema='dbo', con = engine, if_exists = 'append', index = False)
-            newEntryColorDF.to_sql('ProductColor', con = engine, if_exists = 'append', index = False)
+            newEntryColorDF.to_sql('ProductColor', schema='%s.dbo' % dbName, con = engine, if_exists = 'append', index = False)
+            # newEntryColorDF.to_sql('ProductColor', con = engine, if_exists = 'append', index = False)
         else:
             print('Cannot find image with ID %s at path %s' % (row['Oid'], imgPath))
     # End Counting Time

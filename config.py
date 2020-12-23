@@ -16,20 +16,20 @@ DB_CONNECTION = config['db_connection']
 DB_NAME = config['db_name']
 ENGINE = sqlalchemy.create_engine(DB_CONNECTION + DB_NAME)
 
-# UPDATESQLQUERY = """
-#     UPDATE Product
-#     SET Product.ProductCategory = temp_table.ProductCategory, Product.ProductSubcategory = temp_table.ProductSubcategory, Product.Length = temp_table.Length, Product.Sleeve = temp_table.Sleeve, Product.CollarDesign = temp_table.CollarDesign, Product.NeckDesign = temp_table.NeckDesign, Product.Fit = temp_table.Fit
-#     FROM temp_table
-#     WHERE Product.Oid = temp_table.Oid;
-#     DROP TABLE temp_table;
-# """
 UPDATESQLQUERY = """
-    UPDATE "Product" 
-    SET "ProductCategory" = temp_table."ProductCategory", "ProductSubcategory" = temp_table."ProductSubcategory", "Length" = temp_table."Length", "Sleeve" = temp_table."Sleeve", "CollarDesign" = temp_table."CollarDesign", "NeckDesign" = temp_table."NeckDesign", "Fit" = temp_table."Fit"
-    FROM temp_table 
-    WHERE public."Product"."Oid" = public."temp_table"."Oid";
-    DROP TABLE public."temp_table";
+    UPDATE Product
+    SET Product.ProductCategory = temp_table.ProductCategory, Product.ProductSubcategory = temp_table.ProductSubcategory, Product.Length = temp_table.Length, Product.Sleeve = temp_table.Sleeve, Product.CollarDesign = temp_table.CollarDesign, Product.NeckDesign = temp_table.NeckDesign, Product.Fit = temp_table.Fit
+    FROM temp_table
+    WHERE Product.Oid = temp_table.Oid;
+    DROP TABLE temp_table;
 """
+# UPDATESQLQUERY = """
+#     UPDATE "Product" 
+#     SET "ProductCategory" = temp_table."ProductCategory", "ProductSubcategory" = temp_table."ProductSubcategory", "Length" = temp_table."Length", "Sleeve" = temp_table."Sleeve", "CollarDesign" = temp_table."CollarDesign", "NeckDesign" = temp_table."NeckDesign", "Fit" = temp_table."Fit"
+#     FROM temp_table 
+#     WHERE public."Product"."Oid" = public."temp_table"."Oid";
+#     DROP TABLE public."temp_table";
+# """
 
 
 #
@@ -108,52 +108,52 @@ MODELFIT = config['resources']['models']['product_attribute_model']['model']['fi
 CLUSTERING_PRODUCT_ATTRIBUTES = ['RetailPrice', 'Gender'] + PRODUCT_ATTRIBUTES
 N_CLUSTERS = 6
 INITKMODES = 'Cao'
-# UPDATE_CLUSTERS_QUERY = """
-#     UPDATE Cluster
-#     SET Cluster.Cluster = temp_table.Cluster, Cluster.ProductCategory = temp_table.ProductCategory, Cluster.ProductSubcategory = temp_table.ProductSubcategory, Cluster.Gender = temp_table.Gender,
-#         Cluster.LifeStage = temp_table.LifeStage, Cluster.Length = temp_table.Length, Cluster.Sleeve = temp_table.Sleeve, Cluster.CollarDesign = temp_table.CollarDesign, Cluster.NeckDesign = temp_table.NeckDesign, Cluster.Fit = temp_table.Fit
-#     FROM Cluster
-#     WHERE Cluster.Cluster = temp_table.Cluster
-# """
-# K-Modes clustering
 UPDATE_CLUSTERS_QUERY = """
-    UPDATE "Cluster" 
-    SET "Oid" = "temp_table"."Cluster", "ProductCategory" = "temp_table"."ProductCategory", "ProductSubcategory" = "temp_table"."ProductSubcategory", "Gender" = "temp_table"."Gender",
-        "LifeStage" = "temp_table"."LifeStage", "Length" = "temp_table"."Length", "Sleeve" = "temp_table"."Sleeve", "CollarDesign" = "temp_table"."CollarDesign", "NeckDesign" = "temp_table"."NeckDesign", "Fit" = "temp_table"."Fit"
-    FROM temp_table 
-    WHERE public."Cluster"."Oid" = "temp_table"."Cluster"
+    UPDATE Cluster
+    SET Cluster.Cluster = temp_table.Cluster, Cluster.ProductCategory = temp_table.ProductCategory, Cluster.ProductSubcategory = temp_table.ProductSubcategory, Cluster.Gender = temp_table.Gender,
+        Cluster.LifeStage = temp_table.LifeStage, Cluster.Length = temp_table.Length, Cluster.Sleeve = temp_table.Sleeve, Cluster.CollarDesign = temp_table.CollarDesign, Cluster.NeckDesign = temp_table.NeckDesign, Cluster.Fit = temp_table.Fit
+    FROM Cluster
+    WHERE Cluster.Cluster = temp_table.Cluster
 """
-
-# UPDATE_PRODUCT_CLUSTERS_QUERY = """
-#     UPDATE Product
-#     SET Product.Cluster = temp_table.Cluster
-#     FROM temp_table
-#     WHERE Product.Oid = temp_table.Oid;
-#     DROP TABLE temp_table;
+# K-Modes clustering
+# UPDATE_CLUSTERS_QUERY = """
+#     UPDATE "Cluster" 
+#     SET "Oid" = "temp_table"."Cluster", "ProductCategory" = "temp_table"."ProductCategory", "ProductSubcategory" = "temp_table"."ProductSubcategory", "Gender" = "temp_table"."Gender",
+#         "LifeStage" = "temp_table"."LifeStage", "Length" = "temp_table"."Length", "Sleeve" = "temp_table"."Sleeve", "CollarDesign" = "temp_table"."CollarDesign", "NeckDesign" = "temp_table"."NeckDesign", "Fit" = "temp_table"."Fit"
+#     FROM temp_table 
+#     WHERE public."Cluster"."Oid" = "temp_table"."Cluster"
 # """
+
 UPDATE_PRODUCT_CLUSTERS_QUERY = """
-    UPDATE "Product"
-    SET "Cluster" = "temp_table"."Cluster"
-    FROM "temp_table"
-    WHERE "Product"."Oid" = "temp_table"."Oid";
-    DROP TABLE public."temp_table";
+    UPDATE Product
+    SET Product.Cluster = temp_table.Cluster
+    FROM temp_table
+    WHERE Product.Oid = temp_table.Oid;
+    DROP TABLE temp_table;
 """
+# UPDATE_PRODUCT_CLUSTERS_QUERY = """
+#     UPDATE "Product"
+#     SET "Cluster" = "temp_table"."Cluster"
+#     FROM "temp_table"
+#     WHERE "Product"."Oid" = "temp_table"."Oid";
+#     DROP TABLE public."temp_table";
+# """
 
 # Consensus Clustering variables
 FAMD_COMPONENTS = config['clustering']['famd_components']
 LINKAGE = config['clustering']['linkage']
 DISTANCE_THRESHOLD = config['clustering']['distance_threshold']
-# UPDATE_PRODUCT_CONSENSUS_CLUSTERS_QUERY = """
-#     UPDATE Product
-#     SET Product.ConsensusCluster = temp_table.ConsensusCluster
-#     FROM temp_table
-#     WHERE Product.Oid = temp_table.Oid;
-#     DROP TABLE temp_table;
-# """
 UPDATE_PRODUCT_CONSENSUS_CLUSTERS_QUERY = """
-    UPDATE "Product"
-    SET "ConsensusCluster" = "temp_table"."ConsensusCluster"
-    FROM "temp_table"
-    WHERE "Product"."Oid" = "temp_table"."Oid";
-    DROP TABLE public."temp_table";
+    UPDATE Product
+    SET Product.ConsensusCluster = temp_table.ConsensusCluster
+    FROM temp_table
+    WHERE Product.Oid = temp_table.Oid;
+    DROP TABLE temp_table;
 """
+# UPDATE_PRODUCT_CONSENSUS_CLUSTERS_QUERY = """
+#     UPDATE "Product"
+#     SET "ConsensusCluster" = "temp_table"."ConsensusCluster"
+#     FROM "temp_table"
+#     WHERE "Product"."Oid" = "temp_table"."Oid";
+#     DROP TABLE public."temp_table";
+# """

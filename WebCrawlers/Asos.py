@@ -31,7 +31,7 @@ def performScraping(urlReceived, keywords, breakPointNumber):
     # name as search terms, and the webpage skips search results page and redirects to the product page    
     try:
         # Get all relevant results for searh term
-        refDF = helper_functions.resultDataframeAsos(urlReceived, 'reference')
+        refDF = helper_functions.resultDataframeAsos(urlReceived, 'reference', breakPointNumber)
         # In case no 'breakpoint' fetch all the results
         if breakPointNumber==0:
             breakPointNumber = len(refDF) 
@@ -48,7 +48,7 @@ def performScraping(urlReceived, keywords, breakPointNumber):
         refDF = refDF.append(series, ignore_index=True)
 
     # Iterate trending products
-    for i, row in trendDF.iterrows():
+    for _, row in trendDF.iterrows():
         trendOrder = row['trendOrder']
         url = row['URL']
         imgURL = row['imgURL']
@@ -61,11 +61,9 @@ def performScraping(urlReceived, keywords, breakPointNumber):
         # Check if url already exists in the PRODUCT table
         # If TRUE update the latest record in ProductHistory table
         # Otherwise download product image and create new product entry in Product and ProductHistory tables
-        # querydf = pd.read_sql_query(
-        #     "SELECT * FROM public.\"PRODUCT\" WHERE public.\"PRODUCT\".url = '{}'".format(url), engine)
         url = url.replace("'", "''")
-        # querydf = pd.read_sql_query("SELECT * FROM %s.dbo.PRODUCT WHERE %s.dbo.PRODUCT.url = '%s'" % (dbName, dbName, url), engine)
-        querydf = pd.read_sql_query("SELECT * FROM public.\"Product\" WHERE public.\"Product\".\"URL\" = '%s'" %  url, engine)
+        querydf = pd.read_sql_query("SELECT * FROM %s.dbo.PRODUCT WHERE %s.dbo.PRODUCT.url = '%s'" % (dbName, dbName, url), engine)
+        # querydf = pd.read_sql_query("SELECT * FROM public.\"Product\" WHERE public.\"Product\".\"URL\" = '%s'" %  url, engine)
         if not querydf.empty:
             # Update ProductHistory
             prdno = querydf['Oid'].values[0]
@@ -129,6 +127,6 @@ if __name__ == '__main__':
             query = standardUrl + '%20'.join(keywords)
 
         print('Parsing: ' + str(query))
-        performScraping(query, folderName, threshold)
+        performScraping(query, folderName, breakPointNumber=threshold)
     print("\nTime to scrape ALL queries is %s seconds ---" % round(time.time() - start_time_all, 2))
 

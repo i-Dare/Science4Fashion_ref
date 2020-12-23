@@ -30,9 +30,10 @@ class PinterestCrawler(Pinterest):
 
     def _search(self, query, threshold):
         engine = helper_functions.ENGINE
+        dbName = helper_functions.DB_NAME
 
-        # productsDF = pd.read_sql_query('''SELECT * FROM S4F.dbo.Product''', engine)
-        productsDF = pd.read_sql_query('''SELECT * FROM  public.\"Product\"''', engine)
+        productsDF = pd.read_sql_query('''SELECT * FROM %s.dbo.Product''' % dbName, engine)
+        # productsDF = pd.read_sql_query('''SELECT * FROM  public.\"Product\"''', engine)
 
         results = self.search('pins', query, page_size=threshold)
         query_result = []
@@ -88,9 +89,10 @@ class InstagramCrawler():
 
     def search_query(self, query, threshold=10):
         engine = helper_functions.ENGINE
+        dbName = helper_functions.DB_NAME
 
-        # productsDF = pd.read_sql_query('''SELECT * FROM S4F.dbo.Product''', engine)
-        productsDF = pd.read_sql_query('''SELECT * FROM  public.\"Product\"''', engine)
+        productsDF = pd.read_sql_query('''SELECT * FROM %s.dbo.Product''' % dbName, engine)
+        # productsDF = pd.read_sql_query('''SELECT * FROM  public.\"Product\"''', engine)
 
         # Create hashtag from query term
         hashtag = Hashtag.from_name(self.instagram.context, query.replace(' ',''))
@@ -126,7 +128,7 @@ class InstagramCrawler():
         return query_result
 
     
-def save_ranked(query_result, login_page, segmentation=False):
+def save_ranked(query_result, adapter, segmentation=False):
     dataDF = pd.DataFrame(query_result)
     # Form metadata column
     dataDF['metadata'] = dataDF['title'].str.cat(dataDF['description'].astype(str), sep=' ')
@@ -162,7 +164,7 @@ def save_ranked(query_result, login_page, segmentation=False):
 
     # Save ranked results to the database
     for _, row in dataDF.iterrows():
-        site = login_page
+        site = adapter
         searchwords = query_result[0]['query']
         imageFilePath = row['imageFilePath']    
         url = row['URL']

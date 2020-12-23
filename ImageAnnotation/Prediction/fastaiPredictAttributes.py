@@ -26,8 +26,8 @@ if __name__ == "__main__":
     # Database settings
     engine = helper_functions.ENGINE
     dbName = helper_functions.DB_NAME
-    # query = ''' SELECT * FROM %s.dbo.Product ''' % dbName
-    query = '''SELECT * FROM "%s".public."Product"''' % dbName
+    query = ''' SELECT * FROM %s.dbo.Product ''' % dbName
+    # query = '''SELECT * FROM "%s".public."Product"''' % dbName
 
     productDF = pd.read_sql_query(query, engine)
     # Select only unlabeled products
@@ -58,8 +58,8 @@ if __name__ == "__main__":
                 productDF.loc[index, 'Fit'] = helper_functions.updateAttribute(config.DICTFIT, image, fitLearner)
             
     # Update Product table
-    # productDF.to_sql("temp_table", schema='%s.dbo' % dbName, con=engine, if_exists='replace', index=False)
-    productDF.to_sql("temp_table", con = engine, if_exists = 'replace', index = False)
+    productDF.to_sql("temp_table", schema='%s.dbo' % dbName, con=engine, if_exists='replace', index=False)
+    # productDF.to_sql("temp_table", con = engine, if_exists = 'replace', index = False)
     with engine.begin() as conn:
         conn.execute(config.UPDATESQLQUERY)
 

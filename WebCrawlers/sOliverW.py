@@ -48,8 +48,8 @@ def performScraping(urlReceived, category):
         price, head, brand, color, genderid, meta, sku, isActive = helper_functions.parseSOliverFields(soup, url, imgURL)
 
         url=url.replace("'", "''")
-        # querydf = pd.read_sql_query("SELECT * FROM %s.dbo.PRODUCT WHERE %s.dbo.PRODUCT.url = '%s'" % (dbName, dbName, url), engine)
-        querydf = pd.read_sql_query("SELECT * FROM public.\"Product\" WHERE public.\"Product\".\"URL\" = '%s'" %  url.replace("%", "%%"), engine)
+        querydf = pd.read_sql_query("SELECT * FROM %s.dbo.PRODUCT WHERE %s.dbo.PRODUCT.url = '%s'" % (dbName, dbName, url), engine)
+        # querydf = pd.read_sql_query("SELECT * FROM public.\"Product\" WHERE public.\"Product\".\"URL\" = '%s'" %  url.replace("%", "%%"), engine)
         if not querydf.empty:
             # Update ProductHistory
             prdno = querydf['Oid'].values[0]

@@ -30,7 +30,7 @@ def performScraping(urlReceived, keywords, breakPointNumber):
     ## Get reference and trend order. Handle the case where the user enters the exact product 
     # name as search terms, and the webpage skips search results page and redirects to the product page
     # Get all relevant results for searh term
-    refDF = helper_functions.resultDataframeZalando(urlReceived, 'reference')
+    refDF = helper_functions.resultDataframeZalando(urlReceived, 'reference', breakPointNumber)
     # In case no 'breakpoint' fetch all the results
     if breakPointNumber==0:
         breakPointNumber = len(refDF) 
@@ -55,8 +55,8 @@ def performScraping(urlReceived, keywords, breakPointNumber):
         # If TRUE update the latest record in ProductHistory table
         # Otherwise download product image and create new product entry in PRODUCT and ProductHistory tables
         url = url.replace("'", "''")
-        # querydf = pd.read_sql_query("SELECT * FROM %s.dbo.Product WHERE %s.dbo.Product.url = '%s'" % (dbName, dbName, url), engine)
-        querydf = pd.read_sql_query("SELECT * FROM public.\"Product\" WHERE public.\"Product\".\"URL\" = '%s'" %  url, engine)
+        querydf = pd.read_sql_query("SELECT * FROM %s.dbo.Product WHERE %s.dbo.Product.url = '%s'" % (dbName, dbName, url), engine)
+        # querydf = pd.read_sql_query("SELECT * FROM public.\"Product\" WHERE public.\"Product\".\"URL\" = '%s'" %  url, engine)
 
         if not querydf.empty:
             # Update ProductHistory

@@ -183,8 +183,8 @@ def addNewBrand(brand, isActive):
     '''
     Adds new brand info to the Brand table if it does not exist. 
     '''
-    # branddf = pd.read_sql_query("SELECT * FROM %s.dbo.Brand" % DB_NAME, ENGINE)
-    branddf = pd.read_sql_query("SELECT * FROM public.\"Brand\"", ENGINE)
+    branddf = pd.read_sql_query("SELECT * FROM %s.dbo.Brand" % DB_NAME, ENGINE)
+    # branddf = pd.read_sql_query("SELECT * FROM public.\"Brand\"", ENGINE)
     if brand:
         brand = brand.replace("'", "''")
         if branddf.loc[branddf['Description']==brand].empty:
@@ -208,10 +208,11 @@ def addNewProduct(site, keywords, imageFilePath, empPhoto, url, imgsrc, head, co
     '''
     Adds new product info to the Product table. 
     '''
+    queryAdaptersdf = pd.read_sql_query("SELECT * FROM %s.dbo.Adapter WHERE %s.dbo.Adapter.Description = '%s'" % (DB_NAME, DB_NAME, site), ENGINE)
     # submit record to the Product table
     brandID = addNewBrand(brand, isActive)
     print('Adding new product')                              
-    submitdf = pd.DataFrame([{'Description': keywords, 'AlternativeDescription': None, 'Active': isActive, 
+    submitdf = pd.DataFrame([{'Adapter': queryAdaptersdf.loc[0, 'Oid'], 'Description': keywords, 'AlternativeDescription': None, 'Active':  True, 
                               'Ordering': 0, 'ProductCode': sku, 'ProductTitle': head, 'Composition': None, 
                               'ForeignComposition': None, 'SiteHeadline': head, 'ColorsDescription': color, 'Metadata': meta, 
                               'SamplePrice': None, 'ProductionPrice': None, 'WholesalePrice': None, 'RetailPrice': price, 
@@ -220,10 +221,9 @@ def addNewProduct(site, keywords, imageFilePath, empPhoto, url, imgsrc, head, co
                               'ProductionManufacturer': None, 'Length': None, 'NeckDesign': None, 'ProductCategory': None, 
                               'ProductSubcategory': None, 'Sleeve': None, 'LifeStage': None, 'TrendTheme': None,
                               'InspirationBackground': None, 'Gender': genderid, 'BusinessUnit': None, 
-                              'Season': None, 'Cluster': None, 'FinancialCluster': None, 'SumOfPercentage': None,
-                              'OptimisticLockField': None}])
-    # submitdf.to_sql("Product", schema='%s.dbo' % DB_NAME, con=ENGINE, if_exists='append', index=False)
-    submitdf.to_sql('Product', con=ENGINE, if_exists='append', index=False)
+                              'Season': None, 'Cluster': None, 'FinancialCluster': None, 'OptimisticLockField': None}])
+    submitdf.to_sql("Product", schema='%s.dbo' % DB_NAME, con=ENGINE, if_exists='append', index=False)
+    # submitdf.to_sql('Product', con=ENGINE, if_exists='append', index=False)
                     
 
 ########### Add new product to the ProductHistory table ###########
@@ -409,7 +409,7 @@ def resultDataframeAsos(keyUrl, order, breakPointNumber=9999999):
             r'JSON\.parse\(\'({\"(?=analytics).+products\":.+\]}})', jsonUnparsed)[0].replace('\\', ''))
         products = jsonInfo['search']['products']
 
-        if parsedItems >= maxItems:
+        if parsedItems >= maxItems or len(resultsDF) > breakPointNumber-1:
             break
     try:
         resultsDF[ordering] = range(1, maxItems+1)

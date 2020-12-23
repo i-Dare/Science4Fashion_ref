@@ -52,7 +52,7 @@ if __name__ == '__main__':
         
         insta = instagram.search_query(query=query, threshold=threshold)
         # Store results in the database ranked by the relevance of the experts terminology
-        dataDF = save_ranked(insta, instagram.home_page)
+        dataDF = save_ranked(insta, adapter='Instagram')
 
         print('Images requested: %s,   Images Downloaded: %s (%s%%)' % (threshold, len(dataDF), round(len(dataDF)/threshold,2 ) * 100)) 
     print("\nTime to scrape ALL queries is %s seconds ---" % round(time.time() - start_time_all, 2))

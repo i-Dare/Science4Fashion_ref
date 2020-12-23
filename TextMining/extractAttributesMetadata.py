@@ -11,8 +11,8 @@ import config
 
 def updateQuery(df, engine):
     ###Create temp table and then update only the rows that belong to temp AND product###
-    # df.to_sql("temp_table", schema='%s.dbo' % dbName, con=engine, if_exists='replace', index=False)
-    df.to_sql("temp_table", con = engine, if_exists = 'replace', index = False)
+    df.to_sql("temp_table", schema='%s.dbo' % dbName, con=engine, if_exists='replace', index=False)
+    # df.to_sql("temp_table", con = engine, if_exists = 'replace', index = False)
     with engine.begin() as conn:
         conn.execute(config.UPDATESQLQUERY)
 
@@ -45,8 +45,8 @@ if __name__ == "__main__":
     engine = helper_functions.ENGINE
     dbName = helper_functions.DB_NAME
 
-    # productsDF = pd.read_sql_query('SELECT * FROM  %s.dbo.Product' % dbName, engine)
-    productsDF = pd.read_sql_query('SELECT * FROM public.\"Product\"', engine)
+    productsDF = pd.read_sql_query('SELECT * FROM  %s.dbo.Product' % dbName, engine)
+    # productsDF = pd.read_sql_query('SELECT * FROM public.\"Product\"', engine)
 
     labelsDF = pd.DataFrame()
     
@@ -128,8 +128,8 @@ if __name__ == "__main__":
     # for name in (config.PRODUCT_ATTRIBUTES + config.DEEPFASHIONATTRIBUTES):
     dfDict = {}
     for attr in config.PRODUCT_ATTRIBUTES:
-        # dfDict[str(attr)+'_DB'] = pd.read_sql_query("SELECT * FROM %s.dbo.%s" % (dbName, attr), engine)
-        dfDict[str(attr)+'_DB'] = pd.read_sql_query(' SELECT * FROM public.\"%s\"' % str(attr), engine)
+        dfDict[str(attr)+'_DB'] = pd.read_sql_query("SELECT * FROM %s.dbo.%s" % (dbName, attr), engine)
+        # dfDict[str(attr)+'_DB'] = pd.read_sql_query(' SELECT * FROM public.\"%s\"' % str(attr), engine)
 
     # Update the DB label tables with the new attributes    
     for (label, values) in labelsUnique.items():
@@ -138,21 +138,21 @@ if __name__ == "__main__":
                 if label=='ProductSubcategory':
                     submitdf = pd.DataFrame([{'Description': v, 'AlternativeDescription': '', 'ProductCategory': None, 
                                             'Active': True, 'OptimisticLockField': None}])
-                    # submitdf.to_sql(label, schema='%s.dbo' % dbName, con=engine, if_exists='append', index=False)
-                    submitdf.to_sql(label, con=engine, if_exists='append', index=False)
+                    submitdf.to_sql(label, schema='%s.dbo' % dbName, con=engine, if_exists='append', index=False)
+                    # submitdf.to_sql(label, con=engine, if_exists='append', index=False)
                 else:
                     submitdf = pd.DataFrame([{'Description': v, 'AlternativeDescription': '', 'Active': True,
                                             'OptimisticLockField': None}])
-                    # submitdf.to_sql(label, schema='%s.dbo' % dbName, con=engine, if_exists='append', index=False)
-                    submitdf.to_sql(label, con=engine, if_exists='append', index=False)
+                    submitdf.to_sql(label, schema='%s.dbo' % dbName, con=engine, if_exists='append', index=False)
+                    # submitdf.to_sql(label, con=engine, if_exists='append', index=False)
         
     print('Update product attributes')  
     ## Update Product table with the foreign key values of the updated attributes
     # re-load from database the updated attribute tables and create a dataframe for each 
     dfDict = {}
     for attr in config.PRODUCT_ATTRIBUTES:
-        # dfDict[str(attr)+'_DB'] = pd.read_sql_query(''' SELECT * FROM %s.dbo.%s''' % (dbName, str(attr)), engine)
-        dfDict[str(attr)+'_DB'] = pd.read_sql_query(''' SELECT * FROM public.\"%s\"''' % str(attr), engine)
+        dfDict[str(attr)+'_DB'] = pd.read_sql_query(''' SELECT * FROM %s.dbo.%s''' % (dbName, str(attr)), engine)
+        # dfDict[str(attr)+'_DB'] = pd.read_sql_query(''' SELECT * FROM public.\"%s\"''' % str(attr), engine)
 
     # Update Products table for each attribute
     for attr in config.PRODUCT_ATTRIBUTES:
@@ -162,8 +162,8 @@ if __name__ == "__main__":
         mergedDF = labelsDF.merge(dfDict[str(attr)+'_DB'], left_on=attr, right_on='Description')[['Oid_x', 'Oid_y']]
         productsDF.loc[productsDF['Oid'].isin(mergedDF['Oid_x'].values), attr] = mergedDF['Oid_y'].values
     # Execute Product update query
-    # productsDF.to_sql("temp_table", schema='%s.dbo' % dbName, con=engine, if_exists='replace', index=False)
-    productsDF.to_sql("temp_table", con = engine, if_exists = 'replace', index = False)
+    productsDF.to_sql("temp_table", schema='%s.dbo' % dbName, con=engine, if_exists='replace', index=False)
+    # productsDF.to_sql("temp_table", con = engine, if_exists = 'replace', index = False)
     with engine.begin() as conn:
         conn.execute(config.UPDATESQLQUERY)
 

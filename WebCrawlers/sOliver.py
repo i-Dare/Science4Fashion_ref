@@ -31,7 +31,7 @@ def performScraping(urlReceived, keywords, breakPointNumber):
     # name as search terms, and the webpage skips search results page and redirects to the product page
     try:
         # Get all relevant results for searh term
-        refDF = helper_functions.resultDataframeSOliver(urlReceived, 'reference')
+        refDF = helper_functions.resultDataframeSOliver(urlReceived, 'reference', breakPointNumber)
         # In case no 'breakpoint' fetch all the results
         if breakPointNumber==0:
             breakPointNumber = len(refDF) 
@@ -66,8 +66,8 @@ def performScraping(urlReceived, keywords, breakPointNumber):
         # If TRUE update the latest record in ProductHistory table
         # Otherwise download product image and create new product entry in PRODUCT and ProductHistory tables
         url=url.replace("'", "''")
-        # querydf = pd.read_sql_query("SELECT * FROM %s.dbo.PRODUCT WHERE %s.dbo.PRODUCT.url = '%s'" % (dbName, dbName, url), engine)
-        querydf = pd.read_sql_query("SELECT * FROM public.\"Product\" WHERE public.\"Product\".\"URL\" = '%s'" %  url, engine)
+        querydf = pd.read_sql_query("SELECT * FROM %s.dbo.PRODUCT WHERE %s.dbo.PRODUCT.url = '%s'" % (dbName, dbName, url), engine)
+        # querydf = pd.read_sql_query("SELECT * FROM public.\"Product\" WHERE public.\"Product\".\"URL\" = '%s'" %  url, engine)
         if not querydf.empty:
             # Update ProductHistory
             prdno = querydf['Oid'].values[0]
