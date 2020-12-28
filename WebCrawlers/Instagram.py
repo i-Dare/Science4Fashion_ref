@@ -11,9 +11,13 @@ import time
 import config
 import helper_functions
 from WebCrawlers.SocialMedia.SocialMediaCrawlers import InstagramCrawler, save_ranked
+import sys
 
 
 if __name__ == '__main__':
+    # Get input arguments
+    searchTerm, threshold = sys.argv[1], int(sys.argv[2])
+
     start_time_all = time.time()
 
     currendDir = helper_functions.WEB_CRAWLERS
@@ -28,33 +32,12 @@ if __name__ == '__main__':
 
     instagram = InstagramCrawler(username=username, password=password)
     instagram.login()
-
-    ############ Open the file with read only permit ############
-    file = open(os.path.join(currendDir, 'keywords.txt'), "r")
-
-    ############ Use readlines to read all lines in the file ############
-    lines = file.readlines()  # The variable "lines" is a list containing all lines in the file
-    file.close()  # Close the file after reading the lines.
-
-    for i in range(0, len(lines)):
-        keys = lines[i]
-        keys = keys.replace('\n', '')
-        print('Crawler Search no. %s ------------------- Search query: %s' % (i + 1, keys))
-
-        keywords = keys.split(" ")
-        keyLen = len(keywords)
-        query = keywords[1].strip('"')
-        threshold = int(keywords[0])
-        for j in range(2, keyLen):
-            query = query + ' ' + keywords[j].strip('"')
-
-        print('Query: ' + str(query))
         
-        insta = instagram.search_query(query=query, threshold=threshold)
-        # Store results in the database ranked by the relevance of the experts terminology
-        dataDF = save_ranked(insta, adapter='Instagram')
+    insta = instagram.search_query(query=searchTerm, threshold=threshold)
+    # Store results in the database ranked by the relevance of the experts terminology
+    dataDF = save_ranked(insta, adapter='Instagram')
 
-        print('Images requested: %s,   Images Downloaded: %s (%s%%)' % (threshold, len(dataDF), round(len(dataDF)/threshold,2 ) * 100)) 
+    print('Images requested: %s,   Images Downloaded: %s (%s%%)' % (threshold, len(dataDF), round(len(dataDF)/threshold,2 ) * 100)) 
     print("\nTime to scrape ALL queries is %s seconds ---" % round(time.time() - start_time_all, 2))
 
 

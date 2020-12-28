@@ -11,10 +11,11 @@ import regex as re
 
 from bs4 import BeautifulSoup, ResultSet
 from datetime import datetime
+import sys
 
 
-############ This function will be called every new keyword line is encountered and will start scraping the amazon web page of the search result according to the text mention in the keywords text file ############
-def performScraping(urlReceived, keywords, breakPointNumber):
+############ This function will be called every new keyword line is encountered and will start scraping the amazon web page of the search result according to the text mention in the searchTerm text file ############
+def performScraping(urlReceived, searchTerm, breakPointNumber):
     # initialize scraping
     start_time = time.time()
     # stats counters
@@ -74,7 +75,7 @@ def performScraping(urlReceived, keywords, breakPointNumber):
             print('Info for product %s updated' % prdno)
         else:
             # Download product image
-            imageFilePath = helper_functions.setImageFilePath(standardUrl, ''.join(keywords.split()), trendOrder)
+            imageFilePath = helper_functions.setImageFilePath(standardUrl, ''.join(searchTerm.split()), trendOrder)
             empPhoto = helper_functions.getImage(imgURL, imageFilePath)
             numImagesDown += 1
             print('Image number %s: %s' % (trendOrder, imageFilePath.split(os.sep)[-1]))
@@ -96,6 +97,9 @@ def performScraping(urlReceived, keywords, breakPointNumber):
 
 ############ Main function ############
 if __name__ == '__main__':
+    # Get input arguments
+    searchTerm, threshold = sys.argv[1], int(sys.argv[2])
+
     start_time_all = time.time()
 
     currendDir = helper_functions.WEB_CRAWLERS
@@ -105,30 +109,9 @@ if __name__ == '__main__':
     standardUrl = 'https://www.asos.com/uk/search/?q='
     site = str((standardUrl.split('.')[1]).capitalize())
 
-    ############ Open the file with read only permit ############
-    file = open(os.path.join(currendDir, 'keywords.txt'), "r")
+    query = standardUrl + '%20'.join(searchTerm.split())
+    print('Parsing: ' + str(query))
 
-    ############ Use readlines to read all lines in the file ############
-    lines = file.readlines()  # The variable "lines" is a list containing all lines in the file
-    file.close()  # Close the file after reading the lines.
-    
-    ############ The File stores Input data as "<Number Of Images Required><<SPACE>><Search Text With Spaces>" ############
-    for i in range(len(lines)):
-        keys = lines[i]
-        keys = keys.replace('\n', '')
-        print('Crawler Search no. %s ------------------- Search query: %s' % (i + 1, keys))
-        folderName = helper_functions.getFolderName(keys)
-
-        keywords = keys.split(" ")
-        search_term = ' '.join(keywords[1:])
-        try:
-            threshold = int(keywords[0])
-            query = standardUrl + '%20'.join(keywords[1:])
-        except:
-            threshold = 0
-            query = standardUrl + '%20'.join(keywords)
-
-        print('Parsing: ' + str(query))
-        performScraping(query, search_term, breakPointNumber=threshold)
+    folderName = helper_functions.getFolderName(searchTerm)
+    performScraping(query, searchTerm, breakPointNumber=threshold)
     print("\nTime to scrape ALL queries is %s seconds ---" % round(time.time() - start_time_all, 2))
-
