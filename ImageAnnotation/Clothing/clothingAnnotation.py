@@ -33,7 +33,7 @@ if __name__ == "__main__":
     # Select only unlabeled products
     productDF = productDF.loc[productDF.loc[:,(config.ATTRIBUTE_COLUMNS)].fillna(value=0).astype('int64').sum(axis=1) != len(config.ATTRIBUTE_COLUMNS)]
     # Each entry
-    print("Product attribute annotation for %s unlabeled products" % len(productDF))
+    print("Executing product attribute annotation for %s unlabeled products" % len(productDF))
     for index, row in productDF.iterrows():
         if index==1:
             break
