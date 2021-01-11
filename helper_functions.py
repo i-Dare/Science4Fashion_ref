@@ -7,27 +7,27 @@ import random
 import sqlalchemy
 import json
 import string
-import numpy as np
 import cv2
-from PIL import Image as PILImage
-from fastai.vision import *
-
 import pandas as pd
 import regex as re
-import config
+import numpy as np
+from PIL import Image as PILImage
+from fastai.vision import *
 from bs4 import BeautifulSoup, ResultSet
 from datetime import datetime
-
 import nltk
 from nltk.corpus import wordnet as wn
 from nltk.stem.wordnet import WordNetLemmatizer
 from nltk.tokenize import TweetTokenizer
 from nltk import pos_tag
 import wordsegment
-wordsegment.load()
-
 import warnings
+
+import config
+
+wordsegment.load()
 warnings.filterwarnings('ignore')
+
 
 # Database variables
 DB_CONNECTION = config.DB_CONNECTION

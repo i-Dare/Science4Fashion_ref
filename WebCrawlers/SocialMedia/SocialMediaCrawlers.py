@@ -53,7 +53,7 @@ class PinterestCrawler(Pinterest):
                                     'title':result['title'], 
                                     'description':result['description']})
                 else:
-                    print('Product already exists')
+                    pass
         return query_result
 
 

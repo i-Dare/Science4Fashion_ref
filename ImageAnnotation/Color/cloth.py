@@ -1,14 +1,16 @@
 # -*- coding: utf-8 -*-
 #For code
+import os
+import cv2
+import numpy as np
 from PIL import Image
 from sklearn.cluster import KMeans
+
 import imageUtils
 import segmentation
-import os
+
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 #for class
-import numpy as np
-import cv2
 
 
 

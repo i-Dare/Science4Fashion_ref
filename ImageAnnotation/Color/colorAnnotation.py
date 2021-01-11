@@ -1,14 +1,14 @@
 import sys
-from PIL import Image
 import cv2
 import os
-import numpy as np
-import pandas as pd
+import time
 import sqlalchemy
 import webcolors
+import numpy as np
+import pandas as pd
+from PIL import Image
 import matplotlib.colors as mc
 from matplotlib import pyplot as plt
-import time
 
 import helper_functions
 import config
@@ -39,6 +39,12 @@ def get_colour_name(rgb_triplet):
         gd = (g_c - rgb_triplet[1]) ** 2
         bd = (b_c - rgb_triplet[2]) ** 2
         min_colours[(rd + gd + bd)] = name
+    for key, name in mc.TABLEAU_COLORS.items():
+        r_c, g_c, b_c = webcolors.hex_to_rgb(name)
+        rd = (r_c - rgb_triplet[0]) ** 2
+        gd = (g_c - rgb_triplet[1]) ** 2
+        bd = (b_c - rgb_triplet[2]) ** 2
+        min_colours[(rd + gd + bd)] = key.split(':')[1]
     return min_colours[min(min_colours.keys())]
 
 

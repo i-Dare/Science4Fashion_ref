@@ -1,6 +1,6 @@
 import os
-import sqlalchemy
 import json
+import sqlalchemy
 
 #
 ########### Universal variables ###########
