@@ -18,12 +18,11 @@ import imageUtils
 import segmentation
 
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
-CSS4LIST = mc.CSS4_COLORS
 
 #https://stackoverflow.com/questions/9694165/convert-rgb-color-to-english-color-name-like-green-with-python
 def get_colour_nameDetailed(rgb_triplet):
     min_colours = {}
-    for key, name in CSS4LIST.items():
+    for key, name in mc.CSS4_COLORS.items():
         r_c, g_c, b_c = webcolors.hex_to_rgb(name)
         rd = (r_c - rgb_triplet[0]) ** 2
         gd = (g_c - rgb_triplet[1]) ** 2
@@ -47,6 +46,62 @@ def get_colour_name(rgb_triplet):
         min_colours[(rd + gd + bd)] = key.split(':')[1]
     return min_colours[min(min_colours.keys())]
 
+def colorExtraction(image, colorRGBDF, colorDF, imgPath):
+    # Initialize Cloth seperation module
+    cloth = Cloth(imgPath, imgBGR=image)
+
+    # Check for skin in the image
+    kernel = np.ones((5,5), np.uint8)
+    skin_erode_mask = cv2.erode(cloth.get_ycrcb_mask(), kernel, iterations=5)
+    if skin_erode_mask.sum() > 400:
+        _, cloth.segBackgroundMask, cloth.catsSegment  = odapi.run(imgPath)
+        cloth.discardExtraCats()
+        cloth.skinExtraction()    
+
+    cloth.combineMasks()
+    try:
+        _, clothImg2D = imageUtils.reshapeDim(cloth.clothMask, cloth.clothImg)
+        cloth.extractColor(clothImg2D)
+    except:
+        print('Failed to extract color informantion for image %s' % imgPath)
+        # In case of an error color RGB = (-1, -1, -1)
+        color_fail = -1 * np.ones(3, dtype=int)
+        cloth.colors = [(0., color_fail)] * 5
+
+    # Save color information to database by updating ProductColor, ColorRGB and Product tables
+    # DataFrame for ProductColor table ('Product','ColorRGB','Percentage','Ranking')
+    colorCols = ['Product','ColorRGB','Percentage','Ranking']
+    newEntryColorDF = pd.DataFrame(columns=colorCols)
+
+    for ranking in range(5):
+        color = cloth.colors[ranking][1].tolist()
+        colorPercentage = cloth.colors[ranking][0]
+        # Search if the color already exists in the ColorRGB table
+        colorList = colorRGBDF[['Red','Green','Blue']].values.tolist()
+        
+        if color not in colorList: # Check if empty list so there is no match
+            colorName = get_colour_name(color)
+            colorNameDetails = get_colour_nameDetailed(color) 
+            colorRow = color + [colorName] + [colorNameDetails]
+            colorRGBCols = ['Red','Green','Blue','Label','LabelDetailed']
+            colorSeries = pd.Series({column:value for column,value in zip(colorRGBCols, colorRow)})
+            colorRGBDF = colorRGBDF.append(colorSeries, ignore_index=True)
+            # DataFrame for ColorRGB table ('Red','Green','Blue','Label','LabelDetailed')                    
+            newEntryColorRGBDF = pd.DataFrame(columns=colorRGBCols)
+            newEntryColorRGBDF = newEntryColorRGBDF.append(colorSeries, ignore_index=True)
+            newEntryColorRGBDF.to_sql('ColorRGB', schema='dbo', con = engine, if_exists = 'append', index = False)
+            # newEntryColorRGBDF.to_sql('ColorRGB', con = engine, if_exists = 'append', index = False)
+            print('Adding color \"%s\" - \"%s\" %s in ColorRGB table' % (colorName, colorNameDetails, str(color)))
+            colorRGBDF = pd.read_sql_query(colorRGBQuery, engine)
+            colID = colorRGBDF['Oid'].values[-1]
+        else: # not empty so there is a match
+            colID = colorRGBDF.loc[colorList.index(color), 'Oid']
+
+        newEntryColorDF.loc[ranking] = [row['Oid'][0]] + [colID] + [colorPercentage] + [ranking + 1]
+
+    newEntryColorDF.to_sql('ProductColor', schema='%s.dbo' % dbName, con = engine, if_exists = 'append', index = False)
+    # newEntryColorDF.to_sql('ProductColor', con = engine, if_exists = 'append', index = False)    
+    return colorRGBDF, colorDF
 
 if __name__ == '__main__':
     # Begin Counting Time
@@ -92,62 +147,12 @@ if __name__ == '__main__':
             imgStream = open(imgPath, "rb")
             imgArray = np.asarray(bytearray(imgStream.read()), dtype=np.uint8)
             image = cv2.imdecode(imgArray, cv2.IMREAD_UNCHANGED)
-
-            # Initialize Cloth seperation module
-            cloth = Cloth(imgPath, imgBGR=image)
-
-            # Check for skin in the image
-            kernel = np.ones((5,5), np.uint8)
-            skin_erode_mask = cv2.erode(cloth.get_ycrcb_mask(), kernel, iterations=5)
-            if skin_erode_mask.sum() > 400:
-                _, cloth.segBackgroundMask, cloth.catsSegment  = odapi.run(imgPath)
-                cloth.discardExtraCats()
-                cloth.skinExtraction()    
-
-            cloth.combineMasks()
-            try:
-                _, clothImg2D = imageUtils.reshapeDim(cloth.clothMask, cloth.clothImg)
-                cloth.extractColor(clothImg2D)
-            except:
-                print('Failed to extract color informantion for image %s' % imgPath)
-                # In case of an error color RGB = (-1, -1, -1)
-                color_fail = -1 * np.ones(3, dtype=int)
-                cloth.colors = [(0., color_fail)] * 5
-
-            # Save color information to database by updating ProductColor, ColorRGB and Product tables
-            # DataFrame for ProductColor table ('Product','ColorRGB','Percentage','Ranking')
-            colorCols = ['Product','ColorRGB','Percentage','Ranking']
-            newEntryColorDF = pd.DataFrame(columns=colorCols)
-
-            for ranking in range(5):
-                color = cloth.colors[ranking][1].tolist()
-                colorPercentage = cloth.colors[ranking][0]
-                # Search if the color already exists in the ColorRGB table
-                colorList = colorRGBDF[['Red','Green','Blue']].values.tolist()
-                
-                if color not in colorList: # Check if empty list so there is no match
-                    colorName = get_colour_name(color)
-                    colorNameDetails = get_colour_nameDetailed(color) 
-                    colorRow = color + [colorName] + [colorNameDetails]
-                    colorRGBCols = ['Red','Green','Blue','Label','LabelDetailed']
-                    colorSeries = pd.Series({column:value for column,value in zip(colorRGBCols, colorRow)})
-                    colorRGBDF = colorRGBDF.append(colorSeries, ignore_index=True)
-                    # DataFrame for ColorRGB table ('Red','Green','Blue','Label','LabelDetailed')                    
-                    newEntryColorRGBDF = pd.DataFrame(columns=colorRGBCols)
-                    newEntryColorRGBDF = newEntryColorRGBDF.append(colorSeries, ignore_index=True)
-                    newEntryColorRGBDF.to_sql('ColorRGB', schema='dbo', con = engine, if_exists = 'append', index = False)
-                    # newEntryColorRGBDF.to_sql('ColorRGB', con = engine, if_exists = 'append', index = False)
-                    print('Adding color \"%s\" - \"%s\" %s in ColorRGB table' % (colorName, colorNameDetails, str(color)))
-                    colorRGBDF = pd.read_sql_query(colorRGBQuery, engine)
-                    colID = colorRGBDF['Oid'].values[-1]
-                else: # not empty so there is a match
-                    colID = colorRGBDF.loc[colorList.index(color), 'Oid']
-
-                newEntryColorDF.loc[ranking] = [row['Oid'][0]] + [colID] + [colorPercentage] + [ranking + 1]
-
-            newEntryColorDF.to_sql('ProductColor', schema='%s.dbo' % dbName, con = engine, if_exists = 'append', index = False)
-            # newEntryColorDF.to_sql('ProductColor', con = engine, if_exists = 'append', index = False)
+            colorRGBDF, colorDF = colorExtraction(image, colorRGBDF, colorDF, imgPath)
         else:
             print('Cannot find image with ID %s at path %s' % (row['Oid'], imgPath))
+            imageBlob = row['Image']
+            image = helper_functions.convertBlobToImage(imageBlob)
+            colorRGBDF, colorDF = colorExtraction(image, colorRGBDF, colorDF, 'Extracted image %s' % row['Oid'])
+
     # End Counting Time
     print("--- %s seconds ---" % (time.time() - start_time))
