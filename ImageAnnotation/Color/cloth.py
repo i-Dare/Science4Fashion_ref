@@ -221,7 +221,7 @@ class Cloth:
                 self.clothMask = resized_segBackgroundMask & self.skinMask 
             else:
                 imgCanny_c = imgCanny.copy()
-                _, contours, _ = cv2.findContours(imgCanny_c, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
+                contours, _ = cv2.findContours(imgCanny_c, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
                 imgZeros = np.zeros_like(imgCanny_c)
                 cv2.drawContours(imgZeros, contours, -1, 255, 100)
                 kernel = np.ones((5,5), np.uint8)
