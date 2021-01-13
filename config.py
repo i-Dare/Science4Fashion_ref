@@ -46,6 +46,11 @@ MODELSDIR = os.path.join(PROJECT_HOME, RESOURCESDIR,config['resources']['models'
 COLOR_MODEL_DIR = os.path.join(PROJECT_HOME, RESOURCESDIR, MODELSDIR, config['resources']['models']['color_model']['directory'])
 PRODUCT_ATTRIBUTE_MODEL_DIR = os.path.join(PROJECT_HOME, RESOURCESDIR, MODELSDIR, config['resources']['models']['product_attribute_model']['directory'])
 
+#
+########### WebCrawler variables ###########
+#
+# DB Initiation
+MAIN_DB_TABLES = config['main_db_tables']
 
 #
 ########### WebCrawler variables ###########
@@ -56,7 +61,6 @@ PINTEREST_PASSWORD = config['social_media']['pinterest_password']
 # Instagram fields
 INSTAGRAM_USERNAME = config['social_media']['pinterest_username']
 INSTAGRAM_PASSWORD = config['social_media']['pinterest_password']
-
 
 #
 ########### TextMining variables ###########
@@ -75,7 +79,7 @@ CLASSES = [
             'background', 'aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus',
             'car', 'cat', 'chair', 'cow', 'diningtable', 'dog', 'horse', 'motorbike',
             'person', 'pottedplant', 'sheep', 'sofa', 'train', 'tv' 
-        ]
+         ]
 #        
 # Attribute prediction variables
 ATTRIBUTE_COLUMNS = ['Length', 'Sleeve', 'CollarDesign', 'NeckDesign', 'Fit']
@@ -98,7 +102,6 @@ MODELCOLLAR = config['resources']['models']['product_attribute_model']['model'][
 #Fit
 DICTFIT = {0:2, 1:1, 2:3, 3:4}
 MODELFIT = config['resources']['models']['product_attribute_model']['model']['fit']
-
 
 #
 ########### Clustering variables ###########
