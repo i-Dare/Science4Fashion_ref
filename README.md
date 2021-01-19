@@ -39,7 +39,7 @@ Apart from the color information, the rest of the product's attributes regarding
 	* notepad++ https://notepad-plus-plus.org/repository/7.x/7.0/npp.7.Installer.x64.exe
 	* vscode https://code.visualstudio.com/download
 
-5. Define enviroment variables:
+4. Define enviroment variables:
 
 	* Define PROJECT_HOME enviroment variable pointing to the cloned repository directory (`C:\Users\User\Documents\GitHub-Repos\Science4Fashion_ref`)
 	* Define `PYTHONHOME` pointing to Anaconda installation
@@ -51,7 +51,7 @@ Apart from the color information, the rest of the product's attributes regarding
    	* **PYTHONHOME:** `C:\Users\User\anaconda3`   
 	* **PYTHONPATH:** `C:\Users\User\anaconda3;%PROJECT_HOME%`
 	
-6. Install python packages:
+5. Install python packages:
 	* ```$ pip install kmodes==0.10.2```
 	* ```$ pip install skfuzzy==0.4.2```
 	* ```$ pip install textblob==0.15.3```
@@ -68,15 +68,15 @@ Apart from the color information, the rest of the product's attributes regarding
 	* ```$ pip install py3-pinterest```
 	
 	
-7. Download NLTK stopwords by, opening a cmd console and executing:
+6. Download NLTK stopwords by, opening a cmd console and executing:
 	```$ python -c "import nltk;nltk.download('stopwords')"```
 
 	
-8. Transfer AI models that reside in [Google Drive](https://drive.google.com/drive/folders/1OK_DCErAY8jta532aJRSX8ljZ8XnVqAJ?usp=sharing) to target system
+7. Transfer AI models that reside in [Google Drive](https://drive.google.com/drive/folders/1OK_DCErAY8jta532aJRSX8ljZ8XnVqAJ?usp=sharing) to target system
 	* Download latest models
 	* Place models in %PROJECT_HOME%/resources/models (create directory if needed)
 	
-9. Edit DB connection details in %PROJECT_HOME%/config.json
+8. Edit DB connection details in %PROJECT_HOME%/config.json
 	* Execute the following to make sure the database connection is responsive
 
 	```$ python -c "import pandas as pd;import helper_functions;pd.read_sql_query('''SELECT * FROM %s.dbo.Product''' % helper_functions.DB_NAME, helper_functions.ENGINE)"```

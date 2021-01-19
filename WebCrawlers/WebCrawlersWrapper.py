@@ -74,24 +74,24 @@ class WebCrawlers:
    # Execute text metadata based annotation  
    def executeTextBasedAnnotation(self,):
       print('Executing: text based annotation')
-      script = os.path.join(helper_functions.TEXT_MINING, 'metadataAnnotation.py')
-      script = subprocess.Popen(['python', script])
+      scriptPath = os.path.join(helper_functions.TEXT_MINING, 'metadataAnnotation.py')
+      script = subprocess.Popen(['python', scriptPath])
       _, err = script.communicate() 
       assert not err
 
    # Execute color based annotation 
    def executeColorBasedAnnotation(self,):
       print('Executing: color based annotation')
-      script = os.path.join(helper_functions.IMAGE_ANNOTATION, 'Color', 'colorAnnotation.py')
-      script = subprocess.call(['python', script])
+      scriptPath = os.path.join(helper_functions.IMAGE_ANNOTATION, 'Color', 'colorAnnotation.py')
+      script = subprocess.call(['python', scriptPath])
       _, err = script.communicate() 
       assert not err
 
    # Execute clothing based annotation
    def executeClothingBasedAnnotation(self,):
       print('Executing: clothing based annotation')
-      script = os.path.join(helper_functions.IMAGE_ANNOTATION, 'Clothing', 'clothingAnnotation.py')
-      script = subprocess.call(['python', script])
+      scriptPath = os.path.join(helper_functions.IMAGE_ANNOTATION, 'Clothing', 'clothingAnnotation.py')
+      script = subprocess.call(['python', scriptPath])
       _, err = script.communicate() 
       assert not err
 
