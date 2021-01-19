@@ -41,7 +41,7 @@ class WebCrawlers:
             results you want to return''', default = 10, nargs = '?')
       self.parser.add_argument('-a','--adapter', help = '''Input the Adapter you would like to use \
             for your search query. The Adapter should be one of: %s''' % self.adapterDF['Description'].values, 
-            type = lambda s: s.lower(), choices = self.allAdapters, required = True)   
+            type = lambda s: s.lower(), choices = self.allAdapters, required = True, nargs = '+')   
       self.parser.add_argument('--version', action = 'version', version = '%(prog)s  1.0')
 
       # Parse arguments
@@ -56,35 +56,44 @@ class WebCrawlers:
 
    # Check argument constrains      
    def checkArgConstrains(self,):
-      if self.adapter not in self.adapter_dict.keys():
-         availableAdapters = [a for a in self.adapterDF['Description'].values if a.lower() in self.adapter_dict.keys()]
-         self.parser.error('\nATTENTION: Adapter not implemented yet. Plese choose one of %s.' % availableAdapters)
+      for adapter in self.adapter:
+         if adapter not in self.adapter_dict.keys():
+            availableAdapters = [a for a in self.adapterDF['Description'].values if a.lower() in self.adapter_dict.keys()]
+            self.parser.error('\nATTENTION: Adapter not implemented yet. Plese choose one of %s.' % availableAdapters)
 
-   
-   # Execute Website Crawler process
+      # Execute Website Crawler process
    def executeWebCrawler(self,):
-      print('Executing: %s' % self.adapter_dict[self.adapter])
-      print('Search for %s on %s and return %s results' % (self.searchTerm, self.adapter, self.numberResults))
-      # Execute Adapter      
-      subprocess.call(['python', self.adapter_dict[self.adapter], self.searchTerm, str(self.numberResults)])
+      for adapter in self.adapter:
+         print('Executing: %s' % self.adapter_dict[adapter])
+         print('Search for %s on %s and return %s results' % (self.searchTerm, adapter, self.numberResults))
+         # Execute Adapter      
+         script = subprocess.Popen(['python', self.adapter_dict[adapter], self.searchTerm, str(self.numberResults)])
+         _, err = script.communicate() 
+         assert not err
 
    # Execute text metadata based annotation  
    def executeTextBasedAnnotation(self,):
       print('Executing: text based annotation')
       script = os.path.join(helper_functions.TEXT_MINING, 'metadataAnnotation.py')
-      subprocess.call(['python', script])
+      script = subprocess.Popen(['python', script])
+      _, err = script.communicate() 
+      assert not err
 
    # Execute color based annotation 
    def executeColorBasedAnnotation(self,):
       print('Executing: color based annotation')
       script = os.path.join(helper_functions.IMAGE_ANNOTATION, 'Color', 'colorAnnotation.py')
-      subprocess.call(['python', script])
+      script = subprocess.call(['python', script])
+      _, err = script.communicate() 
+      assert not err
 
    # Execute clothing based annotation
    def executeClothingBasedAnnotation(self,):
       print('Executing: clothing based annotation')
       script = os.path.join(helper_functions.IMAGE_ANNOTATION, 'Clothing', 'clothingAnnotation.py')
-      subprocess.call(['python', script])
+      script = subprocess.call(['python', script])
+      _, err = script.communicate() 
+      assert not err
 
    # Execute product clustering module
    def executeClustering(self,):
@@ -97,11 +106,11 @@ class WebCrawlers:
    # Step 4: Execute clothing based annotation
    # Step 5: Execute product clustering module
    def run(self,):
-         self.executeWebCrawler()
-         self.executeTextBasedAnnotation()
-         self.executeColorBasedAnnotation()
-         self.executeClothingBasedAnnotation()
-         self.executeClustering()
+      self.executeWebCrawler()
+      self.executeTextBasedAnnotation()
+      self.executeColorBasedAnnotation()
+      self.executeClothingBasedAnnotation()
+      self.executeClustering()
       
 
 if __name__ == "__main__":
