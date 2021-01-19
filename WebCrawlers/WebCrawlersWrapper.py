@@ -67,33 +67,38 @@ class WebCrawlers:
          print('Executing: %s' % self.adapter_dict[adapter])
          print('Search for %s on %s and return %s results' % (self.searchTerm, adapter, self.numberResults))
          # Execute Adapter      
-         script = subprocess.Popen(['python', self.adapter_dict[adapter], self.searchTerm, str(self.numberResults)])
-         _, err = script.communicate() 
-         assert not err
+         script = subprocess.Popen(['python', self.adapter_dict[adapter], self.searchTerm, str(self.numberResults)],
+                                    stderr=subprocess.PIPE)
+         _, err = script.communicate()                                    
+         if err:
+            raise Exception(err.decode("utf-8"))
 
    # Execute text metadata based annotation  
    def executeTextBasedAnnotation(self,):
       print('Executing: text based annotation')
       scriptPath = os.path.join(helper_functions.TEXT_MINING, 'metadataAnnotation.py')
-      script = subprocess.Popen(['python', scriptPath])
-      _, err = script.communicate() 
-      assert not err
+      script = subprocess.Popen(['python', scriptPath], stderr=subprocess.PIPE)
+      _, err = script.communicate()                                    
+      if err:
+         raise Exception(err.decode("utf-8"))
 
    # Execute color based annotation 
    def executeColorBasedAnnotation(self,):
       print('Executing: color based annotation')
       scriptPath = os.path.join(helper_functions.IMAGE_ANNOTATION, 'Color', 'colorAnnotation.py')
-      script = subprocess.call(['python', scriptPath])
-      _, err = script.communicate() 
-      assert not err
+      script = subprocess.Popen(['python', scriptPath], stderr=subprocess.PIPE)
+      _, err = script.communicate()                                    
+      if err:
+         raise Exception(err.decode("utf-8"))
 
    # Execute clothing based annotation
    def executeClothingBasedAnnotation(self,):
       print('Executing: clothing based annotation')
       scriptPath = os.path.join(helper_functions.IMAGE_ANNOTATION, 'Clothing', 'clothingAnnotation.py')
-      script = subprocess.call(['python', scriptPath])
-      _, err = script.communicate() 
-      assert not err
+      script = subprocess.Popen(['python', scriptPath], stderr=subprocess.PIPE)
+      _, err = script.communicate()                                    
+      if err:
+         raise Exception(err.decode("utf-8"))
 
    # Execute product clustering module
    def executeClustering(self,):
