@@ -6,6 +6,7 @@ import pandas as pd
 
 import helper_functions
 import config
+import warnings
 
 class WebCrawlers:
 
@@ -71,7 +72,7 @@ class WebCrawlers:
                                     stderr=subprocess.PIPE)
          _, err = script.communicate()                                    
          if err:
-            raise Exception(err.decode("utf-8"))
+            warnings.warn(err.decode("utf-8"))
 
    # Execute text metadata based annotation  
    def executeTextBasedAnnotation(self,):
@@ -80,7 +81,7 @@ class WebCrawlers:
       script = subprocess.Popen(['python', scriptPath], stderr=subprocess.PIPE)
       _, err = script.communicate()                                    
       if err:
-         raise Exception(err.decode("utf-8"))
+         warnings.warn(err.decode("utf-8"))
 
    # Execute color based annotation 
    def executeColorBasedAnnotation(self,):
@@ -89,7 +90,7 @@ class WebCrawlers:
       script = subprocess.Popen(['python', scriptPath], stderr=subprocess.PIPE)
       _, err = script.communicate()                                    
       if err:
-         raise Exception(err.decode("utf-8"))
+         warnings.warn(err.decode("utf-8"))
 
    # Execute clothing based annotation
    def executeClothingBasedAnnotation(self,):
@@ -98,7 +99,7 @@ class WebCrawlers:
       script = subprocess.Popen(['python', scriptPath], stderr=subprocess.PIPE)
       _, err = script.communicate()                                    
       if err:
-         raise Exception(err.decode("utf-8"))
+         warnings.warn(err.decode("utf-8"))
 
    # Execute product clustering module
    def executeClustering(self,):

@@ -187,7 +187,7 @@ def getGender(gender):
         'kids': ['kid', 'kids', 'child', 'children'],
         'unisex': ['unisex']}
 
-    genderdf = pd.read_sql_query("SELECT * FROM %s.dbo.Gender" % helper_functions.DB_NAME, helper_functions.ENGINE)
+    genderdf = pd.read_sql_query("SELECT * FROM %s.dbo.Gender" % DB_NAME, ENGINE)
     genderdf_dict = genderdf.set_index('Oid').loc[:, 'Description'].str.lower().to_dict()
 
     # Find gender in gender_dict
@@ -769,7 +769,7 @@ def resultDataframeZalando(keyUrl, order, filterDF=pd.DataFrame([]), breakPointN
     # Prepare ajax request URL
     # Capture hidden parameters of request
     reqParams = json.loads(
-        soup.find('script', {'id': re.compile("z-nvg-cognac-props")}).text[9:-3])
+        str(soup.findAll('script', {'id': re.compile("z-nvg-cognac-props")})[0].next)[9:-3])
     maxItems = reqParams['total_count']
     max_pageNo = reqParams['pagination']['page_count']
 
@@ -778,8 +778,8 @@ def resultDataframeZalando(keyUrl, order, filterDF=pd.DataFrame([]), breakPointN
     # Iterate result pages
     while pageNo <= max_pageNo:
         # Capture products in the page
-        products = json.loads(soup.find(
-            'script', {'id': re.compile("z-nvg-cognac-props")}).text[9:-3])['articles']
+        products = json.loads(
+                str(soup.findAll('script', {'id': re.compile("z-nvg-cognac-props")})[0].next)[9:-3])['articles']
         for product in products:
             productPage = 'https://www.zalando.co.uk/%s.html' % product['url_key']
             productImg = 'https://img01.ztat.net/article/' + \
@@ -844,7 +844,8 @@ def parseZalandoFields(soup, url, imgURL):
         
     # color, brand, sku, active information
     sku = ''
-    color = ''    
+    color = ''   
+    brand = '' 
     img = imgURL.split('?')[0]
     try:
         parseInfo = soup.find('script', attrs={'id': re.compile(r'z-vegas-pdp-props')}).text
