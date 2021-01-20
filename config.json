@@ -14,12 +14,16 @@
                 "fashion_words": "fashion_words.txt",
                 "product_attributes": "product_attributes.xlsx",
                 "models": {"modelsDir":"models",
-                           "color_model": {"directory":"color", "model":"deeplabv3_mnv2_pascal_train_aug_2018_01_29.tar.gz"},
-                           "product_attribute_model": {"directory":"product_attributes", "model":{"collar": "collar.pkl",
-                                                                                                  "fit": "fit.pkl",
-                                                                                                  "length": "length.pkl",
-                                                                                                  "neckline": "neckline.pkl",
-                                                                                                  "sleeve": "sleeve.pkl"}}
+                           "color_model": {"directory":"color", 
+                                           "model":"deeplabv3_mnv2_pascal_train_aug_2018_01_29.tar.gz"},
+                           "clustering_model": {"directory":"clustering", 
+                                                "model":"consensus_clustering.pkl"},
+                           "product_attribute_model": {"directory":"product_attributes", 
+                                                       "model":{"collar": "collar.pkl",
+                                                                "fit": "fit.pkl",
+                                                                "length": "length.pkl",
+                                                                "neckline": "neckline.pkl",
+                                                                "sleeve": "sleeve.pkl"}}
                           }
                 },
   "clustering":{"famd_components": 4,

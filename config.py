@@ -42,8 +42,10 @@ IMAGE_ANNOTATION = os.path.join(PROJECT_HOME, 'ImageAnnotation')
 RECOMMENDER = os.path.join(PROJECT_HOME, 'Recommender')
 WEB_CRAWLERS = os.path.join(PROJECT_HOME, 'WebCrawlers')
 RESOURCESDIR = os.path.join(PROJECT_HOME, config['resources']['resourcesDir'])
+IMAGEDIR = os.path.join(PROJECT_HOME, config['resources']['resourcesDir'], 'images')
 MODELSDIR = os.path.join(PROJECT_HOME, RESOURCESDIR,config['resources']['models']['modelsDir'])
 COLOR_MODEL_DIR = os.path.join(PROJECT_HOME, RESOURCESDIR, MODELSDIR, config['resources']['models']['color_model']['directory'])
+CLUSTERING_MODEL_DIR = os.path.join(PROJECT_HOME, RESOURCESDIR, MODELSDIR, config['resources']['models']['clustering_model']['directory'])
 PRODUCT_ATTRIBUTE_MODEL_DIR = os.path.join(PROJECT_HOME, RESOURCESDIR, MODELSDIR, config['resources']['models']['product_attribute_model']['directory'])
 
 #
@@ -109,7 +111,7 @@ MODELFIT = config['resources']['models']['product_attribute_model']['model']['fi
 # KModes clustering variables
 # Number of clusters
 CLUSTERING_PRODUCT_ATTRIBUTES = ['RetailPrice', 'Gender'] + PRODUCT_ATTRIBUTES
-N_CLUSTERS = 6
+MODELCLUSTERING = config['resources']['models']['clustering_model']['model']
 INITKMODES = 'Cao'
 UPDATE_CLUSTERS_QUERY = """
     UPDATE Cluster
