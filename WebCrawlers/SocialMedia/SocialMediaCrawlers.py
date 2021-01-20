@@ -61,8 +61,8 @@ class PinterestCrawler(Pinterest):
         # Initial search, may return existing products
         query_result = self._search(query, threshold)
         # Setup new search constrains
-        _thresh = threshold-len(query_result)
-        while len(query_result)<threshold:     
+        _thresh = threshold - len(query_result)
+        while len(query_result) < threshold:     
             _q = self._search(query, _thresh)
             query_result += _q
             _thresh = threshold-len(query_result)

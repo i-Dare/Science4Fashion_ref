@@ -40,6 +40,7 @@ IMAGE_ANNOTATION = config.IMAGE_ANNOTATION
 RECOMMENDER = config.RECOMMENDER
 WEB_CRAWLERS = config.WEB_CRAWLERS
 RESOURCESDIR = config.RESOURCESDIR
+IMAGEDIR = config.IMAGEDIR
 
 # Define stop words
 STOP_WORDS = set(nltk.corpus.stopwords.words('english'))
@@ -150,7 +151,7 @@ def setImageFilePath(standardUrl, keyword, i):
     ImageType = ".jpeg"
     imgSiteFolder = (standardUrl.split('.')[1]).capitalize() + 'Images'
     # Creates the path where the images will be stored
-    imageDir = os.path.join(RESOURCESDIR, imgSiteFolder, keyword)
+    imageDir = os.path.join(IMAGEDIR, imgSiteFolder, keyword)
     # Create The folder according to search name
     if not os.path.exists(imageDir):
         os.makedirs(imageDir)
@@ -158,7 +159,7 @@ def setImageFilePath(standardUrl, keyword, i):
     return imageFilePath
 
 
-########### Get image from a URL and saves it to given file path ###########
+
 def getImage(imgURL, imageFilePath):
     '''
     Gets image from a URL and saves it to given file path
@@ -177,6 +178,23 @@ def getImage(imgURL, imageFilePath):
     # convert image to binary
     empPhoto = convertToBinaryData(imageFilePath)
     return empPhoto
+
+# Return gender ID according to the extracted text from the crawler
+def getGender(gender):
+    gender_dict = {
+        'man': ['man', 'men', 'male'],
+        'woman': ['woman', 'women', 'female'],
+        'kids': ['kid', 'kids', 'child', 'children'],
+        'unisex': ['unisex']}
+
+    genderdf = pd.read_sql_query("SELECT * FROM %s.dbo.Gender" % helper_functions.DB_NAME, helper_functions.ENGINE)
+    genderdf_dict = genderdf.set_index('Oid').loc[:, 'Description'].str.lower().to_dict()
+
+    # Find gender in gender_dict
+    gnd = [g_label for g_label, g in gender_dict.items() if gender.lower() in g][0]
+    # Find captured gender in gender dataframe
+    gender_id = [g_id for g_id, g in genderdf_dict.items() if gnd==g][0]
+    return gender_id
 
 ########### Add new product to the Product table ###########
 def addNewBrand(brand, isActive):
@@ -281,6 +299,7 @@ def get_fashion_attributes():
     attributList = np.hstack([fashionLabels[attr].replace(' ', np.nan).dropna().unique() for attr in config.PRODUCT_ATTRIBUTES]).tolist()
     fashion_att = preprocess_words(fashion_att + attributList)
     return fashion_att
+
 
 def preprocess_words(words_list):
     lemmatizer = WordNetLemmatizer()
@@ -477,12 +496,8 @@ def parseAsosFields(soup, url):
     # Gender
     try:
         gender = jsonInfo['gender']
-        if gender.lower() == 'men':
-            genderid = 1
-        elif gender.lower() == 'women':
-            genderid = 2
-        elif gender.lower() == 'unisex':
-            genderid = 4
+        genderid = getGender(gender)
+
     except Exception as e: 
         genderid = None
         print(e)
@@ -692,12 +707,7 @@ def parseSOliverFields(soup, url, imgURL):
         info_json = soup.findAll('span', {'class': re.compile(
             'jsPageContextData')})[-1].get('data-pagecontext')
         gender = json.loads(info_json)['product']['mainCategoryId']
-        if gender.lower() == 'men':
-            genderid = 1
-        elif gender.lower() == 'women':
-            genderid = 2
-        elif gender.lower() == 'junior':
-            genderid = 3
+        genderid = getGender(gender)
     except:
         gender = ''
         genderid = None
@@ -862,12 +872,7 @@ def parseZalandoFields(soup, url, imgURL):
         jsonInfo = soup.find(text=re.compile(r'navigationTargetGroup'))
         gender = json.loads(jsonInfo)[
             'rootEntityData']['navigationTargetGroup']
-        if gender.lower() == 'men':
-            genderid = 1
-        elif gender.lower() == 'women':
-            genderid = 2
-        else:
-            genderid = 3
+        genderid = getGender(gender)
     except:
         gender = ''
         genderid = None
