@@ -68,8 +68,11 @@ Apart from the color information, the rest of the product's attributes regarding
 	* ```$ pip install py3-pinterest```
 	
 	
-6. Download NLTK stopwords by, opening a cmd console and executing:
+6. Download NLTK content by executing the following commands in a cmd console:
+	* for stopwords:
 	```$ python -c "import nltk;nltk.download('stopwords')"```
+	* for part-of-speech tagger:
+	```$ python -c "import nltk;nltk.download('averaged_perceptron_tagger')"```
 
 	
 7. Transfer AI models that reside in [Google Drive](https://drive.google.com/drive/folders/1OK_DCErAY8jta532aJRSX8ljZ8XnVqAJ?usp=sharing) to target system
