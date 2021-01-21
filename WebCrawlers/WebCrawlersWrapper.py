@@ -3,10 +3,10 @@ import subprocess
 import argparse
 import sqlalchemy
 import pandas as pd
+import warnings
 
 import helper_functions
 import config
-import warnings
 
 class WebCrawlers:
 
@@ -102,8 +102,14 @@ class WebCrawlers:
          warnings.warn(err.decode("utf-8"))
 
    # Execute product clustering module
-   def executeClustering(self,):
-      pass
+   def executeClustering(self, train=False):
+      train_arg = '-train' if train else ''
+      print('Executing: Clustering')
+      scriptPath = os.path.join(helper_functions.CLUSTERING, 'clusteringConsensus.py')
+      script = subprocess.Popen(['python', scriptPath, train_arg], stderr=subprocess.PIPE)
+      _, err = script.communicate()                                    
+      if err:
+         warnings.warn(err.decode("utf-8"))
 
    ## Sequencially executes the data collection and annotation process
    # Step 1: Execute query for a selected website crawlers
@@ -116,7 +122,7 @@ class WebCrawlers:
       self.executeTextBasedAnnotation()
       self.executeColorBasedAnnotation()
       self.executeClothingBasedAnnotation()
-      self.executeClustering()
+      self.executeClustering(train=True)
       
 
 if __name__ == "__main__":

@@ -193,6 +193,9 @@ class ConsensusClustering:
       return labels, n_clusters, score
 
    def save_model(self, model, model_name):
+      # Create model directory
+      if not os.path.exists(self.clustering_model_dir):      
+         os.makedirs(self.clustering_model_dir)
       model_path = os.path.join(self.clustering_model_dir, '%s.pkl' % model_name)
       pickle.dump(model, open(model_path, 'wb'))
 
@@ -283,7 +286,7 @@ class ConsensusClustering:
    def _init_preprocessing(self,):
       #
       ### Loading product and color information from database
-      selected_attr = ','.join(['\"%s\"' % s for s in self.attributes + ['Description']])
+      selected_attr = ','.join(['\"%s\"' % s for s in self.attributes + ['Oid', 'Description']])
       query = ''' SELECT %s FROM %s.dbo.Product ''' % (selected_attr, self.dbName)
       # query = '''SELECT * FROM "%s".public."Product"''' % self.dbName
       productDF = pd.read_sql_query(query, self.engine)
