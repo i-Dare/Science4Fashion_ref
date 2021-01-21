@@ -45,7 +45,7 @@ RESOURCESDIR = os.path.join(PROJECT_HOME, config['resources']['resourcesDir'])
 IMAGEDIR = os.path.join(PROJECT_HOME, config['resources']['resourcesDir'], 'images')
 MODELSDIR = os.path.join(PROJECT_HOME, RESOURCESDIR,config['resources']['models']['modelsDir'])
 COLOR_MODEL_DIR = os.path.join(PROJECT_HOME, RESOURCESDIR, MODELSDIR, config['resources']['models']['color_model']['directory'])
-CLUSTERING_MODEL_DIR = os.path.join(PROJECT_HOME, RESOURCESDIR, MODELSDIR, config['resources']['models']['clustering_model']['directory'])
+CLUSTERING_MODEL_DIR = os.path.join(PROJECT_HOME, RESOURCESDIR, MODELSDIR, config['resources']['models']['clustering_models']['directory'])
 PRODUCT_ATTRIBUTE_MODEL_DIR = os.path.join(PROJECT_HOME, RESOURCESDIR, MODELSDIR, config['resources']['models']['product_attribute_model']['directory'])
 
 #
@@ -111,7 +111,13 @@ MODELFIT = config['resources']['models']['product_attribute_model']['model']['fi
 # KModes clustering variables
 # Number of clusters
 CLUSTERING_PRODUCT_ATTRIBUTES = ['RetailPrice', 'Gender'] + PRODUCT_ATTRIBUTES
-MODELCLUSTERING = config['resources']['models']['clustering_model']['model']
+MODEL_CONSENSUS = config['resources']['models']['clustering_models']['consensus']
+MODEL_KMEANS = config['resources']['models']['clustering_models']['kmeans']
+MODEL_BIRCH = config['resources']['models']['clustering_models']['birch']
+MODEL_FUZZYCMENS = config['resources']['models']['clustering_models']['fuzzycmeans']
+MODEL_DBSCAN = config['resources']['models']['clustering_models']['dbscan']
+MODEL_OPTICS = config['resources']['models']['clustering_models']['optics']
+MODEL_BGM = config['resources']['models']['clustering_models']['bayesian_gaussian_mixture']
 INITKMODES = 'Cao'
 UPDATE_CLUSTERS_QUERY = """
     UPDATE Cluster
