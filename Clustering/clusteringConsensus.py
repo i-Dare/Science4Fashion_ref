@@ -398,10 +398,13 @@ class ConsensusClustering:
       if self.training_mode:
          for i in range(init, 31):
             optics = OPTICS(min_samples=i, n_jobs=-1).fit(data)
-            
-            _sils.append(metrics.silhouette_score(data, optics.labels_))
-            _davs.append(metrics.davies_bouldin_score(data, optics.labels_))
-            _cals.append(metrics.calinski_harabasz_score(data, optics.labels_))
+            try:
+               _sils.append(metrics.silhouette_score(data, optics.labels_))
+               _davs.append(metrics.davies_bouldin_score(data, optics.labels_))
+               _cals.append(metrics.calinski_harabasz_score(data, optics.labels_))
+            except:
+               warnings.warn('WARNING: for model %s, number of labels: %s' % 
+                     (model_name, len(optics.labels_)))
          # Collect and evaluate clustering
          _sils, _davs, _cals = np.asarray(_sils), np.asarray(_davs), np.asarray(_cals)
          min_samples = self.clustering_approval(_sils, _davs, _cals, model_name)

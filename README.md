@@ -56,9 +56,10 @@ Apart from the color information, the rest of the product's attributes regarding
 	* ```$ pip install skfuzzy==0.4.2```
 	* ```$ pip install textblob==0.15.3```
 	* ```$ pip install instaloader==4.5.5```
-	* ```$ pip install instalooter==2.4.4```
+	* ```$ pip install plotly==4.14.3```
 	* ```$ pip install prince==0.7.1```
 	* ```$ pip install webcolors==1.11.1```
+	* ```$ pip install light-famd```
 	* ```$ conda install -c pytorch torchvision```
 	* ```$ pip install pymssql```
 	* ```$ pip install opencv-python==4.0.1```
@@ -66,7 +67,8 @@ Apart from the color information, the rest of the product's attributes regarding
 	* ```$ pip install fastai```
 	* ```$ pip install wordsegment```
 	* ```$ pip install py3-pinterest```
-	
+	* ```$ pip install light-famd```
+
 	
 6. Download NLTK content by executing the following commands in a cmd console:
 	* for stopwords:
