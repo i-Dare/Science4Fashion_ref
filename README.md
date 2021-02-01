@@ -16,6 +16,18 @@ The data collection process is initiated by the user who provides a search term 
 
 As soon as the adapter finishes retrieving the requested information from the source, the automated annotation process is initiated that will seek to infer specific clothing attributes regarding the color, neck-line, sleeves, length and fit of the clothing article. The annotation is driven by the retrieved image, the description and the metadata.
 
+WebCrawlersWrapper.py:
+Wrapper script for website crawling and automatic annotation of the results. Receives as arguments the search terms, the adapter and the number of expected results. Is responsible for updating the S4F database with the search results and triggering the data annotation process. The annotation process consists of the following steps:
+* Text based annotation
+* Color annotation
+* Apparel annotation
+* Clustering
+
+#### Arguments:
+-s|--searchTerm (required): sets the search query term
+-a|--adapter (required): sets one or more adapters to perform the query
+-n|--numberResults (optional): sets the number of results to return
+
 #### Examples:
 >$ python WebCrawlersWrapper.py -s “red maxi dress” -a “Pinterest” -n 500
 
