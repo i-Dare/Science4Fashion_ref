@@ -24,13 +24,11 @@ Wrapper script for website crawling and automatic annotation of the results. Rec
 * Clustering
 
 #### Arguments:
-```
--s|--searchTerm (required): sets the search query term
 
--a|--adapter (required): sets one or more adapters to perform the query
+> -s|--searchTerm (required): sets the search query term
+> -a|--adapter (required): sets one or more adapters to perform the query
+> -n|--numberResults (optional): sets the number of results to return
 
--n|--numberResults (optional): sets the number of results to return
-```
 
 #### Examples:
 >$ python %PROJECT_HOME%/WebCrawlers/WebCrawlersWrapper.py -s "red maxi dress" -a "Pinterest" -n 500
