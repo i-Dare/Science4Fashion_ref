@@ -24,24 +24,25 @@ Wrapper script for website crawling and automatic annotation of the results. Rec
 * Clustering
 
 #### Arguments:
+```
+-s|--searchTerm (required): sets the search query term
 
-> -s|--searchTerm (required): sets the search query term
+-a|--adapter (required): sets one or more adapters to perform the query
 
-> -a|--adapter (required): sets one or more adapters to perform the query
-
-> -n|--numberResults (optional): sets the number of results to return
+-n|--numberResults (optional): sets the number of results to return
+```
 
 
 #### Examples:
->$ python %PROJECT_HOME%/WebCrawlers/WebCrawlersWrapper.py -s "red maxi dress" -a "Pinterest" -n 500
+`$ python %PROJECT_HOME%/WebCrawlers/WebCrawlersWrapper.py -s "red maxi dress" -a "Pinterest" -n 500`
 
 Retrieves from Pinterest, 500 or less (if already in DB) results for search terms "red maxi dress" and saves them in the S4F database.
 
->$ python %PROJECT_HOME%/WebCrawlers/WebCrawlersWrapper.py --searchTerm "red maxi dress" --adapter "Pinterest" -n 500
+`$ python %PROJECT_HOME%/WebCrawlers/WebCrawlersWrapper.py --searchTerm "red maxi dress" --adapter "Pinterest" -n 500`
 
 Same as first example, uses full argument names
 
->$ python %PROJECT_HOME%/WebCrawlers/WebCrawlersWrapper.py -s "red maxi dress" -a "Pinterest" "Instagram" "Asos"  -n 500
+`$ python %PROJECT_HOME%/WebCrawlers/WebCrawlersWrapper.py -s "red maxi dress" -a "Pinterest" "Instagram" "Asos"  -n 500`
 
 Executes the query for multiple adapters
 
