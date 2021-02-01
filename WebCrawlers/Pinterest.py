@@ -9,7 +9,9 @@ import sys
 if __name__ == '__main__':
     # Get input arguments
     searchTerm, threshold = sys.argv[1], int(sys.argv[2])
-
+    max_threshold = 250
+    threshold = threshold if threshold <  max_threshold else 250
+    
     start_time_all = time.time()
     
     currendDir = helper_functions.WEB_CRAWLERS

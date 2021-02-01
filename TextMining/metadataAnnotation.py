@@ -25,7 +25,7 @@ def contains_word(s, w):
     return f' {w} ' in f' {s} '
 
 def editStrings(s):
-    ###Check for specif values of s and change the values to match those of Energiers###
+    ### Check for specific values of s and change the values to match those of Energiers ###
     s = (s[0], 'V NECK', s[2], s[3]) if (s[1] == 'V-NECK' and attr == 'NeckDesign') else s
     s = (s[0], 'OFF SHOULDER', s[2], s[3]) if (s[1] == 'OFF-SHOULDER' and attr == 'NeckDesign') else s
     s = (s[0], s[1] + " LENGTH", s[2], s[3]) if (s[1] == 'SHORT' or s[1] == 'MEDIUM' or s[1] == 'KNEE' and attr == 'Length') else s
@@ -78,12 +78,15 @@ if __name__ == "__main__":
     splitted_metadata = [s.split() if isinstance(s,str) else " " for s in metadata]
     splitted_headline = [s.split() if isinstance(s,str) else " " for s in headline]    
     
-    ### Search for occurences of labels in metadata and headline. For category length if the next word is not a kind of cat (Trousers etc) then it is propably wrong so we get rid of it. ###
+    ### Search for occurences of labels in metadata and headline. For category length if the next 
+    #   word is not a kind of cat (Trousers etc) then it is propably wrong so we get rid of it. ###
     cat = 'ProductCategory'
     # for attr in (config.PRODUCT_ATTRIBUTES + config.DEEPFASHIONATTRIBUTES):
     for attr in config.PRODUCT_ATTRIBUTES:
-        saved_meta = [(index, label, s.find(label), 1) for label in (attrDict[str(attr)]) for index,s in enumerate(metadata) if contains_word(s, label)]
-        saved_head = [(index, label, s.find(label), 0) for label in (attrDict[str(attr)]) for index,s in enumerate(headline) if contains_word(s, label)]
+        saved_meta = [(index, label, s.find(label), 1) for label in (attrDict[str(attr)]) 
+                for index,s in enumerate(metadata) if contains_word(s, label)]
+        saved_head = [(index, label, s.find(label), 0) for label in (attrDict[str(attr)]) 
+                for index,s in enumerate(headline) if contains_word(s, label)]
         for s in (saved_meta + saved_head):
             s = editStrings(s)
             labelsDF.loc[s[0],attr].append((s[1], s[2], s[3]))

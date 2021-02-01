@@ -1,8 +1,7 @@
-#Testing Instagram Crawler
-#Medium Blog useful
-#https://medium.com/@adamaulia/crawling-instagram-using-instalooter-2791edb453ff
-#Documentation
-#https://instalooter.readthedocs.io/en/latest/instalooter/index.html
+# Medium Blog useful
+# https://medium.com/@adamaulia/crawling-instagram-using-instalooter-2791edb453ff
+# Documentation
+# https://instalooter.readthedocs.io/en/latest/instalooter/index.html
 
 #from instalooter.looters import ProfileLooter
 #looter = ProfileLooter('eilex_kyp')
@@ -39,8 +38,3 @@ if __name__ == '__main__':
 
     print('Images requested: %s,   Images Downloaded: %s (%s%%)' % (threshold, len(dataDF), round(len(dataDF)/threshold,2 ) * 100)) 
     print("\nTime to scrape ALL queries is %s seconds ---" % round(time.time() - start_time_all, 2))
-
-
-
-
-

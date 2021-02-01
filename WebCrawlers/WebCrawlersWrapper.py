@@ -123,7 +123,6 @@ class WebCrawlers:
       self.executeColorBasedAnnotation()
       self.executeClothingBasedAnnotation()
       self.executeClustering(train=True)
-      
 
 if __name__ == "__main__":
    webCrawler = WebCrawlers()

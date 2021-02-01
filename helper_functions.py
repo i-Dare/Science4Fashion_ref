@@ -288,8 +288,8 @@ def updateProductHistory(prdno, referenceOrder, trendOrder, price, url):
 ########### Natural Language Processing Functionality ###########
 
 def get_fashion_attributes():
-    # Load custom attributes from fashio word list and custom attributes used in the image annotation module:
-    # Fashion attributes
+    ## Load custom attributes from fashion word list and custom attributes used in the image 
+    # annotation module
     file_path = config.FASHION_WORDS
     fashion_att_file = open(file_path, "r")
     fashion_att = fashion_att_file.read().split(',')

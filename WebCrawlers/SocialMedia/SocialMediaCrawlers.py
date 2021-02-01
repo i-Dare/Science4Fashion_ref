@@ -23,7 +23,8 @@ class PinterestCrawler(Pinterest):
     > pip install py3-pinterest
     '''
     def __init__(self, username, password):
-        super().__init__(password=password, proxies=None, username='', email=username, cred_root='data', user_agent=None)
+        cred_root = os.path.join(config.RESOURCESDIR, 'data')
+        super().__init__(password=password, proxies=None, username='', email=username, cred_root=cred_root, user_agent=None)
         # self.home_page = 'https://gr.pinterest.com/login/?referrer=home_page'        
         self.home_page = 'https://gr.pinterest.com/'        
         self.fashion_att = helper_functions.get_fashion_attributes()
