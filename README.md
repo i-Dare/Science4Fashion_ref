@@ -25,7 +25,9 @@ Wrapper script for website crawling and automatic annotation of the results. Rec
 
 #### Arguments:
 -s|--searchTerm (required): sets the search query term
+
 -a|--adapter (required): sets one or more adapters to perform the query
+
 -n|--numberResults (optional): sets the number of results to return
 
 #### Examples:
