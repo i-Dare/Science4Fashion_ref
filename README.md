@@ -22,9 +22,11 @@ Examples:
 Retrieves from Pinterest, 500 or less (if already in DB) results for search terms “red maxi dress” and saves them in the S4F database.
 
 >$ python WebCrawlersWrapper.py --searchTerm “red maxi dress” --adapter “Pinterest” -n 500
+
 Same as first example, uses full argument names
 
 >$ python WebCrawlersWrapper.py -s “red maxi dress” -a “Pinterest” “Instagram” “Asos”  -n 500
+
 Executes the query for multiple adapters
 
 
