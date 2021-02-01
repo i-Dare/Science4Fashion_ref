@@ -16,6 +16,19 @@ The data collection process is initiated by the user who provides a search term 
 
 As soon as the adapter finishes retrieving the requested information from the source, the automated annotation process is initiated that will seek to infer specific clothing attributes regarding the color, neck-line, sleeves, length and fit of the clothing article. The annotation is driven by the retrieved image, the description and the metadata.
 
+Examples:
+>$ python WebCrawlersWrapper.py -s “red maxi dress” -a “Pinterest” -n 500
+
+Retrieves from Pinterest, 500 or less (if already in DB) results for search terms “red maxi dress” and saves them in the S4F database.
+
+>$ python WebCrawlersWrapper.py --searchTerm “red maxi dress” --adapter “Pinterest” -n 500
+Same as first example, uses full argument names
+
+>$ python WebCrawlersWrapper.py -s “red maxi dress” -a “Pinterest” “Instagram” “Asos”  -n 500
+Executes the query for multiple adapters
+
+
+
 ## [2. Image Annotation](#image_annotation)
 The image annotation process is executed at the end of the adapter and is responsible for extracting the main product attributes. At this time, the system will attempt to capture the five most dominant colors of the product. Firstly, the product image is processed and the background is extracted. Secondly, the algorith discards any parts of the foreground that may contain skin color information, thus creating a mask for the clothing article. Finally, the color information inside the mask will be decomposed to the 5 most dominant colors and each color will be stored in the database along with the product ID.
 
