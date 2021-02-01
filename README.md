@@ -16,7 +16,7 @@ The data collection process is initiated by the user who provides a search term 
 
 As soon as the adapter finishes retrieving the requested information from the source, the automated annotation process is initiated that will seek to infer specific clothing attributes regarding the color, neck-line, sleeves, length and fit of the clothing article. The annotation is driven by the retrieved image, the description and the metadata.
 
-Examples:
+#### Examples:
 >$ python WebCrawlersWrapper.py -s “red maxi dress” -a “Pinterest” -n 500
 
 Retrieves from Pinterest, 500 or less (if already in DB) results for search terms “red maxi dress” and saves them in the S4F database.
