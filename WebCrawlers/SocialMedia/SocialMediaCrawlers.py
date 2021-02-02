@@ -59,6 +59,12 @@ class PinterestCrawler(Pinterest):
 
 
     def search_query(self, query, threshold=10):
+        max_threshold = 250
+        if threshold > max_threshold:
+            print('Number of requested items exceeds the maximum number of items, up to 250 items \
+                    will be collected.')
+            threshold = 250
+
         # Initial search, may return existing products
         query_result = self._search(query, threshold)
         # Setup new search constrains
