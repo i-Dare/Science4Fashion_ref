@@ -45,6 +45,8 @@ class PinterestCrawler(Pinterest):
                 if tempDF.empty and not promotion:
                     searchwords = ''.join(query.split(" "))
                     imageFilePath = helper_functions.setImageFilePath(self.home_page, searchwords, index)
+                    description = result['description'] + result['rich_summary']['display_description'] \
+                                        if result['rich_summary'] else result['description']
                     # Capture the main attributes of the result to evaluate and enchance the final recommendation
                     query_result.append({'query':query,
                                     'timestamp': str(datetime.datetime.now()),
@@ -52,7 +54,7 @@ class PinterestCrawler(Pinterest):
                                     'imgURL':result['images']['orig']['url'], 
                                     'imageFilePath':imageFilePath, 
                                     'title':result['title'], 
-                                    'description':result['description']})
+                                    'description': description })
                 else:
                     pass
         return query_result
@@ -60,17 +62,17 @@ class PinterestCrawler(Pinterest):
 
     def search_query(self, query, threshold=10):
         max_threshold = 250
-        if threshold > max_threshold:
-            print('Number of requested items exceeds the maximum number of items, up to 250 items \
-                    will be collected.')
-            threshold = 250
+        # if threshold > max_threshold:
+        #     print('Number of requested items exceeds the maximum number of items, up to 250 items \
+        #             will be collected.')
+        #     threshold = 250
 
         # Initial search, may return existing products
-        query_result = self._search(query, threshold)
+        query_result = self._search(query, max_threshold) if threshold > max_threshold else self._search(query, threshold)
         # Setup new search constrains
         _thresh = threshold - len(query_result)
         while len(query_result) < threshold:     
-            _q = self._search(query, _thresh)
+            _q = self._search(query, max_threshold) if threshold > max_threshold else self._search(query, _thresh)
             query_result += _q
             _thresh = threshold-len(query_result)
         
@@ -137,6 +139,8 @@ class InstagramCrawler():
     
 def save_ranked(query_result, adapter, segmentation=False):
     dataDF = pd.DataFrame(query_result)
+    # Dropping duplicates
+    dataDF = dataDF.loc[dataDF['imgURL'].drop_duplicates().index].reset_index()
     # Form metadata column
     dataDF['metadata'] = dataDF['title'].str.cat(dataDF['description'].astype(str), sep=' ')
     # Preprocess metadata
@@ -155,7 +159,7 @@ def save_ranked(query_result, adapter, segmentation=False):
     metadata_tfidf = vectorizer.transform(dataDF['processed_metadata'])
     query_tfidf = vectorizer.transform(dataDF['query'])
 
-    ## Calculate cosine similarity
+    ## Calculate cosine similarity of query tokens and metadata tokens
     cosine_vector = cosine_similarity(query_tfidf[0], metadata_tfidf)
     dataDF['cosine_ranking_score'] = np.hstack(cosine_vector).tolist() * dataDF['factor']
 
