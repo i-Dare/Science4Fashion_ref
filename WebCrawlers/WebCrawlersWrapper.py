@@ -4,15 +4,19 @@ import argparse
 import sqlalchemy
 import pandas as pd
 import warnings
+from datetime import datetime
 
-import helper_functions
+from helper_functions import *
 import config
+# from logger import S4F_Logger
 
 class WebCrawlers:
 
    def __init__(self):
-      self.engine = helper_functions.ENGINE
-      self.dbName = helper_functions.DB_NAME
+      self.helper = Helper()
+
+      self.engine = self.helper.ENGINE
+      self.dbName = self.helper.DB_NAME
 
       # Get all Adapters as stored in the database
       self.adapterDF = pd.read_sql_query("SELECT * FROM %s.dbo.Adapter" % self.dbName, self.engine)
@@ -22,7 +26,7 @@ class WebCrawlers:
       # Get adapter scripts
       self.allAdapters = [adapter.lower() for adapter in self.adapterDF['Description'].values]
       # Get all python scripts in the WebCrawlers directory
-      pythonScripts = [f for f in os.listdir(helper_functions.WEB_CRAWLERS) if str(f).endswith('.py')]
+      pythonScripts = [f for f in os.listdir(self.helper.WEB_CRAWLERS) if str(f).endswith('.py')]
       adapterScripts = [f for f in pythonScripts if str(f).lower().rstrip('.py') in self.allAdapters]
       implementedAdapters = [a for a in self.allAdapters if a.lower() in 
             [f.lower().rstrip('.py') for f in adapterScripts]]
@@ -30,7 +34,7 @@ class WebCrawlers:
       implementedAdapters = sorted(implementedAdapters, key = lambda x: str(x).lower())
       adapterScripts = sorted(adapterScripts, key = lambda x: str(x).lower())
       # create Adapter dictionary
-      self.adapter_dict = {a:os.path.join(helper_functions.WEB_CRAWLERS, f) for a,f in \
+      self.adapter_dict = {a:os.path.join(self.helper.WEB_CRAWLERS, f) for a,f in \
          zip(implementedAdapters, adapterScripts)}
       
       # Initialize argument parser      
@@ -42,74 +46,135 @@ class WebCrawlers:
             results you want to return''', default = 10, nargs = '?')
       self.parser.add_argument('-a','--adapter', help = '''Input the Adapter you would like to use \
             for your search query. The Adapter should be one of: %s''' % self.adapterDF['Description'].values, 
-            type = lambda s: s.lower(), choices = self.allAdapters, required = True, nargs = '+')   
+            type = lambda s: s.lower(), choices = self.allAdapters, required = True, nargs = '+')  
+      self.parser.add_argument('-u', '--user', help = '''User's name''') 
       self.parser.add_argument('--version', action = 'version', version = '%(prog)s  1.0')
+      
 
       # Parse arguments
       self.args = self.parser.parse_args()
       self.adapter = self.args.adapter
       self.searchTerm = ' '.join(self.args.searchTerm)
       self.numberResults = self.args.numberResults
+      self.user = self.args.user
+      self.initLogFile()
 
       # Setup argument constrains
       self.checkArgConstrains()
 
+   def initLogFile(self,):
+      now = datetime.now().strftime('%Y-%m-%d')
+      self.logfile = '%s_%s.log' % (self.user, now)
 
    # Check argument constrains      
    def checkArgConstrains(self,):
+      if not self.user:
+         self.user = 'base'
+         self.initLogFile()
+         self.logger = self.helper.initLogger('BaseLogger', self.logfile)
+
+         self.logger.info('Logging in base mode')
+
       for adapter in self.adapter:
          if adapter not in self.adapter_dict.keys():
             availableAdapters = [a for a in self.adapterDF['Description'].values if a.lower() in self.adapter_dict.keys()]
-            self.parser.error('\nATTENTION: Adapter not implemented yet. Plese choose one of %s.' % availableAdapters)
+            self.logger.warning('Adapter %s not implemented yet. Plese choose one of %s.' % (adapter, availableAdapters))
 
-      # Execute Website Crawler process
+
+# ------------------------------------------------------------
+#                     MODULE EXECUTION
+# ------------------------------------------------------------
+   # Execute Website Crawler process
    def executeWebCrawler(self,):
+      logger = self.helper.initLogger('WebCrawlerLogger', self.logfile)
       for adapter in self.adapter:
-         print('Executing: %s' % self.adapter_dict[adapter])
-         print('Search for %s on %s and return %s results' % (self.searchTerm, adapter, self.numberResults))
-         # Execute Adapter      
-         script = subprocess.Popen(['python', self.adapter_dict[adapter], self.searchTerm, str(self.numberResults)],
+         logger.info('Search for %s on %s' % (self.searchTerm, str(adapter).capitalize()))
+         #                                                           
+         # Execute Adapter    
+         #       
+         script = subprocess.Popen(['python', 
+                                       self.adapter_dict[adapter], 
+                                       self.searchTerm, 
+                                       str(self.numberResults),
+                                       str(self.user),
+                                       str(self.logfile)
+                                    ],
                                     stderr=subprocess.PIPE)
-         _, err = script.communicate()                                    
-         if err:
-            warnings.warn(err.decode("utf-8"))
+         stdout, stderr = script.communicate()
+         if script.poll()!=0:            
+            logger.warning('WebCrawler for adapter %s failed' % str(adapter).capitalize())
+            logger.warning(stderr.decode("utf-8"))
+      logger.info('Subprocess finished')
+
 
    # Execute text metadata based annotation  
    def executeTextBasedAnnotation(self,):
-      print('Executing: text based annotation')
-      scriptPath = os.path.join(helper_functions.TEXT_MINING, 'metadataAnnotation.py')
-      script = subprocess.Popen(['python', scriptPath], stderr=subprocess.PIPE)
-      _, err = script.communicate()                                    
-      if err:
-         warnings.warn(err.decode("utf-8"))
+      logger = self.helper.initLogger('TextAnnotationLogger', self.logfile)
+      logger.info('Executing: text based annotation')
+      scriptPath = os.path.join(self.helper.TEXT_MINING, 'metadataAnnotation.py')
+      script = subprocess.Popen(['python', 
+                                    scriptPath, 
+                                    str(self.user),
+                                    str(self.logfile)
+                                    ],
+                                    stderr=subprocess.PIPE)
+      _, stderr = script.communicate()
+      if script.poll()!=0:            
+         logger.warning(stderr.decode("utf-8"))
+      logger.info('Subprocess finished')
+
 
    # Execute color based annotation 
    def executeColorBasedAnnotation(self,):
-      print('Executing: color based annotation')
-      scriptPath = os.path.join(helper_functions.IMAGE_ANNOTATION, 'Color', 'colorAnnotation.py')
-      script = subprocess.Popen(['python', scriptPath], stderr=subprocess.PIPE)
-      _, err = script.communicate()                                    
-      if err:
-         warnings.warn(err.decode("utf-8"))
+      logger = self.helper.initLogger('ColorAnnotationLogger', self.logfile)
+      logger.info('Executing: color based annotation')
+      scriptPath = os.path.join(self.helper.IMAGE_ANNOTATION, 'Color', 'colorAnnotation.py')
+      script = subprocess.Popen(['python', 
+                                    scriptPath, 
+                                    str(self.user),
+                                    str(self.logfile)
+                                    ],
+                                    stderr=subprocess.PIPE)
+      _, stderr = script.communicate()
+      if script.poll()!=0:            
+         logger.warning(stderr.decode("utf-8"))
+      logger.info('Subprocess finished')
+
 
    # Execute clothing based annotation
    def executeClothingBasedAnnotation(self,):
-      print('Executing: clothing based annotation')
-      scriptPath = os.path.join(helper_functions.IMAGE_ANNOTATION, 'Clothing', 'clothingAnnotation.py')
-      script = subprocess.Popen(['python', scriptPath], stderr=subprocess.PIPE)
-      _, err = script.communicate()                                    
-      if err:
-         warnings.warn(err.decode("utf-8"))
+      logger = self.helper.initLogger('ClothingAnnotationLogger', self.logfile)
+      logger.info('Executing: clothing based annotation')
+      scriptPath = os.path.join(self.helper.IMAGE_ANNOTATION, 'Clothing', 'clothingAnnotation.py')
+      script = subprocess.Popen(['python', 
+                                    scriptPath, 
+                                    str(self.user),
+                                    str(self.logfile)
+                                    ],
+                                    stderr=subprocess.PIPE)
+      _, stderr = script.communicate()
+      if script.poll()!=0:            
+         logger.warning(stderr.decode("utf-8"))
+      logger.info('Subprocess finished')
+
 
    # Execute product clustering module
    def executeClustering(self, train=False):
+      logger = self.helper.initLogger('ClusteringLogger', self.logfile)
+      logger.info('Executing: Clustering')
       train_arg = '-train' if train else ''
-      print('Executing: Clustering')
-      scriptPath = os.path.join(helper_functions.CLUSTERING, 'clusteringConsensus.py')
-      script = subprocess.Popen(['python', scriptPath, train_arg], stderr=subprocess.PIPE)
-      _, err = script.communicate()                                    
-      if err:
-         warnings.warn(err.decode("utf-8"))
+      scriptPath = os.path.join(self.helper.CLUSTERING, 'clusteringConsensus.py')
+      script = subprocess.Popen(['python', 
+                                    scriptPath,
+                                    train_arg,
+                                    str(self.user),
+                                    str(self.logfile)
+                                    ],
+                                    stderr=subprocess.PIPE)
+      _, stderr = script.communicate()
+      if script.poll()!=0:            
+         logger.warning(stderr.decode("utf-8"))
+      logger.info('Subprocess finished')
 
    ## Sequencially executes the data collection and annotation process
    # Step 1: Execute query for a selected website crawlers

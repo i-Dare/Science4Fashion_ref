@@ -18,8 +18,8 @@ if __name__ == "__main__":
     # Database settings
     engine = helper_functions.ENGINE
     dbName = helper_functions.DB_NAME
-    # query = ''' SELECT * FROM %s.dbo.Product ''' % dbName
-    query = '''SELECT * FROM "%s".public."Product"''' % dbName
+    query = ''' SELECT * FROM %s.dbo.Product ''' % dbName
+    # query = '''SELECT * FROM "%s".public."Product"''' % dbName
     productDF = pd.read_sql_query(query, engine)
     
     labelsDF = productDF[config.CLUSTERING_PRODUCT_ATTRIBUTES].copy() #'Inspiration_Background'
@@ -27,8 +27,8 @@ if __name__ == "__main__":
     # Read all the tables of features from S4F DB to match id to genID
     attrDict = {}
     for attr in (config.PRODUCT_ATTRIBUTES):
-        # query = ''' SELECT * FROM %s.dbo.%s ''' % (dbName, attr)
-        query = '''SELECT * FROM "%s".public."%s"''' % (dbName, attr)
+        query = ''' SELECT * FROM %s.dbo.%s ''' % (dbName, attr)
+        # query = '''SELECT * FROM "%s".public."%s"''' % (dbName, attr)
         attrDict[str(attr)+'DF'] = pd.read_sql_query(query, engine)
         
     # Merging tables with product to create the product with values not id.
@@ -40,13 +40,14 @@ if __name__ == "__main__":
     #
     # Prepare data for clustering (skip RetailPrice column)
     X = labelsDF.to_numpy()[:,1:].astype('int')
-    kmodes = KModes(n_clusters=config.N_CLUSTERS, init=config.INITKMODES, verbose=2)
+    N_CLUSTERS = 6
+    kmodes = KModes(n_clusters=N_CLUSTERS, init=config.INITKMODES, verbose=2)
     clusters = kmodes.fit_predict(X)
     centroids = kmodes.cluster_centroids_
     clustering_dict = {attr:centroids[:,i] for i,attr in enumerate(labelsDF.columns[1:])}
-    clustering_dict['Cluster'] = range(config.N_CLUSTERS)
-    clustering_dict['RetailPrice'] = config.N_CLUSTERS * [None]
-    clustering_dict['LifeStage'] = config.N_CLUSTERS * [None]
+    clustering_dict['Cluster'] = range(N_CLUSTERS)
+    clustering_dict['RetailPrice'] = N_CLUSTERS * [None]
+    clustering_dict['LifeStage'] = N_CLUSTERS * [None]
     clusteringDF = pd.DataFrame(clustering_dict)
 
     ## Update Cluster table

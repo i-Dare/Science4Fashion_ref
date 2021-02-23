@@ -6,14 +6,16 @@ import pandas as pd
 import numpy as np
 import regex as re
 import sqlalchemy
-import config
-import helper_functions
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.preprocessing import MinMaxScaler
+from datetime import datetime
 
 from py3pin.Pinterest import Pinterest
 from instaloader import Instaloader, Hashtag
+
+import config
+from  helper_functions import *
 
 
 # Pinterest crawler class
@@ -22,16 +24,21 @@ class PinterestCrawler(Pinterest):
     Based on https://github.com/bstoilov/py3-pinterest install using:
     > pip install py3-pinterest
     '''
-    def __init__(self, username, password):
+    def __init__(self, username, password, user, logfile):
+        self.user = user
+        self.helper = Helper()
+        self.logger = self.helper.initLogger('PinterestLogger', logfile)
+
         cred_root = os.path.join(config.RESOURCESDIR, 'data')
         super().__init__(password=password, proxies=None, username='', email=username, cred_root=cred_root, user_agent=None)
+        self.logger.info('Connected to Pinterest')
         # self.home_page = 'https://gr.pinterest.com/login/?referrer=home_page'        
         self.home_page = 'https://gr.pinterest.com/'        
-        self.fashion_att = helper_functions.get_fashion_attributes()
+        self.fashion_att = self.helper.get_fashion_attributes()
 
     def _search(self, query, threshold):
-        engine = helper_functions.ENGINE
-        dbName = helper_functions.DB_NAME
+        engine = self.helper.ENGINE
+        dbName = self.helper.DB_NAME
 
         productsDF = pd.read_sql_query('''SELECT * FROM %s.dbo.Product''' % dbName, engine)
         # productsDF = pd.read_sql_query('''SELECT * FROM  public.\"Product\"''', engine)
@@ -44,7 +51,7 @@ class PinterestCrawler(Pinterest):
                 promotion = result['is_promoted']
                 if tempDF.empty and not promotion:
                     searchwords = ''.join(query.split(" "))
-                    imageFilePath = helper_functions.setImageFilePath(self.home_page, searchwords, index)
+                    imageFilePath = self.helper.setImageFilePath(self.home_page, searchwords, index)
                     # Capture the main attributes of the result to evaluate and enchance the final recommendation
                     query_result.append({'query':query,
                                     'timestamp': str(datetime.datetime.now()),
@@ -61,7 +68,7 @@ class PinterestCrawler(Pinterest):
     def search_query(self, query, threshold=10):
         max_threshold = 250
         if threshold > max_threshold:
-            print('Number of requested items exceeds the maximum number of items, up to 250 items \
+            self.logger.info('Number of requested items exceeds the maximum number of items, up to 250 items \
                     will be collected.')
             threshold = 250
 
@@ -83,20 +90,25 @@ class InstagramCrawler():
     Based on https://instaloader.github.io/ install using:
     > pip install instaloader
     '''
-    def __init__(self, username, password):
+    def __init__(self, username, password, user, logfile):
+        self.user = user
+        self.helper = Helper()
+        self.logger = self.helper.initLogger('InstagramLogger', logfile)
+
         self.username = username
         self.password = password
         self.instagram = Instaloader()
         self.home_page = 'https://www.instagram.com'        
         self.base_url = 'https://www.instagram.com/p/'        
-        self.fashion_att = helper_functions.get_fashion_attributes()
+        self.fashion_att = self.helper.get_fashion_attributes()
 
     def login(self,):
         self.instagram.login(self.username, self.password)
+        self.logger.info('Connected to Instagram')
 
     def search_query(self, query, threshold=10):
-        engine = helper_functions.ENGINE
-        dbName = helper_functions.DB_NAME
+        engine = self.helper.ENGINE
+        dbName = self.helper.DB_NAME
 
         productsDF = pd.read_sql_query('''SELECT * FROM %s.dbo.Product''' % dbName, engine)
         # productsDF = pd.read_sql_query('''SELECT * FROM  public.\"Product\"''', engine)
@@ -112,7 +124,7 @@ class InstagramCrawler():
             imgSource = result.url
             tempDF = productsDF.loc[productsDF['URL'] == post_url]
             video = result.is_video
-            imageFilePath = helper_functions.setImageFilePath(post_url, query.replace(' ',''), index)
+            imageFilePath = self.helper.setImageFilePath(post_url, query.replace(' ',''), index)
             if tempDF.empty and not video:
                 post_info = " ".join(re.findall("[a-zA-Z]+", result.caption))
                 post_title = ' '.join(result.caption_hashtags)
@@ -127,7 +139,7 @@ class InstagramCrawler():
                             'title': post_title,
                             'description': post_info}))
             else:
-                print('Product already exists')
+                self.logger.info('Product already exists')
                 n_exists += 1
 
             if index - n_exists> threshold:
@@ -135,14 +147,14 @@ class InstagramCrawler():
         return query_result
 
     
-def save_ranked(query_result, adapter, segmentation=False):
+def save_ranked(helper, query_result, adapter, segmentation=False):
     dataDF = pd.DataFrame(query_result)
     # Form metadata column
     dataDF['metadata'] = dataDF['title'].str.cat(dataDF['description'].astype(str), sep=' ')
     # Preprocess metadata
-    dataDF['processed_metadata'] = dataDF['metadata'].apply(lambda row: helper_functions.preprocess_metadata(row, segmentation))
+    dataDF['processed_metadata'] = dataDF['metadata'].apply(lambda row: helper.preprocess_metadata(row, segmentation))
     # Preprocess query
-    dataDF['query'] = dataDF['query'].apply(lambda row: ' '.join(helper_functions.preprocess_words(row.split())))
+    dataDF['query'] = dataDF['query'].apply(lambda row: ' '.join(helper.preprocess_words(row.split())))
 
     ## Calculate a factor for tokens that appear in metatdata
     keywords = dataDF.iloc[0]['query'].split()
@@ -151,7 +163,7 @@ def save_ranked(query_result, adapter, segmentation=False):
     ## Calculate a factor based on the cosine similarity of TFIDF transformation of the query terms and 
     # the processed metadata using the fashion expert terminology as vocabulary
     vectorizer = TfidfVectorizer(analyzer='word', ngram_range=(1,2), min_df=2)
-    vectorizer.fit_transform(helper_functions.get_fashion_attributes())
+    vectorizer.fit_transform(helper.get_fashion_attributes())
     metadata_tfidf = vectorizer.transform(dataDF['processed_metadata'])
     query_tfidf = vectorizer.transform(dataDF['query'])
 
@@ -176,21 +188,21 @@ def save_ranked(query_result, adapter, segmentation=False):
         imageFilePath = row['imageFilePath']    
         url = row['URL']
         imgURL = row['imgURL']
-        empPhoto = helper_functions.getImage(imgURL, imageFilePath)
+        empPhoto = helper.getImage(imgURL, imageFilePath)
         head = row['title']
         meta = row['description']
-        helper_functions.addNewProduct(site, 
-                                        searchwords, 
-                                        imageFilePath, 
-                                        empPhoto, 
-                                        url,
-                                        imgURL, 
-                                        head, 
-                                        None, 
-                                        None, 
-                                        None, 
-                                        meta, 
-                                        None, 
-                                        None)
+        helper.addNewProduct(site, 
+                            searchwords, 
+                            imageFilePath, 
+                            empPhoto, 
+                            url,
+                            imgURL, 
+                            head, 
+                            None, 
+                            None, 
+                            None, 
+                            meta, 
+                            None, 
+                            None)
     return dataDF
 

@@ -1,12 +1,15 @@
 import pandas as pd
 import numpy as np
 import sqlalchemy
+import sys
 import pymssql
 import itertools
 from collections import defaultdict
 from difflib import SequenceMatcher
 import time
-import helper_functions
+import logging
+
+from helper_functions import *
 import config
 
 def updateQuery(df, engine):
@@ -38,12 +41,16 @@ def editStrings(s):
 if __name__ == "__main__":
     # Begin Counting Time
     start_time = time.time() 
+    user, logfile = sys.argv[1], sys.argv[2]
+    helper = Helper()
+    logger = logging.getLogger('TextAnnotationLogger')
+
     ### Read Table Products from S4F database ###
-    print('Loading Product table...')
+    logger.info('Loading Product table...')
     #Connect to database with sqlalchemy
-    currendDir = helper_functions.TEXT_MINING
-    engine = helper_functions.ENGINE
-    dbName = helper_functions.DB_NAME
+    currendDir = helper.TEXT_MINING
+    engine = helper.ENGINE
+    dbName = helper.DB_NAME
 
     productsDF = pd.read_sql_query('SELECT * FROM  %s.dbo.Product' % dbName, engine)
     # productsDF = pd.read_sql_query('SELECT * FROM public.\"Product\"', engine)
@@ -73,7 +80,7 @@ if __name__ == "__main__":
         labelsDF[attr] = np.empty((len(productsDF), 0)).tolist()
     
     ### Preprocessing ###
-    print('Preprocessing metadata...')    
+    logger.info('Preprocessing metadata...')    
     # Convert every label, metadata and headline to uppercase #
     splitted_metadata = [s.split() if isinstance(s,str) else " " for s in metadata]
     splitted_headline = [s.split() if isinstance(s,str) else " " for s in headline]    
@@ -149,7 +156,7 @@ if __name__ == "__main__":
                     submitdf.to_sql(label, schema='%s.dbo' % dbName, con=engine, if_exists='append', index=False)
                     # submitdf.to_sql(label, con=engine, if_exists='append', index=False)
         
-    print('Update product attributes')  
+    logger.info('Update product attributes')  
     ## Update Product table with the foreign key values of the updated attributes
     # re-load from database the updated attribute tables and create a dataframe for each 
     dfDict = {}
@@ -170,5 +177,5 @@ if __name__ == "__main__":
     with engine.begin() as conn:
         conn.execute(config.UPDATESQLQUERY)
 
-    print("--- %s seconds ---" % (time.time() - start_time))
+    logger.info("--- %s seconds ---" % (time.time() - start_time))
 

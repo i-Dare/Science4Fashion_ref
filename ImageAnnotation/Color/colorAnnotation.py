@@ -9,8 +9,9 @@ import pandas as pd
 from PIL import Image
 import matplotlib.colors as mc
 from matplotlib import pyplot as plt
+import logging
 
-import helper_functions
+from helper_functions import  *
 import config
 
 from cloth import Cloth
@@ -63,7 +64,7 @@ def colorExtraction(image, colorRGBDF, colorDF, imgPath):
         _, clothImg2D = imageUtils.reshapeDim(cloth.clothMask, cloth.clothImg)
         cloth.extractColor(clothImg2D)
     except:
-        print('Failed to extract color informantion for image %s' % imgPath)
+        logger.info('Failed to extract color informantion for image %s' % imgPath)
         # In case of an error color RGB = (-1, -1, -1)
         color_fail = -1 * np.ones(3, dtype=int)
         cloth.colors = [(0., color_fail)] * 5
@@ -91,7 +92,7 @@ def colorExtraction(image, colorRGBDF, colorDF, imgPath):
             newEntryColorRGBDF = newEntryColorRGBDF.append(colorSeries, ignore_index=True)
             newEntryColorRGBDF.to_sql('ColorRGB', schema='dbo', con = engine, if_exists = 'append', index = False)
             # newEntryColorRGBDF.to_sql('ColorRGB', con = engine, if_exists = 'append', index = False)
-            print('Adding color \"%s\" - \"%s\" %s in ColorRGB table' % (colorName, colorNameDetails, str(color)))
+            logger.info('Adding color \"%s\" - \"%s\" %s in ColorRGB table' % (colorName, colorNameDetails, str(color)))
             colorRGBDF = pd.read_sql_query(colorRGBQuery, engine)
             colID = colorRGBDF['Oid'].values[-1]
         else: # not empty so there is a match
@@ -106,11 +107,15 @@ def colorExtraction(image, colorRGBDF, colorDF, imgPath):
 if __name__ == '__main__':
     # Begin Counting Time
     start_time = time.time() 
+    user, logfile = sys.argv[1], sys.argv[2]
+    helper = Helper()
+    logger = logging.getLogger('ColorAnnotationLogger')
+
     ### Read Table Products from S4F database ###
-    print('Loading Product table...')    
+    logger.info('Loading Product table...')    
     #Connect to database with sqlalchemy
-    engine = helper_functions.ENGINE
-    dbName = helper_functions.DB_NAME
+    engine = helper.ENGINE
+    dbName = helper.DB_NAME
     
     modelPath = config.COLOR_MODELPATH
     #Segmentation Background & Person
@@ -142,17 +147,17 @@ if __name__ == '__main__':
         # Image path
         imgPath = row['Photo']
         if os.path.exists(imgPath):
-            print('Processing image: %s' % imgPath)
+            logger.info('Processing image: %s' % imgPath)
             # Open image for unicode file paths
             imgStream = open(imgPath, "rb")
             imgArray = np.asarray(bytearray(imgStream.read()), dtype=np.uint8)
             image = cv2.imdecode(imgArray, cv2.IMREAD_UNCHANGED)
             colorRGBDF, colorDF = colorExtraction(image, colorRGBDF, colorDF, imgPath)
         else:
-            print('Cannot find image with ID %s at path %s' % (row['Oid'], imgPath))
+            logger.info('Cannot find image with ID %s at path %s' % (row['Oid'], imgPath))
             imageBlob = row['Image']
-            image = helper_functions.convertBlobToImage(imageBlob)
+            image = helper.convertBlobToImage(imageBlob)
             colorRGBDF, colorDF = colorExtraction(image, colorRGBDF, colorDF, 'Extracted image %s' % row['Oid'])
 
     # End Counting Time
-    print("--- %s seconds ---" % (time.time() - start_time))
+    logger.info("--- %s seconds ---" % (time.time() - start_time))
