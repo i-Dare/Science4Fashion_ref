@@ -146,18 +146,20 @@ if __name__ == '__main__':
         colorRGBDF = pd.read_sql_query(colorRGBQuery, engine)
         # Image path
         imgPath = row['Photo']
-        if os.path.exists(imgPath):
-            logger.info('Processing image: %s' % imgPath)
-            # Open image for unicode file paths
-            imgStream = open(imgPath, "rb")
-            imgArray = np.asarray(bytearray(imgStream.read()), dtype=np.uint8)
-            image = cv2.imdecode(imgArray, cv2.IMREAD_UNCHANGED)
-            colorRGBDF, colorDF = colorExtraction(image, colorRGBDF, colorDF, imgPath)
-        else:
-            logger.info('Cannot find image with ID %s at path %s' % (row['Oid'], imgPath))
-            imageBlob = row['Image']
-            image = helper.convertBlobToImage(imageBlob)
-            colorRGBDF, colorDF = colorExtraction(image, colorRGBDF, colorDF, 'Extracted image %s' % row['Oid'])
-
+        try:
+            if os.path.exists(imgPath):
+                print('Processing image: %s' % imgPath)
+                # Open image for unicode file paths
+                imgStream = open(imgPath, "rb")
+                imgArray = np.asarray(bytearray(imgStream.read()), dtype=np.uint8)
+                image = cv2.imdecode(imgArray, cv2.IMREAD_UNCHANGED)
+                colorRGBDF, colorDF = colorExtraction(image, colorRGBDF, colorDF, imgPath)
+            else:
+                logger.info('Cannot find image with ID %s at path %s' % (row['Oid'], imgPath))
+                imageBlob = row['Image']
+                image = helper_functions.convertBlobToImage(imageBlob)
+                colorRGBDF, colorDF = colorExtraction(image, colorRGBDF, colorDF, 'Extracted image %s' % row['Oid'])
+        except:
+            logger.warning('Warning: No color information for image %s' % row['URL'])
     # End Counting Time
     logger.info("--- %s seconds ---" % (time.time() - start_time))

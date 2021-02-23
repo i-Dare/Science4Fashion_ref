@@ -1,5 +1,5 @@
 {
-  "db_name": "S4F_clone",
+  "db_name": "S4F",
   "db_connection": "mssql+pymssql://sa:SYSADM@10.56.48.35:1433/",
   "port": "1433",
   "db_server": "10.56.48.35",

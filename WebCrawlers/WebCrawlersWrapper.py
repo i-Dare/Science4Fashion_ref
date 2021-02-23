@@ -5,6 +5,7 @@ import sqlalchemy
 import pandas as pd
 import warnings
 from datetime import datetime
+import time
 
 from helper_functions import *
 import config
@@ -100,7 +101,7 @@ class WebCrawlers:
                                        str(self.logfile)
                                     ],
                                     stderr=subprocess.PIPE)
-         stdout, stderr = script.communicate()
+         _, stderr = script.communicate()
          if script.poll()!=0:            
             logger.warning('WebCrawler for adapter %s failed' % str(adapter).capitalize())
             logger.warning(stderr.decode("utf-8"))
