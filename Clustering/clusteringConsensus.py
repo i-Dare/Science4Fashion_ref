@@ -7,6 +7,8 @@ import os
 from datetime import datetime
 import warnings
 import argparse
+import sys
+import logging
 
 from sklearn import metrics
 from sklearn import preprocessing
@@ -24,7 +26,7 @@ import sqlalchemy
 import prince 
 from light_famd import FAMD
 
-import helper_functions
+from helper_functions import  *
 import config
 
 class ConsensusClustering:
@@ -56,8 +58,8 @@ class ConsensusClustering:
       # Get distance thereshold
       self.distance_threshold = config.DISTANCE_THRESHOLD
       # Database settings
-      self.dbName = helper_functions.DB_NAME
-      self.engine = helper_functions.ENGINE
+      self.dbName = helper.DB_NAME
+      self.engine = helper.ENGINE
       # Clustering model directory
       self.clustering_model_dir = config.CLUSTERING_MODEL_DIR
       # Dictionary used mapping products to IDs
@@ -88,9 +90,9 @@ class ConsensusClustering:
       # Update clustering table
       self.update_clusters(labels)
 
-      print('Number of final clusters: %s \nFinal Silhouette Score: %s' % (n_clusters, score))
+      logger.info('Number of final clusters: %s \nFinal Silhouette Score: %s' % (n_clusters, score))
       # End Counting Time
-      print("--- %s seconds ---" % (time.time() - start_time))
+      logger.info("--- %s seconds ---" % (time.time() - start_time))
 
    def clustering_preprocessing(self,):
       #
@@ -98,7 +100,7 @@ class ConsensusClustering:
       #     
       # Collect information from the Product, ProductColor and ColorRGB tables of S4F database
       #
-      print('Start preprocessing of product attributes...')
+      logger.info('Start preprocessing of product attributes...')
       productDF, productColorDF, colorRGBDF = self._init_preprocessing()
       self.productOID_dict = productDF['Oid'].to_dict()
 
@@ -166,7 +168,7 @@ class ConsensusClustering:
       return attributesDF
 
    def famd_features(self, data):
-      print('Start FAMD feature endcoding...')
+      logger.info('Start FAMD feature endcoding...')
       try:
          famd = prince.FAMD(check_input=True, n_components=self.n_components, random_state=42)
          famd.fit(data)
@@ -183,7 +185,7 @@ class ConsensusClustering:
       #
       # Execute clustering
       #
-      print('Start clustering...')
+      logger.info('Start clustering...')
       self.run_clustering(data)
       #
       # Execute consensus clustering
@@ -214,7 +216,7 @@ class ConsensusClustering:
    def update_clusters(self, labels):
       ## Update Cluster table
       # Delete all existing records from Cluster table
-      print('Start updating S4F database...')
+      logger.info('Start updating S4F database...')
       with self.engine.begin() as conn:
          conn.execute('''ALTER TABLE %s.dbo.Product NOCHECK CONSTRAINT FK_Product_Cluster''' % (self.dbName))
          conn.execute('''DELETE FROM %s.dbo.Cluster''' % (self.dbName))
@@ -485,7 +487,7 @@ class ConsensusClustering:
 
       ind_famd = np.argmax(norm_scores_famd[:,0] + (1 - norm_scores_famd[:,1]) + norm_scores_famd[:,2])
       
-      print('''
+      logger.info('''
          Evaluation score of %s clustering:
          > Silhouette score: %s
          > Davies-Bouldin Index score: %s
@@ -538,4 +540,7 @@ class ConsensusClustering:
 if __name__ == "__main__":
    clustering = ConsensusClustering()
    clustering.executeClustering()
+   user, logfile = sys.argv[1], sys.argv[2]
+   helper = Helper()
+   logger = logging.getLogger('ClusteringLogger')
 

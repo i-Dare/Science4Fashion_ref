@@ -1,17 +1,20 @@
 from fastai.vision import *
 import torch
-import sqlalchemy
+import sys
 import pandas as pd
 import time
 import numpy as np
 
-import helper_functions
+from helper_functions import *
 import config
 import warnings; warnings.filterwarnings("ignore", category=torch.serialization.SourceChangeWarning)
 
 if __name__ == "__main__":
     # Begin Counting Time
-    start_time = time.time()
+    start_time = time.time() 
+    user, logfile = sys.argv[1], sys.argv[2]
+    helper = Helper()
+    logger = logging.getLogger('ClothingAnnotationLogger')
 
     # Set Device
     defaults.device = torch.device(config.DEVICE)
@@ -24,8 +27,8 @@ if __name__ == "__main__":
     fitLearner = load_learner(config.PRODUCT_ATTRIBUTE_MODEL_DIR, config.MODELFIT)
 
     # Database settings
-    engine = helper_functions.ENGINE
-    dbName = helper_functions.DB_NAME
+    engine = helper.ENGINE
+    dbName = helper.DB_NAME
     query = ''' SELECT * FROM %s.dbo.Product ''' % dbName
     # query = '''SELECT * FROM "%s".public."Product"''' % dbName
 
@@ -33,29 +36,29 @@ if __name__ == "__main__":
     # Select only unlabeled products
     productDF = productDF.loc[productDF.loc[:,(config.ATTRIBUTE_COLUMNS)].fillna(value=0).astype('int64').sum(axis=1) != len(config.ATTRIBUTE_COLUMNS)]
     # Each entry
-    print("Executing product attribute annotation for %s unlabeled products" % len(productDF))
+    logger.info("Executing product attribute annotation for %s unlabeled products" % len(productDF))
     for index, row in productDF.iterrows():
         if index==1:
             break
         # check if there is a blob or to skip it
         if row['Image'] is not None:
-            image = helper_functions.convertBlobToImage(row['Image'])
-            image = helper_functions.convertCVtoPIL(image)
+            image = helper.convertBlobToImage(row['Image'])
+            image = helper.convertCVtoPIL(image)
             # Neckline
             if row['NeckDesign'] == None:
-                productDF.loc[index, 'NeckDesign'] = helper_functions.updateAttribute(config.DICTNECKLINE, image, necklineLearner)
+                productDF.loc[index, 'NeckDesign'] = helper.updateAttribute(config.DICTNECKLINE, image, necklineLearner)
             # Sleeve
             if row['Sleeve'] == None:
-                productDF.loc[index, 'Sleeve'] = helper_functions.updateAttribute(config.DICTSLEEVE, image, sleeveLearner)
+                productDF.loc[index, 'Sleeve'] = helper.updateAttribute(config.DICTSLEEVE, image, sleeveLearner)
             # Length
             if row['Length'] == None:
-                productDF.loc[index, 'Length'] = helper_functions.updateAttribute(config.DICTLENGTH, image, lengthLearner)
+                productDF.loc[index, 'Length'] = helper.updateAttribute(config.DICTLENGTH, image, lengthLearner)
             # Collar
             if row['CollarDesign'] == None:
-                productDF.loc[index, 'CollarDesign'] = helper_functions.updateAttribute(config.DICTCOLLAR, image, collarLearner)
+                productDF.loc[index, 'CollarDesign'] = helper.updateAttribute(config.DICTCOLLAR, image, collarLearner)
             # FIT
             if row['Fit'] == None:
-                productDF.loc[index, 'Fit'] = helper_functions.updateAttribute(config.DICTFIT, image, fitLearner)
+                productDF.loc[index, 'Fit'] = helper.updateAttribute(config.DICTFIT, image, fitLearner)
             
     # Update Product table
     productDF.to_sql("temp_table", schema='%s.dbo' % dbName, con=engine, if_exists='replace', index=False)
@@ -64,4 +67,4 @@ if __name__ == "__main__":
         conn.execute(config.UPDATESQLQUERY)
 
     # End Counting Time
-    print("--- %s seconds ---" % (time.time() - start_time))
+    logger.info("--- %s seconds ---" % (time.time() - start_time))

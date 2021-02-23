@@ -1,20 +1,23 @@
 import os
 import time
-import helper_functions
+import sys
+
+from  helper_functions import *
 import config
 from WebCrawlers.SocialMedia.SocialMediaCrawlers import PinterestCrawler, save_ranked
-import sys
 
 
 if __name__ == '__main__':
     # Get input arguments
-    searchTerm, threshold = sys.argv[1], int(sys.argv[2])
+    searchTerm, threshold, user, logfile = sys.argv[1], int(sys.argv[2]), sys.argv[3], sys.argv[4]
+    helper = Helper()
+    logger = helper.initLogger('PinterestLogger', logfile)
     
     start_time_all = time.time()
     
-    currendDir = helper_functions.WEB_CRAWLERS
-    engine = helper_functions.ENGINE
-    dbName = helper_functions.DB_NAME    
+    currendDir = helper.WEB_CRAWLERS
+    engine = helper.ENGINE
+    dbName = helper.DB_NAME    
 
     # ==========================================================================================
     # Login and Scrape Pinterest
@@ -22,12 +25,12 @@ if __name__ == '__main__':
     username = config.PINTEREST_USERNAME
     password = config.PINTEREST_PASSWORD
 
-    pinterest = PinterestCrawler(username=username, password=password)
+    pinterest = PinterestCrawler(username, password, user, logfile)
     pinterest.login()
 
     pins = pinterest.search_query(query=searchTerm, threshold=threshold)
     # Store results in the database ranked by the relevance of the experts terminology
-    dataDF = save_ranked(pins, adapter='Pinterest')
+    dataDF = save_ranked(helper, pins, adapter='Pinterest')
 
-    print('Images requested: %s,   Images Downloaded: %s (%s%%)' % (threshold, len(dataDF), round(len(dataDF)/threshold,2 ) * 100)) 
-    print("\nTime to scrape ALL queries is %s seconds ---" % round(time.time() - start_time_all, 2))
+    logger.info('Images requested: %s,   Images Downloaded: %s (%s%%)' % (threshold, len(dataDF), round(len(dataDF)/threshold,2 ) * 100)) 
+    logger.info("\nTime to scrape ALL queries is %s seconds ---" % round(time.time() - start_time_all, 2))
