@@ -1,7 +1,7 @@
 import json
 import os
 import time
-import datetime
+import logging
 import pandas as pd
 import numpy as np
 import regex as re
@@ -27,7 +27,7 @@ class PinterestCrawler(Pinterest):
     def __init__(self, username, password, user, logfile):
         self.user = user
         self.helper = Helper()
-        self.logger = self.helper.initLogger('PinterestLogger', logfile)
+        self.logger = logging.getLogger('PinterestLogger')
 
         cred_root = os.path.join(config.RESOURCESDIR, 'data')
         super().__init__(password=password, proxies=None, username='', email=username, cred_root=cred_root, user_agent=None)
@@ -37,8 +37,8 @@ class PinterestCrawler(Pinterest):
         self.fashion_att = self.helper.get_fashion_attributes()
 
     def _search(self, query, threshold):
-        engine = self.helper.ENGINE
-        dbName = self.helper.DB_NAME
+        engine = config.ENGINE
+        dbName = config.DB_NAME
 
         productsDF = pd.read_sql_query('''SELECT * FROM %s.dbo.Product''' % dbName, engine)
         # productsDF = pd.read_sql_query('''SELECT * FROM  public.\"Product\"''', engine)
@@ -51,12 +51,12 @@ class PinterestCrawler(Pinterest):
                 promotion = result['is_promoted']
                 if tempDF.empty and not promotion:
                     searchwords = ''.join(query.split(" "))
-                    imageFilePath = self.helper..setImageFilePath(self.home_page, searchwords, index)
+                    imageFilePath = self.helper.setImageFilePath(self.home_page, searchwords, index)
                     description = result['description'] + result['rich_summary']['display_description'] \
                                         if result['rich_summary'] else result['description']
                     # Capture the main attributes of the result to evaluate and enchance the final recommendation
                     query_result.append({'query':query,
-                                    'timestamp': str(datetime.datetime.now()),
+                                    'timestamp': str(datetime.now()),
                                     'URL': result['link'],
                                     'imgURL':result['images']['orig']['url'], 
                                     'imageFilePath':imageFilePath, 
@@ -95,7 +95,7 @@ class InstagramCrawler():
     def __init__(self, username, password, user, logfile):
         self.user = user
         self.helper = Helper()
-        self.logger = self.helper.initLogger('InstagramLogger', logfile)
+        self.logger = logging.getLogger('InstagramLogger')
 
         self.username = username
         self.password = password
@@ -109,11 +109,10 @@ class InstagramCrawler():
         self.logger.info('Connected to Instagram')
 
     def search_query(self, query, threshold=10):
-        engine = self.helper.ENGINE
-        dbName = self.helper.DB_NAME
+        engine = config.ENGINE
+        dbName = config.DB_NAME
 
         productsDF = pd.read_sql_query('''SELECT * FROM %s.dbo.Product''' % dbName, engine)
-        # productsDF = pd.read_sql_query('''SELECT * FROM  public.\"Product\"''', engine)
 
         # Create hashtag from query term
         hashtag = Hashtag.from_name(self.instagram.context, query.replace(' ',''))

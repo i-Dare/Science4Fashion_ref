@@ -47,7 +47,8 @@ def performScraping(urlReceived, category):
         
         # Check if url already exists in the PRODUCT table
         url = url.replace("'", "''")        
-        querydf = pd.read_sql_query("SELECT * FROM %s.dbo.PRODUCT WHERE %s.dbo.PRODUCT.url = '%s'" % (dbName, dbName, url), engine)
+        querydf = pd.read_sql_query("SELECT * FROM %s.dbo.Product WHERE  CONVERT(VARCHAR(MAX), %s.dbo.PRODUCT.URL) = \
+            CONVERT(VARCHAR(MAX),'%s')" % (dbName, dbName, str(url)), engine)
         # querydf = pd.read_sql_query("SELECT * FROM public.\"Product\" WHERE public.\"Product\".\"URL\" = '%s'" %  url, engine)
         if not querydf.empty:
             # Update ProductHistory

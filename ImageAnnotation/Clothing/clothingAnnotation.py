@@ -12,9 +12,10 @@ import warnings; warnings.filterwarnings("ignore", category=torch.serialization.
 if __name__ == "__main__":
     # Begin Counting Time
     start_time = time.time() 
-    user, logfile = sys.argv[1], sys.argv[2]
+    user = sys.argv[1]
+    logfile = 'tmp.log'
     helper = Helper()
-    logger = logging.getLogger('ClothingAnnotationLogger')
+    logger = helper.initLogger('ClothingAnnotationLogger', logfile)
 
     # Set Device
     defaults.device = torch.device(config.DEVICE)
@@ -27,8 +28,8 @@ if __name__ == "__main__":
     fitLearner = load_learner(config.PRODUCT_ATTRIBUTE_MODEL_DIR, config.MODELFIT)
 
     # Database settings
-    engine = helper.ENGINE
-    dbName = helper.DB_NAME
+    engine = config.ENGINE
+    dbName = config.DB_NAME
     query = ''' SELECT * FROM %s.dbo.Product ''' % dbName
     # query = '''SELECT * FROM "%s".public."Product"''' % dbName
 

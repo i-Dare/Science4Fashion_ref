@@ -13,7 +13,6 @@ from  helper_functions import *
 import config
 from WebCrawlers.SocialMedia.SocialMediaCrawlers import InstagramCrawler, save_ranked
 
-
 if __name__ == '__main__':
     # Get input arguments
     searchTerm, threshold, user, logfile = sys.argv[1], int(sys.argv[2]), sys.argv[3], sys.argv[4]
@@ -23,8 +22,8 @@ if __name__ == '__main__':
     start_time_all = time.time()
 
     currendDir = helper.WEB_CRAWLERS
-    engine = helper.ENGINE
-    dbName = helper.DB_NAME
+    engine = config.ENGINE
+    dbName = config.DB_NAME
 
     # ==========================================================================================
     # Login and Scrape Instagram

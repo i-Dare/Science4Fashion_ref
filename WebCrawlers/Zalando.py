@@ -56,7 +56,8 @@ def performScraping(urlReceived, searchTerm, breakPointNumber):
         # If TRUE update the latest record in ProductHistory table
         # Otherwise download product image and create new product entry in PRODUCT and ProductHistory tables
         url = url.replace("'", "''")
-        querydf = pd.read_sql_query("SELECT * FROM %s.dbo.Product WHERE %s.dbo.Product.url = '%s'" % (dbName, dbName, url), engine)
+        querydf = pd.read_sql_query("SELECT * FROM %s.dbo.Product WHERE  CONVERT(VARCHAR(MAX), %s.dbo.PRODUCT.URL) = \
+            CONVERT(VARCHAR(MAX),'%s')" % (dbName, dbName, str(url)), engine)
         # querydf = pd.read_sql_query("SELECT * FROM public.\"Product\" WHERE public.\"Product\".\"URL\" = '%s'" %  url, engine)
 
         if not querydf.empty:
@@ -94,8 +95,8 @@ if __name__ == '__main__':
     start_time_all = time.time()
     
     currendDir = helper.WEB_CRAWLERS
-    engine = helper.ENGINE
-    dbName = helper.DB_NAME
+    engine = config.ENGINE
+    dbName = config.DB_NAME
     # Webpage URL
     standardUrl = 'https://www.zalando.co.uk/catalog/?q='
     site = str((standardUrl.split('.')[1]).capitalize())

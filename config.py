@@ -50,7 +50,12 @@ CLUSTERING_MODEL_DIR = os.path.join(PROJECT_HOME, RESOURCESDIR, MODELSDIR, confi
 PRODUCT_ATTRIBUTE_MODEL_DIR = os.path.join(PROJECT_HOME, RESOURCESDIR, MODELSDIR, config['resources']['models']['product_attribute_model']['directory'])
 
 #
-########### WebCrawler variables ###########
+########### Logging variables ###########
+#
+DEFAULT_USER =  config['default_user']
+
+#
+########### DB variables ###########
 #
 # DB Initiation
 MAIN_DB_TABLES = config['main_db_tables']

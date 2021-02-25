@@ -42,12 +42,14 @@ class ConsensusClustering:
             action="store_true")
       self.parser.add_argument('-l','--linkage', type = str, help = '''Input linkage type for the \
             Agglomerative clustering''', default = config.LINKAGE, choices=['ward', 'complete', 'average', 'sinlge'])
+      self.parser.add_argument('-u', '--user', type = str, help = '''Input user''')
 
       # Parse arguments
       self.args = self.parser.parse_args()
       self.training_mode = self.args.train
       self.linkage = self.args.linkage
-
+      self.user = self.args.user
+      
       ## Get initial configuration from "config" package
       #      
       # Get product clustering attributes
@@ -58,8 +60,8 @@ class ConsensusClustering:
       # Get distance thereshold
       self.distance_threshold = config.DISTANCE_THRESHOLD
       # Database settings
-      self.dbName = helper.DB_NAME
-      self.engine = helper.ENGINE
+      self.dbName = config.DB_NAME
+      self.engine = config.ENGINE
       # Clustering model directory
       self.clustering_model_dir = config.CLUSTERING_MODEL_DIR
       # Dictionary used mapping products to IDs
@@ -538,9 +540,11 @@ class ConsensusClustering:
 
 
 if __name__ == "__main__":
+   # Logger setup
+   logfile = 'tmp.log'
+   helper = Helper()
+   logger = helper.initLogger('ClusteringLogger', logfile)
+
    clustering = ConsensusClustering()
    clustering.executeClustering()
-   user, logfile = sys.argv[1], sys.argv[2]
-   helper = Helper()
-   logger = logging.getLogger('ClusteringLogger')
 

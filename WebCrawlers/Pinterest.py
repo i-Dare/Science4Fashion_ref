@@ -5,7 +5,7 @@ import sys
 from  helper_functions import *
 import config
 from WebCrawlers.SocialMedia.SocialMediaCrawlers import PinterestCrawler, save_ranked
-
+# from SocialMediaCrawlers import PinterestCrawler, save_ranked
 
 if __name__ == '__main__':
     # Get input arguments
@@ -16,8 +16,8 @@ if __name__ == '__main__':
     start_time_all = time.time()
     
     currendDir = helper.WEB_CRAWLERS
-    engine = helper.ENGINE
-    dbName = helper.DB_NAME    
+    engine = config.ENGINE
+    dbName = config.DB_NAME    
 
     # ==========================================================================================
     # Login and Scrape Pinterest

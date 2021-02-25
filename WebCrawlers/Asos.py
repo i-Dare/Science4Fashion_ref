@@ -6,6 +6,7 @@ import time
 import requests
 import sqlalchemy
 import pandas as pd
+import time
 import regex as re
 
 from bs4 import BeautifulSoup, ResultSet
@@ -66,7 +67,8 @@ def performScraping(urlReceived, searchTerm, breakPointNumber):
         # If TRUE update the latest record in ProductHistory table
         # Otherwise download product image and create new product entry in Product and ProductHistory tables
         url = url.replace("'", "''")
-        querydf = pd.read_sql_query("SELECT * FROM %s.dbo.PRODUCT WHERE %s.dbo.PRODUCT.url = '%s'" % (dbName, dbName, url), engine)
+        querydf = pd.read_sql_query("SELECT * FROM %s.dbo.Product WHERE  CONVERT(VARCHAR(MAX), %s.dbo.PRODUCT.URL) = \
+            CONVERT(VARCHAR(MAX),'%s')" % (dbName, dbName, str(url)), engine)
         # querydf = pd.read_sql_query("SELECT * FROM public.\"Product\" WHERE public.\"Product\".\"URL\" = '%s'" %  url, engine)
         if not querydf.empty:
             # Update ProductHistory

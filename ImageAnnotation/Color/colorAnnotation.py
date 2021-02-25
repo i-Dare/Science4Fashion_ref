@@ -107,15 +107,16 @@ def colorExtraction(image, colorRGBDF, colorDF, imgPath):
 if __name__ == '__main__':
     # Begin Counting Time
     start_time = time.time() 
-    user, logfile = sys.argv[1], sys.argv[2]
+    user = sys.argv[1]
+    logfile = 'tmp.log'
     helper = Helper()
-    logger = logging.getLogger('ColorAnnotationLogger')
+    logger = helper.initLogger('ColorAnnotationLogger', logfile)
 
     ### Read Table Products from S4F database ###
     logger.info('Loading Product table...')    
     #Connect to database with sqlalchemy
-    engine = helper.ENGINE
-    dbName = helper.DB_NAME
+    engine = config.ENGINE
+    dbName = config.DB_NAME
     
     modelPath = config.COLOR_MODELPATH
     #Segmentation Background & Person
@@ -148,7 +149,7 @@ if __name__ == '__main__':
         imgPath = row['Photo']
         try:
             if os.path.exists(imgPath):
-                print('Processing image: %s' % imgPath)
+                logger.info('Processing image: %s' % imgPath)
                 # Open image for unicode file paths
                 imgStream = open(imgPath, "rb")
                 imgArray = np.asarray(bytearray(imgStream.read()), dtype=np.uint8)
@@ -157,7 +158,7 @@ if __name__ == '__main__':
             else:
                 logger.info('Cannot find image with ID %s at path %s' % (row['Oid'], imgPath))
                 imageBlob = row['Image']
-                image = helper_functions.convertBlobToImage(imageBlob)
+                image = helper.convertBlobToImage(imageBlob)
                 colorRGBDF, colorDF = colorExtraction(image, colorRGBDF, colorDF, 'Extracted image %s' % row['Oid'])
         except:
             logger.warning('Warning: No color information for image %s' % row['URL'])

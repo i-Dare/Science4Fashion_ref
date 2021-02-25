@@ -58,13 +58,17 @@ class Helper():
     STOP_WORDS.add('via')
     def __init__(self, level=logging.DEBUG):
         self.level = level
-        self.logdir = config.LOGDIR
-        self.formatter = logging.Formatter('[%(asctime)s]  %(levelname)-2s::  %(message)-5s (%(name)s)')
+        self.logdir = config.LOGDIR        
 
         if not os.path.exists(self.logdir):
             os.makedirs(self.logdir)
 
-    def initLogger(self, loggerName, logfile=None):
+    def initLogger(self, loggerName, logfile=None,  user=config.DEFAULT_USER):
+        os.environ['PYTHONUNBUFFERED'] = "1"
+
+        # Setup formatter
+        formatter = logging.Formatter('[%(asctime)s]  %(levelname)-2s::  %(message)-5s (%(name)s)')
+        
         # Get or create a logger
         self.logger = logging.getLogger(loggerName)  
 
@@ -73,14 +77,14 @@ class Helper():
 
         # define file and console handler and set formatter
         stdHandler = logging.StreamHandler()
-        stdHandler.setFormatter(self.formatter)
+        stdHandler.setFormatter(formatter)
         if logfile:
             fileHandler = logging.FileHandler(os.path.join(self.logdir, logfile))
         else:
             now = datetime.now().strftime('%Y-%m-%d')
             logfile = 'tmp_%s.log' % now
             fileHandler = logging.FileHandler(os.path.join(self.logdir, logfile))
-        fileHandler.setFormatter(self.formatter)
+        fileHandler.setFormatter(formatter)
 
         # add file handlers to logger
         self.logger.addHandler(stdHandler)
@@ -89,6 +93,9 @@ class Helper():
         self.logger.info('Start logging')
         return self.logger
 
+    def logwarning(self, msg):
+        self.logger.warning(msg)
+        sys.exit(1)
 
     ########### General functionality ###########
     ########### This function will create a soup and returns which is the parsed html format for extracting html tags of the webpage ###########
@@ -286,10 +293,10 @@ class Helper():
         '''
         Adds new product info to the ProductHistory table.
         '''
-        self.logger.info('Adding new product history')    
+        self.logger.info('Adding new product history')
         url = url.replace("'", "''")
-        querydf = pd.read_sql_query(
-            "SELECT * FROM %s.dbo.Product WHERE %s.dbo.Product.url = '%s'" % (self.DB_NAME, self.DB_NAME, url), self.ENGINE)
+        querydf = pd.read_sql_query("SELECT * FROM %s.dbo.Product WHERE  CONVERT(VARCHAR(MAX), %s.dbo.PRODUCT.URL) = \
+            CONVERT(VARCHAR(MAX),'%s')" % (self.DB_NAME, self.DB_NAME, str(url)), self.ENGINE)
         # querydf = pd.read_sql_query(
         #    "SELECT * FROM public.\"Product\" WHERE public.\"Product\".\"URL\" = '{}'".format(url.replace("%", "%%")), self.ENGINE)
         if not querydf.empty:
@@ -299,7 +306,7 @@ class Helper():
             submitdf.to_sql("ProductHistory", schema='%s.dbo' % self.DB_NAME, con=self.ENGINE, if_exists='append', index=False)
             # submitdf.to_sql("ProductHistory", con=self.ENGINE, if_exists='append', index=False)
         else:
-            self.logger.info('WARNING: Product history for product at %s was not added...' % url)
+            self.logger.warning('Product history for product at %s was not added...' % url)
 
 
     ########### Update product history ###########
@@ -312,7 +319,7 @@ class Helper():
         # updatedf = pd.read_sql_query("SELECT * FROM public.\"ProductHistory\"", self.ENGINE)
         if updatedf.loc[(updatedf['SearchDate']== updatedf['SearchDate'].max()) & (updatedf['Product']== prdno)].empty:
             # Create new entry in ProductHistory table
-            self.logger.info('Product %s history not found' % prdno)
+            self.logger.info('Product %s history not found, creating history...' % prdno)
             self.addNewProductHistory(url, referenceOrder, trendOrder, price)
         else:
             self.logger.info('Product already exists, updating history')
