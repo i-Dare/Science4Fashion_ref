@@ -109,7 +109,7 @@ if __name__ == '__main__':
     start_time = time.time() 
     user = sys.argv[1]
     logfile = 'tmp.log'
-    logger = S4F_Logger('ColorAnnotationLogger', logfile).logger
+    logger = S4F_Logger('ColorAnnotationLogger', logfile=logfile).logger
     helper = Helper(logger)
 
     ### Read Table Products from S4F database ###

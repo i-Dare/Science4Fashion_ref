@@ -43,7 +43,7 @@ def performScraping(urlReceived, searchTerm, breakPointNumber):
         refDF = helper.resultDataframeAsos(urlReceived, 'reference', filterDF=trendDF)    
         
     except Exception as e:        
-        logger.info('Exception: %s' % e)
+        logger.warn_and_trace(e)
         soup = helper.get_content(urlReceived)
         trendDF = pd.DataFrame(columns=['trendOrder', 'URL', 'imgURL', 'price'])
         refDF = pd.DataFrame(columns=['referenceOrder', 'URL', 'imgURL'])

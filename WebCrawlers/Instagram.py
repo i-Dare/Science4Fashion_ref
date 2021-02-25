@@ -17,12 +17,10 @@ from WebCrawlers.SocialMedia.SocialMediaCrawlers import InstagramCrawler, save_r
 if __name__ == '__main__':
     # Get input arguments
     searchTerm, threshold, user, logfile = sys.argv[1], int(sys.argv[2]), sys.argv[3], sys.argv[4]
-    logger = S4F_Logger('InstagramLogger', logfile).logger
-    helper = Helper(logger)
-
+    
     start_time_all = time.time()
 
-    currendDir = helper.WEB_CRAWLERS
+    currendDir = config.WEB_CRAWLERS
     engine = config.ENGINE
     dbName = config.DB_NAME
 
@@ -31,8 +29,10 @@ if __name__ == '__main__':
     # ==========================================================================================
     username = config.INSTAGRAM_USERNAME
     password = config.INSTAGRAM_PASSWORD
-
+    
     instagram = InstagramCrawler(username, password, user, logfile)
+    logger = instagram.logger
+    helper = instagram.helper
     instagram.login()
 
     insta = instagram.search_query(query=searchTerm, threshold=threshold)

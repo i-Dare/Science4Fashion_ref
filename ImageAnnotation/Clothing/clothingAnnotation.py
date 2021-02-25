@@ -15,7 +15,7 @@ if __name__ == "__main__":
     start_time = time.time() 
     user = sys.argv[1]
     logfile = 'tmp.log'
-    logger = S4F_Logger('ClothingAnnotationLogger', logfile).logger
+    logger = S4F_Logger('ClothingAnnotationLogger', logfile=logfile).logger
     helper = Helper(logger)
 
     # Set Device

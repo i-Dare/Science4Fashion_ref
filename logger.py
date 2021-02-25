@@ -25,6 +25,20 @@ class MyLogger(logging.Logger):
         if self.isEnabledFor(logging.WARNING):
             msg = ''.join(tb.format_exception(None, ex, ex.__traceback__))
             self._log(logging.WARNING, msg, args, **kwargs)
+            sys.exit(1)        
+
+    def warn_and_trace(self, ex, *args, **kwargs):
+        """
+        Log 'msg % args' with severity 'WARNING'.
+
+        To pass exception information, use the keyword argument exc_info with
+        a true value, e.g.
+
+        logger.warning("Houston, we have a %s", "bit of a problem", exc_info=1)
+        """
+        if self.isEnabledFor(logging.WARNING):
+            msg = ''.join(tb.format_exception(None, ex, ex.__traceback__))
+            self._log(logging.WARNING, msg, args, **kwargs)
             sys.exit(1)
 
 

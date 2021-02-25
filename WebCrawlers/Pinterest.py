@@ -11,12 +11,10 @@ from WebCrawlers.SocialMedia.SocialMediaCrawlers import PinterestCrawler, save_r
 if __name__ == '__main__':
     # Get input arguments
     searchTerm, threshold, user, logfile = sys.argv[1], int(sys.argv[2]), sys.argv[3], sys.argv[4]
-    logger = S4F_Logger('PinterestLogger', logfile).logger
-    helper = Helper(logger)
     
     start_time_all = time.time()
     
-    currendDir = helper.WEB_CRAWLERS
+    currendDir = config.WEB_CRAWLERS
     engine = config.ENGINE
     dbName = config.DB_NAME    
 
@@ -26,7 +24,9 @@ if __name__ == '__main__':
     username = config.PINTEREST_USERNAME
     password = config.PINTEREST_PASSWORD
 
-    pinterest = PinterestCrawler(username, password, user, logfile)
+    pinterest = PinterestCrawler(username, password, user, logfile=logfile)
+    logger = pinterest.logger
+    helper = pinterest.helper
     pinterest.login()
 
     pins = pinterest.search_query(query=searchTerm, threshold=threshold)
