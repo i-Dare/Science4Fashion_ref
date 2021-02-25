@@ -16,6 +16,7 @@ from instaloader import Instaloader, Hashtag
 
 import config
 from  helper_functions import *
+from logger import S4F_Logger
 
 
 # Pinterest crawler class
@@ -26,8 +27,8 @@ class PinterestCrawler(Pinterest):
     '''
     def __init__(self, username, password, user, logfile):
         self.user = user
-        self.helper = Helper()
-        self.logger = logging.getLogger('PinterestLogger')
+        self.logger = S4F_Logger('PinterestLogger', logfile=logfile).logger
+        self.helper = Helper(self.logger)
 
         cred_root = os.path.join(config.RESOURCESDIR, 'data')
         super().__init__(password=password, proxies=None, username='', email=username, cred_root=cred_root, user_agent=None)
@@ -94,8 +95,8 @@ class InstagramCrawler():
     '''
     def __init__(self, username, password, user, logfile):
         self.user = user
-        self.helper = Helper()
-        self.logger = logging.getLogger('InstagramLogger')
+        self.logger = S4F_Logger('InstagramLogger', logfile=logfile).logger
+        self.helper = Helper(self.logger)
 
         self.username = username
         self.password = password

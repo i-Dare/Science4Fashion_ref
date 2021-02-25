@@ -14,6 +14,7 @@ from datetime import datetime
 import sys
 from helper_functions import *
 import config
+from logger import S4F_Logger
 
 
 ############ This function will be called every new keyword line is encountered and will start scraping the amazon web page of the search result according to the text mention in the searchTerm text file ############
@@ -102,8 +103,8 @@ def performScraping(urlReceived, searchTerm, breakPointNumber):
 if __name__ == '__main__':
     # Get input arguments
     searchTerm, threshold, user, logfile = sys.argv[1], int(sys.argv[2]), sys.argv[3], sys.argv[4]
-    helper = Helper()
-    logger = helper.initLogger('AsosLogger', logfile)
+    logger = S4F_Logger('AsosLogger', logfile=logfile).logger
+    helper = Helper(logger)
 
     start_time_all = time.time()
 

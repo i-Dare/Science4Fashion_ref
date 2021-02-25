@@ -56,46 +56,11 @@ class Helper():
     STOP_WORDS.remove('man')
     # Add 'via' in stop_words
     STOP_WORDS.add('via')
-    def __init__(self, level=logging.DEBUG):
-        self.level = level
-        self.logdir = config.LOGDIR        
+    
+    def __init__(self, logger):
+        self.logger = logger
 
-        if not os.path.exists(self.logdir):
-            os.makedirs(self.logdir)
 
-    def initLogger(self, loggerName, logfile=None,  user=config.DEFAULT_USER):
-        os.environ['PYTHONUNBUFFERED'] = "1"
-
-        # Setup formatter
-        formatter = logging.Formatter('[%(asctime)s]  %(levelname)-2s::  %(message)-5s (%(name)s)')
-        
-        # Get or create a logger
-        self.logger = logging.getLogger(loggerName)  
-
-        # Set level
-        self.logger.setLevel(self.level)
-
-        # define file and console handler and set formatter
-        stdHandler = logging.StreamHandler()
-        stdHandler.setFormatter(formatter)
-        if logfile:
-            fileHandler = logging.FileHandler(os.path.join(self.logdir, logfile))
-        else:
-            now = datetime.now().strftime('%Y-%m-%d')
-            logfile = 'tmp_%s.log' % now
-            fileHandler = logging.FileHandler(os.path.join(self.logdir, logfile))
-        fileHandler.setFormatter(formatter)
-
-        # add file handlers to logger
-        self.logger.addHandler(stdHandler)
-        self.logger.addHandler(fileHandler)
-
-        self.logger.info('Start logging')
-        return self.logger
-
-    def logwarning(self, msg):
-        self.logger.warning(msg)
-        sys.exit(1)
 
     ########### General functionality ###########
     ########### This function will create a soup and returns which is the parsed html format for extracting html tags of the webpage ###########

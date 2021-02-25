@@ -9,15 +9,17 @@ import time
 
 from helper_functions import *
 import config
-# from logger import S4F_Logger
+from logger import S4F_Logger
 
 class WebCrawlers:
    def __init__(self):
-      self.helper = Helper()
-      self.engine = self.config.ENGINE
-      self.dbName = self.config.DB_NAME
       self.logfile = 'tmp.log'
-
+      self.logger = S4F_Logger('WrapperLogger', logfile=self.logfile).logger
+      self.helper = Helper(self.logger)
+      
+      self.engine = config.ENGINE
+      self.dbName = config.DB_NAME
+      
       # Get all Adapters as stored in the database
       self.adapterDF = pd.read_sql_query("SELECT * FROM %s.dbo.Adapter" % self.dbName, self.engine)
       
@@ -60,8 +62,9 @@ class WebCrawlers:
       self.user = self.args.user
 
       # Init logger
-      self.logger = self.helper.initLogger('WrapperLogger', self.logfile)
-
+      # self.logger = self.helper.initLogger('WrapperLogger', self.logfile)
+      
+      # self.logger.initLogger
       # Setup argument constrains
       self.checkArgConstrains()
 
@@ -161,11 +164,11 @@ class WebCrawlers:
    # Step 4: Execute clothing based annotation
    # Step 5: Execute product clustering module
    def run(self,):
-      self.executeWebCrawler()
+      # self.executeWebCrawler()
       self.executeTextBasedAnnotation()
-      self.executeColorBasedAnnotation()
-      self.executeClothingBasedAnnotation()
-      self.executeClustering(train=True)
+      # self.executeColorBasedAnnotation()
+      # self.executeClothingBasedAnnotation()
+      # self.executeClustering(train=True)
 
 if __name__ == "__main__":
    webCrawler = WebCrawlers()

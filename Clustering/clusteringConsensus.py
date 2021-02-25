@@ -28,6 +28,7 @@ from light_famd import FAMD
 
 from helper_functions import  *
 import config
+from logger import S4F_Logger
 
 class ConsensusClustering:
 
@@ -542,8 +543,8 @@ class ConsensusClustering:
 if __name__ == "__main__":
    # Logger setup
    logfile = 'tmp.log'
-   helper = Helper()
-   logger = helper.initLogger('ClusteringLogger', logfile)
+   logger = S4F_Logger('ClusteringLogger', logfile=logfile).logger
+   helper = Helper(logger)
 
    clustering = ConsensusClustering()
    clustering.executeClustering()

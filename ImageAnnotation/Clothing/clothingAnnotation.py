@@ -7,6 +7,7 @@ import numpy as np
 
 from helper_functions import *
 import config
+from logger import S4F_Logger
 import warnings; warnings.filterwarnings("ignore", category=torch.serialization.SourceChangeWarning)
 
 if __name__ == "__main__":
@@ -14,8 +15,8 @@ if __name__ == "__main__":
     start_time = time.time() 
     user = sys.argv[1]
     logfile = 'tmp.log'
-    helper = Helper()
-    logger = helper.initLogger('ClothingAnnotationLogger', logfile)
+    logger = S4F_Logger('ClothingAnnotationLogger', logfile).logger
+    helper = Helper(logger)
 
     # Set Device
     defaults.device = torch.device(config.DEVICE)

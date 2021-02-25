@@ -11,6 +11,7 @@ import logging
 
 from helper_functions import *
 import config
+from logger import S4F_Logger
 
 def updateQuery(df, engine):
     ###Create temp table and then update only the rows that belong to temp AND product###
@@ -43,8 +44,9 @@ if __name__ == "__main__":
     start_time = time.time() 
     user = sys.argv[1]
     logfile = 'tmp.log'
-    helper = Helper()
-    logger = helper.initLogger('TextAnnotationLogger', logfile)    
+    logger = S4F_Logger('TextAnnotationLogger', logfile=logfile).logger
+    helper = Helper(logger)
+
     try:
         ### Read Table Products from S4F database ###
         logger.info('Loading Product table...')
@@ -52,6 +54,7 @@ if __name__ == "__main__":
         currendDir = helper.TEXT_MINING
         engine = config.ENGINE
         dbName = config.DB_NAME
+        helper.dfsf
 
         productsDF = pd.read_sql_query('SELECT * FROM  %s.dbo.Product' % dbName, engine)
         # productsDF = pd.read_sql_query('SELECT * FROM public.\"Product\"', engine)
@@ -180,6 +183,5 @@ if __name__ == "__main__":
 
         logger.info("--- %s seconds ---" % (time.time() - start_time))
     except Exception as ex:
-        logger.warning(ex)
-        sys.exit(1)
+        logger.warn_and_exit(ex)
 

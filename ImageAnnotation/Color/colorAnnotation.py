@@ -13,7 +13,7 @@ import logging
 
 from helper_functions import  *
 import config
-
+from logger import S4F_Logger
 from cloth import Cloth
 import imageUtils
 import segmentation
@@ -109,8 +109,8 @@ if __name__ == '__main__':
     start_time = time.time() 
     user = sys.argv[1]
     logfile = 'tmp.log'
-    helper = Helper()
-    logger = helper.initLogger('ColorAnnotationLogger', logfile)
+    logger = S4F_Logger('ColorAnnotationLogger', logfile).logger
+    helper = Helper(logger)
 
     ### Read Table Products from S4F database ###
     logger.info('Loading Product table...')    

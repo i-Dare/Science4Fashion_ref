@@ -4,14 +4,15 @@ import sys
 
 from  helper_functions import *
 import config
+from logger import S4F_Logger
 from WebCrawlers.SocialMedia.SocialMediaCrawlers import PinterestCrawler, save_ranked
 # from SocialMediaCrawlers import PinterestCrawler, save_ranked
 
 if __name__ == '__main__':
     # Get input arguments
     searchTerm, threshold, user, logfile = sys.argv[1], int(sys.argv[2]), sys.argv[3], sys.argv[4]
-    helper = Helper()
-    logger = helper.initLogger('PinterestLogger', logfile)
+    logger = S4F_Logger('PinterestLogger', logfile).logger
+    helper = Helper(logger)
     
     start_time_all = time.time()
     
