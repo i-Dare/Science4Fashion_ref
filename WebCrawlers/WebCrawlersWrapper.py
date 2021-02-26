@@ -85,9 +85,9 @@ class WebCrawlers:
       #                                                           
       # Update CrawlSearch table
       #  
-      query = "INSERT INTO %s.dbo.CrawlSearch (Description, Adapter, SearchTerm)" % self.dbName \
-                     + " VALUES (%s, CAST(%s AS INTEGER), CAST(%s AS INTEGER))"
-      args = description, int(adapter_row['Oid'].values[0]), numberResults
+      query = "INSERT INTO %s.dbo.CrawlSearch (Description, Adapter, NumberOfProductsToReturn, SearchTerm)" % self.dbName \
+                     + " VALUES (%s, CAST(%s AS INTEGER), CAST(%s AS INTEGER), %s)"
+      args = description, int(adapter_row['Oid'].values[0]), numberResults, description
       self.helper.runQuery(query, args)
 
 
@@ -101,7 +101,6 @@ class WebCrawlers:
 
          # Upadate CrawlSearch table
          self.updateCrawlSearchTable(self.searchTerm, adapter, self.numberResults)
-         lastID = self.helper.getLastRecordID('CrawlSearch', "WHERE Description='%s'" % self.searchTerm)
 
          #                                                           
          # Execute Adapter    

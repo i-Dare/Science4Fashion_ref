@@ -75,7 +75,7 @@ def performScraping(urlReceived, searchTerm, breakPointNumber):
         if not querydf.empty:
             # Update ProductHistory
             prdno = querydf['Oid'].values[0]
-            helper.updateProductHistory(prdno, referenceOrder, trendOrder, price, url)
+            helper.updateProductHistory(prdno, referenceOrder, trendOrder, price, url, searchTerm)
             numUrlExist += 1
             logger.info('Info for product %s updated' % prdno)
         else:

@@ -307,7 +307,7 @@ class Helper():
         #    "SELECT * FROM public.\"Product\" WHERE public.\"Product\".\"URL\" = '{}'".format(url.replace("%", "%%")), self.ENGINE)
         if not querydf.empty:
             oid = querydf['Oid'].values[0]
-            lastCrawlSearchID = self.helper.getLastRecordID('CrawlSearch', "WHERE Description='%s'" % searchTerm)
+            lastCrawlSearchID = self.getLastRecordID('CrawlSearch', "WHERE Description='%s'" % searchTerm)
             submitdf = pd.DataFrame([{
                                     'Product': oid, 
                                     'ReferenceOrder': referenceOrder, 
@@ -338,7 +338,7 @@ class Helper():
         else:
             self.logger.info('Product already exists, updating history')
             
-            lastCrawlSearchID = self.helper.getLastRecordID('CrawlSearch', "WHERE Description='%s'" % searchTerm)
+            lastCrawlSearchID = self.getLastRecordID('CrawlSearch', "WHERE Description='%s'" % searchTerm)
             updatedf.loc[(updatedf['SearchDate']== updatedf['SearchDate'].max()) & (updatedf['Product']== oid), 
                         ['ReferenceOrder', 'TrendingOrder', 'Price', 'CrawlSearch']] = [referenceOrder, trendOrder, price, lastCrawlSearchID]
             updatedf.to_sql("ProductHistory", schema='%s.dbo' % self.DB_NAME, con=self.ENGINE, if_exists='replace', index=False)
