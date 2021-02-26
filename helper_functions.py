@@ -56,7 +56,7 @@ class Helper():
     STOP_WORDS.remove('man')
     # Add 'via' in stop_words
     STOP_WORDS.add('via')
-    
+
     def __init__(self, logger):
         self.logger = logger
 
@@ -203,7 +203,16 @@ class Helper():
         gnd = [g_label for g_label, g in gender_dict.items() if gender.lower() in g][0]
         # Find captured gender in gender dataframe
         gender_id = [g_id for g_id, g in genderdf_dict.items() if gnd==g][0]
-        return gender_id
+        return gender_id   
+
+    ########### Execute query ###########
+    def runQuery(self, query, args=None):
+        with self.ENGINE.begin() as conn:
+            if args:
+                conn.execute(query, args)
+            else:
+                conn.execute(query)
+
 
     ########### Add new product to the Product table ###########
     def addNewBrand(self, brand, isActive):

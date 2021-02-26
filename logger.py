@@ -5,60 +5,37 @@ import config
 import sys
 import traceback as tb
 
-# import logging
-# import threading
 
-class MyLogger(logging.Logger):
-
-    def __init__(self, name, level = logging.NOTSET):
-        return super(MyLogger, self).__init__(name, level)        
-
-    def warn_and_exit(self, ex, *args, **kwargs):
-        """
-        Log 'msg % args' with severity 'WARNING'.
-
-        To pass exception information, use the keyword argument exc_info with
-        a true value, e.g.
-
-        logger.warning("Houston, we have a %s", "bit of a problem", exc_info=1)
-        """
-        if self.isEnabledFor(logging.WARNING):
-            msg = ''.join(tb.format_exception(None, ex, ex.__traceback__))
-            self._log(logging.WARNING, msg, args, **kwargs)
-            sys.exit(1)        
-
-    def warn_and_trace(self, ex, *args, **kwargs):
-        """
-        Log 'msg % args' with severity 'WARNING'.
-
-        To pass exception information, use the keyword argument exc_info with
-        a true value, e.g.
-
-        logger.warning("Houston, we have a %s", "bit of a problem", exc_info=1)
-        """
-        if self.isEnabledFor(logging.WARNING):
-            msg = ''.join(tb.format_exception(None, ex, ex.__traceback__))
-            self._log(logging.WARNING, msg, args, **kwargs)
-            sys.exit(1)
+_NOTSET, _INFO, _COMPLETE, _SKIPPED, _WARNING, _ERROR = -1, 0, 1, 2, 3, 4
+LEVEL_DICT = {
+                "INFO": _INFO,
+                "COMPLETE": _COMPLETE,
+                "SKIPPED": _SKIPPED,
+                "WARNING": _WARNING,
+                "ERROR": _ERROR,
+                }
+logging.addLevelName(_COMPLETE, "COMPLETE")                 
+logging.addLevelName(_SKIPPED, "SKIPPED")     
 
 
 
+# --------------------------------
+#          S4F Logger
+# --------------------------------
 class S4F_Logger():
-    def __init__(self, name, level=logging.DEBUG, logfile=None, user=config.DEFAULT_USER):
+    def __init__(self, name, level=1, user=config.DEFAULT_USER):
         self.level = level
         self.name = name
-        self.logdir = config.LOGDIR
+        self.dbName = config.DB_NAME
+        self.engine = config.ENGINE
 
-        if not os.path.exists(self.logdir):
-            os.makedirs(self.logdir)
+        self.logger = self.initLogger(name, user)
 
-        self.logger = self.initLogger(name, logfile,  user)
-
-    def initLogger(self, name, logfile=None,  user=config.DEFAULT_USER):
+    def initLogger(self, name, user=config.DEFAULT_USER):
         os.environ['PYTHONUNBUFFERED'] = "1"
         logging.setLoggerClass(MyLogger)
         # Setup formatter
-        formatter = logging.Formatter('[%(asctime)s]  %(levelname)-2s::  %(message)-5s (%(name)s)')
+        formatter = MyFormatter(fmt='[%(asctime)s]  %(levelname)-2s::%(user)s::  %(message)-5s (%(name)s)', user=user)
         
         # Get or create a logger
         logger = logging.getLogger(name)  
@@ -66,128 +43,174 @@ class S4F_Logger():
         # Set level
         logger.setLevel(self.level)
         
-        # define file and console handler and set formatter
+        # define console and sql handler and set formatter
         stdHandler = logging.StreamHandler()
         stdHandler.setFormatter(formatter)
-        if logfile:
-            fileHandler = logging.FileHandler(os.path.join(self.logdir, logfile))
-        else:
-            now = datetime.now().strftime('%Y-%m-%d')
-            logfile = 'tmp_%s.log' % now
-            fileHandler = logging.FileHandler(os.path.join(self.logdir, logfile))
-        fileHandler.setFormatter(formatter)
+
+        sqlHandler = SqlHandler(self.dbName, self.engine)
+        sqlHandler.setFormatter(formatter)
 
         # add file handlers to logger
         logger.addHandler(stdHandler)
-        logger.addHandler(fileHandler)
+        logger.addHandler(sqlHandler)
 
         logger.info('Start logging')
-        return logger
-            
+        return logger       
 
-        def initLogger2(self, loggerName, logfile=None,  user=config.DEFAULT_USER):
-            os.environ['PYTHONUNBUFFERED'] = "1"
 
-            # Setup formatter
-            formatter = logging.Formatter('[%(asctime)s]  %(levelname)-2s::  %(message)-5s (%(name)s)')
-            
-            # Get or create a logger
-            self.logger = logging.getLogger(loggerName)  
-            
-            # Set level
-            self.logger.setLevel(self.level)
+# --------------------------------
+#       Logging Formatter
+# --------------------------------
+class MyLogger(logging.Logger):
 
-            # define file and console handler and set formatter
-            stdHandler = logging.StreamHandler()
-            stdHandler.setFormatter(formatter)
-            if logfile:
-                fileHandler = logging.FileHandler(os.path.join(self.logdir, logfile))
+    def warn_and_exit(self, ex: Exception, *args, **kwargs):
+        """
+        Log 'msg % args' with severity 'WARNING', return code 1 and print the traceback.
+
+        To pass exception information, use the keyword argument exc_info with
+        a true value, e.g.
+
+        logger.warn_and_exit("Houston, we have a %s", "bit of a problem", exc_info=1)
+        """
+        if self.isEnabledFor(logging.WARNING):
+            msg = ''.join(tb.format_exception(None, ex, ex.__traceback__))
+            self._log(logging.WARNING, msg, args, **kwargs)
+            sys.exit(1)        
+
+    def warn_and_trace(self, ex: Exception, *args, **kwargs):
+        """
+        Log 'msg % args' with severity 'WARNING' and print the traceback.
+
+        To pass exception information, use the keyword argument exc_info with
+        a true value, e.g.
+
+        logger.warning("Houston, we have a %s", "bit of a problem", exc_info=1)
+        """
+        if self.isEnabledFor(logging.WARNING):
+            msg = ''.join(tb.format_exception(None, ex, ex.__traceback__))
+            self._log(logging.WARNING, msg, args, **kwargs)
+    
+    def warning(self, msg, *args, **kwargs):
+        """
+        Log 'msg % args' with severity 'WARNING'.
+
+        To pass exception information, use the keyword argument exc_info with
+        a true value, e.g.
+
+        logger.warning("Houston, we have a %s", "bit of a problem", exc_info=1)
+        """
+        if self.isEnabledFor(logging.WARNING):
+            self._log(logging.WARNING, msg, args, **kwargs)
+
+    def error(self, msg, *args, **kwargs):
+            """
+            Log 'msg % args' with severity 'ERROR'.
+
+            To pass exception information, use the keyword argument exc_info with
+            a true value, e.g.
+
+            logger.error("Houston, we have a %s", "major problem", exc_info=1)
+            """
+            if self.isEnabledFor(logging.ERROR):
+                self._log(logging.ERROR, msg, args, **kwargs)
+
+    def info(self, msg, *args, **kwargs):
+        """
+        Log 'msg % args' with severity 'INFO'.
+
+        To pass exception information, use the keyword argument exc_info with
+        a true value, e.g.
+
+        logger.info("Houston, we have a %s", "bit of a problem", exc_info=1)
+        """
+        if self.isEnabledFor(logging.INFO):
+            self._log(logging.INFO, msg, args, **kwargs)
+
+    def skipped(self, msg, *args, **kwargs):
+        """
+        Log 'msg % args' with severity 'SKIPPED'.
+
+        To pass exception information, use the keyword argument exc_info with
+        a true value, e.g.
+
+        logger.skipped("Houston, we have a %s", "bit of a problem", exc_info=1)
+        """
+        if self.isEnabledFor(_SKIPPED):
+            self._log(_SKIPPED, msg, args, **kwargs)
+
+    def complete(self, msg, *args, **kwargs):
+        """
+        Log 'msg % args' with severity 'COMPLETE'.
+
+        To pass exception information, use the keyword argument exc_info with
+        a true value, e.g.
+
+        logger.complete("Houston, we have a %s", "bit of a problem", exc_info=1)
+        """
+        if self.isEnabledFor(_COMPLETE):
+            self._log(_COMPLETE, msg, args, **kwargs)
+
+
+# --------------------------------
+#       Logging Formatter
+# --------------------------------
+class MyFormatter(logging.Formatter):
+        
+    def __init__(self, user, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.user = user
+    
+    #
+    # Extend the native "format" function to add user information in log message and change level ID 
+    # 
+    def format(self, record):
+        record.user = self.user
+        record.levelno = LEVEL_DICT[record.levelname]
+        return super().format(record)
+
+
+# --------------------------------
+#          SQL Handler
+# --------------------------------
+class SqlHandler(logging.Handler):
+    """
+    A handler class which writes straight to the S4F databaset Log table
+    """
+
+    def __init__(self, dbName, engine, level=logging.NOTSET):
+        """
+        Get DB information
+        """
+        self.dbName = dbName
+        self.engine = engine
+        self.terminator = ';'
+        super().__init__(level=level)
+
+    def runQuery(self, query, args=None):
+        with self.engine.begin() as conn:
+            if args:
+                conn.execute(query, args)
             else:
-                now = datetime.now().strftime('%Y-%m-%d')
-                logfile = 'tmp_%s.log' % now
-                fileHandler = logging.FileHandler(os.path.join(self.logdir, logfile))
-            fileHandler.setFormatter(formatter)
-
-            # add file handlers to logger
-            self.logger.addHandler(stdHandler)
-            self.logger.addHandler(fileHandler)
-
-            self.logger.info('Start logging')
-            return self.logger
-            
-
-    # def setLogger(self,):
-    #    pass
-
-
-
-
-
-class SqlHandler(logging.StreamHandler):
-    """
-    A handler class which writes formatted logging records sql database.
-    """
-    def __init__(self, filename, connection, mode='a', encoding=None, delay=False):
-        """
-        Open the specified file and use it as the stream for logging.
-        """
-        # Issue #27493: add support for Path objects to be passed in
-        filename = os.fspath(filename)
-        #keep the absolute path, otherwise derived classes which use this
-        #may come a cropper when the current directory changes
-        self.baseFilename = os.path.abspath(filename)
-        self.mode = mode
-        self.encoding = encoding
-        self.delay = delay
-        if delay:
-            #We don't open the stream, but we still need to call the
-            #Handler constructor to set level, formatter, lock etc.
-            logging.Handler.__init__(self)
-            self.stream = None
-        else:
-            logging.StreamHandler.__init__(self, self._open())
-
-    def close(self):
-        """
-        Closes the stream.
-        """
-        self.acquire()
-        try:
-            try:
-                if self.stream:
-                    try:
-                        self.flush()
-                    finally:
-                        stream = self.stream
-                        self.stream = None
-                        if hasattr(stream, "close"):
-                            stream.close()
-            finally:
-                # Issue #19523: call unconditionally to
-                # prevent a handler leak when delay is set
-                logging.StreamHandler.close(self)
-        finally:
-            self.release()
-
-    def _open(self):
-        """
-        Open the current base file with the (original) mode and encoding.
-        Return the resulting stream.
-        """
-        return open(self.baseFilename, self.mode, encoding=self.encoding)
-
+                conn.execute(query)
+    #
+    # Extend the native "emit" function to write logs to S4F DB
+    # 
     def emit(self, record):
-        """
-        Emit a record.
+        try:
+            message = self.format(record)
+            user = record.user
+            name = record.name
+            level = record.levelname
+            logType = record.levelno
+            note = "%s:%s" % (name, level)
+            details = record.msg
+            query = "INSERT INTO %s.dbo.Log (LogType, Note, Details)" % self.dbName \
+                        + " VALUES (CAST(%s AS INTEGER), %s, STRING_ESCAPE(%s, 'json'))"
+            args=  logType, note, str(details)
+            self.runQuery(query, args)
 
-        If the stream was not opened because 'delay' was specified in the
-        constructor, open it before calling the superclass's emit.
-        """
-        if self.stream is None:
-            self.stream = self._open()
-        logging.StreamHandler.emit(self, record)
+        except Exception as ex:
+            msg = ''.join(tb.format_exception(None, ex, ex.__traceback__))
+            # record.msg = '%s \n Traceback: %s' % (record.msg, msg)
+            self.handleError(record)
 
-    def __repr__(self):
-        level = logging.getLevelName(self.level)
-        return '<%s %s (%s)>' % (self.__class__.__name__, self.baseFilename, level)
-   

@@ -16,8 +16,7 @@ from WebCrawlers.SocialMedia.SocialMediaCrawlers import InstagramCrawler, save_r
 
 if __name__ == '__main__':
     # Get input arguments
-    searchTerm, threshold, user, logfile = sys.argv[1], int(sys.argv[2]), sys.argv[3], sys.argv[4]
-    
+    searchTerm, threshold, user = sys.argv[1], int(sys.argv[2]), sys.argv[3]
     start_time_all = time.time()
 
     currendDir = config.WEB_CRAWLERS
@@ -30,7 +29,7 @@ if __name__ == '__main__':
     username = config.INSTAGRAM_USERNAME
     password = config.INSTAGRAM_PASSWORD
     
-    instagram = InstagramCrawler(username, password, user, logfile)
+    instagram = InstagramCrawler(username, password, user)
     logger = instagram.logger
     helper = instagram.helper
     instagram.login()

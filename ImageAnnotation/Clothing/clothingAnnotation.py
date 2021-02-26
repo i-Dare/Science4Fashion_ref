@@ -14,8 +14,7 @@ if __name__ == "__main__":
     # Begin Counting Time
     start_time = time.time() 
     user = sys.argv[1]
-    logfile = 'tmp.log'
-    logger = S4F_Logger('ClothingAnnotationLogger', logfile=logfile).logger
+    logger = S4F_Logger('ClothingAnnotationLogger').logger
     helper = Helper(logger)
 
     # Set Device

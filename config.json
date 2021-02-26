@@ -10,7 +10,6 @@
                   "instagram_username": "fashion_idare",
                   "instagram_password": "science4f"},
   "main_db_tables": ["Fit", "CollarDesign", "Length", "Sleeve", "Gender", "NeckDesign", "Adapter"],
-  "logdir":"logs",
   "default_user": "default",
   "resources": {"resourcesDir": "resources",                
                 "fashion_words": "fashion_words.txt",

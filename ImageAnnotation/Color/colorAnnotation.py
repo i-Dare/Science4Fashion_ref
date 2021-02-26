@@ -108,8 +108,7 @@ if __name__ == '__main__':
     # Begin Counting Time
     start_time = time.time() 
     user = sys.argv[1]
-    logfile = 'tmp.log'
-    logger = S4F_Logger('ColorAnnotationLogger', logfile=logfile).logger
+    logger = S4F_Logger('ColorAnnotationLogger').logger
     helper = Helper(logger)
 
     ### Read Table Products from S4F database ###

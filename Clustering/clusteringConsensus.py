@@ -542,8 +542,7 @@ class ConsensusClustering:
 
 if __name__ == "__main__":
    # Logger setup
-   logfile = 'tmp.log'
-   logger = S4F_Logger('ClusteringLogger', logfile=logfile).logger
+   logger = S4F_Logger('ClusteringLogger').logger
    helper = Helper(logger)
 
    clustering = ConsensusClustering()

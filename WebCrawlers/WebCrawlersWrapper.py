@@ -13,10 +13,10 @@ from logger import S4F_Logger
 
 class WebCrawlers:
    def __init__(self):
-      self.logfile = 'tmp.log'
-      self.logger = S4F_Logger('WrapperLogger', logfile=self.logfile).logger
+      # Init logger
+      self.logger = S4F_Logger('WrapperLogger').logger
       self.helper = Helper(self.logger)
-      
+
       self.engine = config.ENGINE
       self.dbName = config.DB_NAME
       
@@ -61,11 +61,6 @@ class WebCrawlers:
       self.numberResults = self.args.numberResults
       self.user = self.args.user
 
-      # Init logger
-      # self.logger = self.helper.initLogger('WrapperLogger', self.logfile)
-      
-      # self.logger.initLogger
-      # Setup argument constrains
       self.checkArgConstrains()
 
 
@@ -82,6 +77,19 @@ class WebCrawlers:
             availableAdapters = [a for a in self.adapterDF['Description'].values if a.lower() in self.adapter_dict.keys()]
             self.logger.warning('Adapter %s not implemented yet. Plese choose one of %s.' % (adapter, availableAdapters))
 
+   # Update CrawlSearch table
+   def updateCrawlSearchTable(self, description, adapter, numberResults):
+      # Get adapter information from DB
+      adapter_row = self.adapterDF[(self.adapterDF["Description"].str.lower()
+                                        .str.fullmatch(str(adapter).lower()))]
+      #                                                           
+      # Update CrawlSearch table
+      #  
+      query = "INSERT INTO %s.dbo.CrawlSearch (Description, Adapter, SearchTerm)" % self.dbName \
+                     + " VALUES (%s, CAST(%s AS INTEGER), CAST(%s AS INTEGER))"
+      args = description, int(adapter_row['Oid'].values[0]), numberResults
+      self.helper.runQuery(query, args)
+
 
 # ------------------------------------------------------------
 #                     MODULE EXECUTION
@@ -90,6 +98,10 @@ class WebCrawlers:
    def executeWebCrawler(self,):
       for adapter in self.adapter:
          self.logger.info('Search for %s on %s' % (self.searchTerm, str(adapter).capitalize()))
+
+         # Upadate CrawlSearch table
+         self.updateCrawlSearchTable(self.searchTerm, adapter, self.numberResults)
+
          #                                                           
          # Execute Adapter    
          #       
@@ -98,7 +110,6 @@ class WebCrawlers:
                                  self.searchTerm, 
                                  str(self.numberResults),
                                  str(self.user),
-                                 str(self.logfile)
                                  ],
                                  stderr=subprocess.STDOUT)
          if proc.returncode != 0:   

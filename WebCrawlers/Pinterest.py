@@ -10,7 +10,7 @@ from WebCrawlers.SocialMedia.SocialMediaCrawlers import PinterestCrawler, save_r
 
 if __name__ == '__main__':
     # Get input arguments
-    searchTerm, threshold, user, logfile = sys.argv[1], int(sys.argv[2]), sys.argv[3], sys.argv[4]
+    searchTerm, threshold, user = sys.argv[1], int(sys.argv[2]), sys.argv[3]
     
     start_time_all = time.time()
     
@@ -24,7 +24,7 @@ if __name__ == '__main__':
     username = config.PINTEREST_USERNAME
     password = config.PINTEREST_PASSWORD
 
-    pinterest = PinterestCrawler(username, password, user, logfile=logfile)
+    pinterest = PinterestCrawler(username, password, user)
     logger = pinterest.logger
     helper = pinterest.helper
     pinterest.login()

@@ -43,8 +43,7 @@ if __name__ == "__main__":
     # Begin Counting Time
     start_time = time.time() 
     user = sys.argv[1]
-    logfile = 'tmp.log'
-    logger = S4F_Logger('TextAnnotationLogger', logfile=logfile).logger
+    logger = S4F_Logger('TextAnnotationLogger').logger
     helper = Helper(logger)
 
     try:
@@ -54,7 +53,6 @@ if __name__ == "__main__":
         currendDir = helper.TEXT_MINING
         engine = config.ENGINE
         dbName = config.DB_NAME
-        helper.dfsf
 
         productsDF = pd.read_sql_query('SELECT * FROM  %s.dbo.Product' % dbName, engine)
         # productsDF = pd.read_sql_query('SELECT * FROM public.\"Product\"', engine)

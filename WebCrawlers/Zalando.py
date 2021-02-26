@@ -89,8 +89,8 @@ def performScraping(urlReceived, searchTerm, breakPointNumber):
 ############ Main function ############
 if __name__ == '__main__':
     # Get input arguments
-    searchTerm, threshold, user, logfile = sys.argv[1], int(sys.argv[2]), sys.argv[3], sys.argv[4]
-    logger = S4F_Logger('ZalandoLogger', logfile=logfile).logger
+    searchTerm, threshold, user = sys.argv[1], int(sys.argv[2]), sys.argv[3]
+    logger = S4F_Logger('ZalandoLogger').logger
     helper = Helper(logger)
 
     start_time_all = time.time()
