@@ -89,12 +89,12 @@ def performScraping(urlReceived, searchTerm, breakPointNumber):
             helper.addNewProduct(site, folderName, imageFilePath, empPhoto, url, imgURL, head, color, genderid, brand, meta, sku, isActive, price)
 
             # Create new entry in ProductHistory table
-            helper.addNewProductHistory(url, referenceOrder, trendOrder, price)
+            helper.addNewProductHistory(url, referenceOrder, trendOrder, price, searchTerm)
 
     logger.info('Images requested: %s,   Images Downloaded: %s (%s%%),   Images Existed: %s' % (
         breakPointNumber, numImagesDown, round(numImagesDown/breakPointNumber,2 ) * 100, numUrlExist))
     # The time needed to scrape this query
-    logger.info("\nTime to scrape this query is %s seconds ---" % round(time.time() - start_time, 2))
+    logger.info("Time to scrape this query is %s seconds ---" % round(time.time() - start_time, 2))
 
 
 ############ Main function ############
@@ -118,4 +118,4 @@ if __name__ == '__main__':
 
     folderName = helper.getFolderName(searchTerm)
     performScraping(query, searchTerm, threshold)
-    logger.info("\nTime to scrape ALL queries is %s seconds ---" % round(time.time() - start_time_all, 2))
+    logger.info("Time to scrape ALL queries is %s seconds ---" % round(time.time() - start_time_all, 2))

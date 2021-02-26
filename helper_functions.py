@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-########################################################################################################################################################### Import all the libraries needed ###########################################################################################################################################################
+############################# Import all the libraries needed ###########################
 import os
 import logging
 import requests
@@ -61,9 +61,12 @@ class Helper():
         self.logger = logger
 
 
+# --------------------------------------------------------------------------                        
+#          Miscellaneous Functionality
+# -------------------------------------------------------------------------- 
 
-    ########### General functionality ###########
-    ########### This function will create a soup and returns which is the parsed html format for extracting html tags of the webpage ###########
+    ## This function will create a soup and returns which is the parsed html format for extracting 
+    # html tags of the webpage 
     def get_content(self, url, suffix=''):
         user_agent_list = [
             'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_5) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.1.1 Safari/605.1.15',
@@ -91,7 +94,9 @@ class Helper():
         return soup
         
 
-    ########### This function returns the folder name removing the number of images range from they line of keywords file ###########
+    ## This function returns the folder name removing the number of images range from they line of 
+    # keywords file 
+    #
     def getFolderName(self, wholeName):
         wholeName = re.sub(r'[0-9]', '', wholeName).strip()
         argList = wholeName.split(' ')
@@ -100,7 +105,8 @@ class Helper():
         return ''.join(argList[1:]) if type(argList[1])==int else ''.join(argList)
         
 
-    ###########  This function returns the 3rd appearance of / ###########
+    ##  This function returns the 3rd appearance of "/""
+    #
     def hyphen_split(self, a):
         if a.count("/") == 1:
             return a.split("/")[0]
@@ -108,8 +114,9 @@ class Helper():
             return "/".join(a.split("/", 3)[:3])
 
 
+    ## Call this function for each image for each model to extract the predicted label
+    #
     def updateAttribute(self, modeldictionary, image, model):
-        ###Call this function for each image for each model to extract the predicted label###
         x = pil2tensor(image, np.float32)
         x = x/255
         _, pred_idx, _ = model.predict(Image(x))
@@ -118,7 +125,8 @@ class Helper():
         return label
 
 
-    ########### Convert digital data to binary format ###########
+    ## Convert digital data to binary format 
+    #
     def convertToBinaryData(self, filename):
         '''
         Convert digital data to binary format
@@ -128,8 +136,9 @@ class Helper():
         return blobData
 
 
-    def convertBlobToImage(self, blob):
-        ###Convert blob to img###
+    ## Convert blob to img
+    #
+    def convertBlobToImage(self, blob):        
         x = np.frombuffer(blob, dtype='uint8')
         # decode the array into an image
         img = cv2.imdecode(x, cv2.IMREAD_UNCHANGED)
@@ -143,7 +152,8 @@ class Helper():
         return im_pil    
 
 
-    ########### Set image destination path ###########
+    ## Set image destination path 
+    #
     def setImageFilePath(self, standardUrl, keyword, i):
         '''
         Sets image destination path.
@@ -188,7 +198,13 @@ class Helper():
         empPhoto = self.convertToBinaryData(imageFilePath)
         return empPhoto
 
-    # Return gender ID according to the extracted text from the crawler
+    
+# --------------------------------------------------------------------------                        
+#          Database IO Functionality
+# -------------------------------------------------------------------------- 
+
+    ## Return gender ID according to the extracted text from the crawler
+    #
     def getGender(self, gender):
         gender_dict = {
             'man': ['man', 'men', 'male'],
@@ -205,7 +221,9 @@ class Helper():
         gender_id = [g_id for g_id, g in genderdf_dict.items() if gnd==g][0]
         return gender_id   
 
-    ########### Execute query ###########
+
+    ## Execute query 
+    #
     def runQuery(self, query, args=None):
         with self.ENGINE.begin() as conn:
             if args:
@@ -213,8 +231,20 @@ class Helper():
             else:
                 conn.execute(query)
 
+    ## Returns the last record ID from the specified column and table
+    #
+    def getLastRecordID(self, table, where=None):
+        if where:
+            query = "SELECT TOP 1 * FROM %s.dbo.%s  %s  ORDER BY Oid DESC" % (self.DB_NAME, table, where)
+        else:
+            query = "SELECT TOP 1 * FROM %s.dbo.%s ORDER BY Oid DESC" % (self.DB_NAME, table)
+        with self.ENGINE.begin() as conn:    
+            result = conn.execute(query)
+            oid = result.fetchone()
+        return oid[0] if oid else None
 
-    ########### Add new product to the Product table ###########
+    ## Add new product to the Product table 
+    #
     def addNewBrand(self, brand, isActive):
         '''
         Adds new brand info to the Brand table if it does not exist. 
@@ -239,7 +269,8 @@ class Helper():
             return None
         
 
-    ########### Add new product to the Product table ###########
+    ## Add new product to the Product table 
+    #
     def addNewProduct(self, site, keywords, imageFilePath, empPhoto, url, imgsrc, head, color, genderid, brand, meta, sku, isActive, price=None):
         '''
         Adds new product info to the Product table. 
@@ -262,8 +293,9 @@ class Helper():
         # submitdf.to_sql('Product', con=self.ENGINE, if_exists='append', index=False)
                         
 
-    ########### Add new product to the ProductHistory table ###########
-    def addNewProductHistory(self, url, referenceOrder, trendOrder, price):
+    ## Add new product to the ProductHistory table 
+    #
+    def addNewProductHistory(self, url, referenceOrder, trendOrder, price, searchTerm):
         '''
         Adds new product info to the ProductHistory table.
         '''
@@ -274,36 +306,47 @@ class Helper():
         # querydf = pd.read_sql_query(
         #    "SELECT * FROM public.\"Product\" WHERE public.\"Product\".\"URL\" = '{}'".format(url.replace("%", "%%")), self.ENGINE)
         if not querydf.empty:
-            prdno = querydf['Oid'].values[0]
-            submitdf = pd.DataFrame(
-                [{'Product': prdno, 'ReferenceOrder': referenceOrder, 'TrendingOrder': trendOrder, 'Price': price, 'OptimisticLockField': None}])
+            oid = querydf['Oid'].values[0]
+            lastCrawlSearchID = self.helper.getLastRecordID('CrawlSearch', "WHERE Description='%s'" % searchTerm)
+            submitdf = pd.DataFrame([{
+                                    'Product': oid, 
+                                    'ReferenceOrder': referenceOrder, 
+                                    'TrendingOrder': trendOrder, 
+                                    'Price': price, 
+                                    'CrawlSearch': lastCrawlSearchID, 
+                                    'OptimisticLockField': None
+                                    }])
             submitdf.to_sql("ProductHistory", schema='%s.dbo' % self.DB_NAME, con=self.ENGINE, if_exists='append', index=False)
             # submitdf.to_sql("ProductHistory", con=self.ENGINE, if_exists='append', index=False)
         else:
             self.logger.warning('Product history for product at %s was not added...' % url)
 
 
-    ########### Update product history ###########
-    def updateProductHistory(self, prdno, referenceOrder, trendOrder, price, url):
+    ## Update product history 
+    #
+    def updateProductHistory(self, oid, referenceOrder, trendOrder, price, url, searchTerm):
         '''
         Updates product's latest entry in ProductHistory table
         '''    
-        # Get info from most recent product record from ProductHistory table
+        # Get info from most recent product record from ProductHistory table - CONVERT_TO_SQL
         updatedf = pd.read_sql_query("SELECT * FROM %s.dbo.ProductHistory" % self.DB_NAME, self.ENGINE)
         # updatedf = pd.read_sql_query("SELECT * FROM public.\"ProductHistory\"", self.ENGINE)
-        if updatedf.loc[(updatedf['SearchDate']== updatedf['SearchDate'].max()) & (updatedf['Product']== prdno)].empty:
+        if updatedf.loc[(updatedf['SearchDate']== updatedf['SearchDate'].max()) & (updatedf['Product']== oid)].empty:
             # Create new entry in ProductHistory table
-            self.logger.info('Product %s history not found, creating history...' % prdno)
-            self.addNewProductHistory(url, referenceOrder, trendOrder, price)
+            self.logger.info('Product %s history not found, creating history...' % oid)
+            self.addNewProductHistory(url, referenceOrder, trendOrder, price, searchTerm)
         else:
             self.logger.info('Product already exists, updating history')
-            updatedf.loc[(updatedf['SearchDate']== updatedf['SearchDate'].max()) & (updatedf['Product']== prdno), 
-                        ['ReferenceOrder', 'TrendingOrder', 'Price']] = [referenceOrder, trendOrder, price]
+            
+            lastCrawlSearchID = self.helper.getLastRecordID('CrawlSearch', "WHERE Description='%s'" % searchTerm)
+            updatedf.loc[(updatedf['SearchDate']== updatedf['SearchDate'].max()) & (updatedf['Product']== oid), 
+                        ['ReferenceOrder', 'TrendingOrder', 'Price', 'CrawlSearch']] = [referenceOrder, trendOrder, price, lastCrawlSearchID]
             updatedf.to_sql("ProductHistory", schema='%s.dbo' % self.DB_NAME, con=self.ENGINE, if_exists='replace', index=False)
-            # updatedf.to_sql("ProductHistory", con=self.ENGINE, if_exists='replace', index=False)
 
 
-    ########### Natural Language Processing Functionality ###########
+# --------------------------------------------------------------------------
+#          Natural Language Processing Functionality 
+# --------------------------------------------------------------------------    
 
     def get_fashion_attributes(self, ):
         ## Load custom attributes from fashion word list and custom attributes used in the image 
@@ -334,6 +377,7 @@ class Helper():
 
 
     def preprocess_metadata(self, doc, segmentation=False):
+
         # Convert to lowercase
         doc = doc.lower()
         # Remove URLs
@@ -361,10 +405,14 @@ class Helper():
         tokens = [self.lemmatize(word, tag) for word,tag in pos_tag(tokens)]
         # Merge together
         return ' '.join(tokens)
-                            
-    ########### Web crawler functionality, specific for each website ###########
-    ########### Asos specific functionality ###########
-    ########### Fetch search results form Asos according to 'order' parameter ###########
+
+# --------------------------------------------------------------------------                        
+#          Web crawler functionality, specific for each website
+# --------------------------------------------------------------------------
+
+    ## Asos specific functionality 
+    ## Fetch search results form Asos according to 'order' parameter 
+    #
     def resultDataframeAsos(self, keyUrl, order, filterDF=pd.DataFrame([]), breakPointNumber=9999999):
         '''
         Fetches search results form Asos according to 'order' parameter. Parameter "filterDF" is 
@@ -467,11 +515,12 @@ class Helper():
                 (len(resultsDF), maxItems, round(len(resultsDF)*100/maxItems, 2)))
             resultsDF[ordering] = range(1, len(resultsDF)+1)
         
-        self.logger.info("\nTime to retrieve %s results: %s seconds ---" % (order, round(time.time() - start_time, 2)))
+        self.logger.info("Time to retrieve %s results: %s seconds ---" % (order, round(time.time() - start_time, 2)))
         return resultsDF
 
 
-    ########### Get product information from s.Oliver ###########
+    ## Get product information from Asos 
+    #
     def parseAsosFields(self, soup, url):
         '''
         Gets product information from Zalando
@@ -549,8 +598,9 @@ class Helper():
         return head, brand, color, genderid, meta, sku, isActive
 
 
-    ########### sOliver specific functionality ###########
-    ########### Fetch search results form s.Oliver according to 'order' parameter ###########
+    ## sOliver specific functionality 
+    ## Fetch search results form s.Oliver according to 'order' parameter 
+    #
     def resultDataframeSOliver(self, keyUrl, order, filterDF=pd.DataFrame([]), breakPointNumber=9999999):
         '''
         Fetches search results form s.Oliver according to 'order' parameter. Parameter "filterDF" is 
@@ -650,11 +700,12 @@ class Helper():
             self.logger.info('Failed to fetch eveything. %s/%s (%s%%) fetched' %
                 (len(resultsDF), maxItems, round(len(resultsDF)*100/maxItems, 2)))
             resultsDF[ordering] = range(1, len(resultsDF)+1)
-        self.logger.info("\nTime to retrieve %s results: %s seconds ---" % (order, round(time.time() - start_time, 2)))
+        self.logger.info("Time to retrieve %s results: %s seconds ---" % (order, round(time.time() - start_time, 2)))
         return resultsDF
 
 
-    ########### Get product information from s.Oliver ###########
+    ## Get product information from s.Oliver 
+    #
     def parseSOliverFields(self, soup, url, imgURL):
         '''
         Gets product information from Zalando
@@ -731,7 +782,7 @@ class Helper():
             genderid = None
             self.logger.info("Gender not captured at %s" % url)
 
-        ############ Other attributes ############
+        ### Other attributes #
         try:
             attr_list = ['PRODUCT DETAILS:']
             attr_divs = soup.findAll(
@@ -743,9 +794,9 @@ class Helper():
                 for field in fields:
                     if i == 2 and 'MATERIAL & CARE INSTRUCTIONS:' not in attr_list:
                         attr_list.append('MATERIAL & CARE INSTRUCTIONS:')
-                        attr_list.append(field.text.replace('\n', ' ').strip())
+                        attr_list.append(field.text.replace('', ' ').strip())
                     else:
-                        attr_list.append(field.text.replace('\n', ' ').strip())
+                        attr_list.append(field.text.replace('', ' ').strip())
             meta = ' - '.join(attr_list)
         except:
             meta = None
@@ -753,8 +804,9 @@ class Helper():
         return price, head, brand, color, genderid, meta, sku, isActive
 
 
-    ########### Zalando specific functionality ###########
-    ########### Fetch search results form Zalando according to 'order' parameter ###########
+    ## Zalando specific functionality 
+    ## Fetch search results form Zalando according to 'order' parameter 
+    #
     def resultDataframeZalando(self, keyUrl, order, filterDF=pd.DataFrame([]), breakPointNumber=9999999):
         '''
         Fetches search results form Zalando according to 'order' parameter. Parameter "filterDF" is 
@@ -828,11 +880,12 @@ class Helper():
             self.logger.info('Failed to fetch eveything. %s/%s (%s%%) fetched' %
                 (len(resultsDF), maxItems, round(len(resultsDF)*100/maxItems, 2)))
             resultsDF[ordering] = range(1, len(resultsDF)+1)
-        self.logger.info("\nTime to retrieve %s results: %s seconds ---" % (order, round(time.time() - start_time, 2)))
+        self.logger.info("Time to retrieve %s results: %s seconds ---" % (order, round(time.time() - start_time, 2)))
         return resultsDF
 
 
-    ########### Get product information from Zalando ###########
+    ## Get product information from Zalando 
+    #
     def parseZalandoFields(self, soup, url, imgURL):
         '''
         Gets product information from Zalando

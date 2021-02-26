@@ -101,6 +101,7 @@ class WebCrawlers:
 
          # Upadate CrawlSearch table
          self.updateCrawlSearchTable(self.searchTerm, adapter, self.numberResults)
+         lastID = self.helper.getLastRecordID('CrawlSearch', "WHERE Description='%s'" % self.searchTerm)
 
          #                                                           
          # Execute Adapter    

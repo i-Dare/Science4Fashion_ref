@@ -211,6 +211,6 @@ class SqlHandler(logging.Handler):
 
         except Exception as ex:
             msg = ''.join(tb.format_exception(None, ex, ex.__traceback__))
-            # record.msg = '%s \n Traceback: %s' % (record.msg, msg)
+            # record.msg = '%s  Traceback: %s' % (record.msg, msg)
             self.handleError(record)
 

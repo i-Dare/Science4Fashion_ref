@@ -34,4 +34,4 @@ if __name__ == '__main__':
     dataDF = save_ranked(helper, pins, adapter='Pinterest')
 
     logger.info('Images requested: %s,   Images Downloaded: %s (%s%%)' % (threshold, len(dataDF), round(len(dataDF)/threshold,2 ) * 100)) 
-    logger.info("\nTime to scrape ALL queries is %s seconds ---" % round(time.time() - start_time_all, 2))
+    logger.info("Time to scrape ALL queries is %s seconds ---" % round(time.time() - start_time_all, 2))

@@ -80,7 +80,7 @@ def performScraping(urlReceived, category):
     os.rmdir(folderIndividualName)
     print('Images requested: %s,   Images Downloaded: %s (%s%%),   Images Existed: %s' % (len(trendDF), numImagesDown, round(numImagesDown/len(trendDF),2 ) * 100, numUrlExist))
     # The time needed to scrape this query
-    print("\nTime to scrape category %s: %s seconds ---" % (category, round(time.time() - start_time, 2)))
+    print("Time to scrape category %s: %s seconds ---" % (category, round(time.time() - start_time, 2)))
 
 
 

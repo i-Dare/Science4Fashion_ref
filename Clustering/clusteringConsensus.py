@@ -93,7 +93,7 @@ class ConsensusClustering:
       # Update clustering table
       self.update_clusters(labels)
 
-      logger.info('Number of final clusters: %s \nFinal Silhouette Score: %s' % (n_clusters, score))
+      logger.info('Number of final clusters: %s Final Silhouette Score: %s' % (n_clusters, score))
       # End Counting Time
       logger.info("--- %s seconds ---" % (time.time() - start_time))
 
