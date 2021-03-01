@@ -2,9 +2,8 @@ import os
 import time
 import sys
 
-from  helper_functions import *
-import config
-from logger import S4F_Logger
+from core.helper_functions import *
+import core.config as config
 from WebCrawlers.SocialMedia.SocialMediaCrawlers import PinterestCrawler, save_ranked
 # from SocialMediaCrawlers import PinterestCrawler, save_ranked
 

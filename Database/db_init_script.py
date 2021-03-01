@@ -2,8 +2,8 @@ import os
 import numpy as np
 import pandas as pd
 
-import config
-import helper_functions
+import core.config as config
+from core.helper_functions import *
 
 
 if __name__ == '__main__':

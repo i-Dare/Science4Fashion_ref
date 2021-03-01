@@ -9,7 +9,7 @@ import requests
 from datetime import datetime
 import pandas as pd
 import sqlalchemy
-import helper_functions
+from core.helper_functions import *
 
 
 ############ This function will be called every new keyword line is encountered and will start scraping the amazon web page of the search result according to the text mention in the keywords text file ############

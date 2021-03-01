@@ -1,19 +1,16 @@
 # -*- coding: utf-8 -*-
 ############ Import all the libraries needed ############
 import os
-import json
 import time
-import requests
-import sqlalchemy
-import helper_functions
+from core.helper_functions import *
 import pandas as pd
 import regex as re
 
 from bs4 import BeautifulSoup, ResultSet
 from datetime import datetime
 import sys
-from helper_functions import *
-from logger import S4F_Logger
+from core.helper_functions import *
+from core.logger import S4F_Logger
 
 
 ############ This function will be called every new keyword line is encountered and will start scraping the amazon web page of the search result according to the text mention in the searchTerm text file ############

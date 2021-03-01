@@ -8,16 +8,19 @@ from kmodes.kprototypes import KPrototypes
 from sklearn import metrics
 import sqlalchemy
 
-import helper_functions
-import config
+from core.helper_functions import *
+import core.config as config
 
 if __name__ == "__main__":
     # Begin Counting Time
-    start_time = time.time()    
+    start_time = time.time()
+    # Logger setup
+    logger = S4F_Logger('ClusteringCLLogger').logger
+    helper = Helper(logger)
     
     # Database settings
-    engine = helper_functions.ENGINE
-    dbName = helper_functions.DB_NAME
+    engine = config.ENGINE
+    dbName = config.DB_NAME
     query = ''' SELECT * FROM %s.dbo.Product ''' % dbName
     # query = '''SELECT * FROM "%s".public."Product"''' % dbName
     productDF = pd.read_sql_query(query, engine)
@@ -66,7 +69,7 @@ if __name__ == "__main__":
         conn.execute(config.UPDATE_PRODUCT_CLUSTERS_QUERY) 
         
     # End Counting Time
-    print("--- %s seconds ---" % (time.time() - start_time))
+    logger.info("--- %s seconds ---" % (time.time() - start_time))
     
     
 

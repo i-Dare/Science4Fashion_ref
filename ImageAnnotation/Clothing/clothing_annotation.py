@@ -5,9 +5,9 @@ import pandas as pd
 import time
 import numpy as np
 
-from helper_functions import *
-import config
-from logger import S4F_Logger
+from core.helper_functions import *
+import core.config as config
+from core.logger import S4F_Logger
 import warnings; warnings.filterwarnings("ignore", category=torch.serialization.SourceChangeWarning)
 
 if __name__ == "__main__":

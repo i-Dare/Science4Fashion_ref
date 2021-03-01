@@ -6,8 +6,7 @@ import numpy as np
 from PIL import Image
 from sklearn.cluster import KMeans
 
-import imageUtils
-import segmentation
+from ImageAnnotation.color import imageUtils, segmentation
 
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 #for class

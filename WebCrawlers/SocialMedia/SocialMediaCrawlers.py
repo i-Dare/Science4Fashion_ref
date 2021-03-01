@@ -14,9 +14,9 @@ from datetime import datetime
 from py3pin.Pinterest import Pinterest
 from instaloader import Instaloader, Hashtag
 
-import config
-from  helper_functions import *
-from logger import S4F_Logger
+import core.config as config
+from core.helper_functions import *
+from core.logger import S4F_Logger
 
 
 # Pinterest crawler class

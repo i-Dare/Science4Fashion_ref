@@ -1,7 +1,7 @@
 from datetime import datetime
 import logging
 import os
-import config
+import core.config as config
 import sys
 import traceback as tb
 

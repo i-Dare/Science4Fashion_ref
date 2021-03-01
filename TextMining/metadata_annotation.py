@@ -9,9 +9,9 @@ from difflib import SequenceMatcher
 import time
 import logging
 
-from helper_functions import *
-import config
-from logger import S4F_Logger
+from core.helper_functions import *
+import core.config as config
+from core.logger import S4F_Logger
 
 def updateQuery(df, engine):
     ###Create temp table and then update only the rows that belong to temp AND product###

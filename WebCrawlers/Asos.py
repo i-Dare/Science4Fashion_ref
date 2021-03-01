@@ -12,9 +12,9 @@ import regex as re
 from bs4 import BeautifulSoup, ResultSet
 from datetime import datetime
 import sys
-from helper_functions import *
-import config
-from logger import S4F_Logger
+from core.helper_functions import *
+import core.config as config
+from core.logger import S4F_Logger
 
 
 ############ This function will be called every new keyword line is encountered and will start scraping the amazon web page of the search result according to the text mention in the searchTerm text file ############

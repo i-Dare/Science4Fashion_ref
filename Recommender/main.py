@@ -1,7 +1,7 @@
 import pandas as pd
 from evaluator import evaluator
 from ContentBasedRecom import cb_rf
-import helper_functions
+from core.helper_functions import *
 
 eval = evaluator()
 currendDir = helper_functions.WEB_CRAWLERS

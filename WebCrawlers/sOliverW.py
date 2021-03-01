@@ -5,7 +5,7 @@ import json
 import time
 import requests
 import sqlalchemy
-import helper_functions
+from core.helper_functions import *
 import pandas as pd
 import regex as re
 

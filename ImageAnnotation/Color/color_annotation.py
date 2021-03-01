@@ -11,12 +11,12 @@ import matplotlib.colors as mc
 from matplotlib import pyplot as plt
 import logging
 
-from helper_functions import  *
-import config
-from logger import S4F_Logger
-from cloth import Cloth
-import imageUtils
-import segmentation
+from core.helper_functions import *
+import core.config as config
+from core.logger import S4F_Logger
+from ImageAnnotation.color import cloth, imageUtils, segmentation
+from ImageAnnotation.color.cloth import Cloth
+
 
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 

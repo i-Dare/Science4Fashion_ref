@@ -7,8 +7,6 @@ import os
 from datetime import datetime
 import warnings
 import argparse
-import sys
-import logging
 
 from sklearn import metrics
 from sklearn import preprocessing
@@ -21,14 +19,12 @@ import skfuzzy as skf
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-import sqlalchemy
-
 import prince 
 from light_famd import FAMD
 
-from helper_functions import  *
-import config
-from logger import S4F_Logger
+from core.helper_functions import *
+import core.config as config
+from core.logger import S4F_Logger
 
 class ConsensusClustering:
 

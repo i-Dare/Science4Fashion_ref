@@ -1,11 +1,9 @@
 # -*- coding: utf-8 -*-
 ############################# Import all the libraries needed ###########################
 import os
-import logging
 import requests
 import time
 import random
-import sqlalchemy
 import json
 import string
 import cv2
@@ -24,7 +22,7 @@ from nltk import pos_tag
 import wordsegment
 import warnings
 
-import config
+import core.config as config
 
 wordsegment.load()
 warnings.filterwarnings('ignore')
