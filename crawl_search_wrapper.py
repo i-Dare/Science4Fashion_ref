@@ -70,6 +70,7 @@ class WebCrawlers:
          self.user = config.DEFAULT_USER
          self.logger.warning('Logging for default user')
       else:
+         self.logger = S4F_Logger('WrapperLogger', user=self.user).logger
          self.logger.warning('Logging for user: %s' % self.user)
 
       for adapter in self.adapter:
