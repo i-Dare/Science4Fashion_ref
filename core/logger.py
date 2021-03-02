@@ -35,7 +35,7 @@ class S4F_Logger():
         os.environ['PYTHONUNBUFFERED'] = "1"
         logging.setLoggerClass(MyLogger)
         # Setup formatter
-        formatter = MyFormatter(fmt='[%(asctime)s]  %(levelname)-2s::%(user)s::  %(message)-5s (%(name)s)', user=user)
+        formatter = MyFormatter(fmt='[%(asctime)s]  %(levelname)-2s:%(user)s:  %(message)-5s (%(name)s)', user=user)
         
         # Get or create a logger
         logger = logging.getLogger(name)  
