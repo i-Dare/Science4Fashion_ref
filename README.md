@@ -10,9 +10,9 @@ The System is comprised of the following components:
 4. [Clothing Recommender with User Feedback Component](recommender)
 
 ## [1. Data Collection](#data_collection)
-For data collection the system targets a number of well known online resources and collects images, text and metadata according to a user defined query. There data sources can be grouped to website-based, that are accesed via a number of web crawlers that collect the nessecery information and social media-based that usually contain trending content that is rich but noisy. The data sources are refered as `adapters`, and each adapter is responsible for a single data source. Namely, the web-based adapters are Asos, sOliver, and Zalando, whereas the social media-based are Instagram and Pinterest.
+With regards to data collection, the system targets a number of well known online resources and collects images, text and metadata according to a user defined query. There data sources can be grouped to website-based, that are accessed  via a number of web crawlers that collect the necessary information and social media-based that usually contain trending content that is rich but noisy. The data sources are referred  as `adapters`, and each adapter is responsible for a single data source. Namely, the web-based adapters are Asos, sOliver, and Zalando, whereas the social media-based are Instagram and Pinterest.
 
-The data collection process is initiated by the user who provides a search term and a valid adaptor invoking the `crawl_search_wrapper.py` script. The script is a wrapper of all the implemented adapters and takes as arguments the name of the adapter, a search term and optionally the maximum number of results. The search term should contain keywords that would otherwise be used as a query to a fashion retailers eshop or to a search engine and they should best describe the desired content. Afterwards, the selected adapter will query the respective source for the desired content and attempt to capture a number of attributes for each result. The product name, brand, image, description, genre, price and other metadata will be stored in the system's database. 
+The data collection process is initiated by the user who provides a search term and a valid adaptor invoking the `crawl_search_wrapper.py` script. Apart from data retrieval, the script is also responsible to invoke the data annotation and clustering modules as well. Firstly, the contains all the implemented adapters and receives as arguments the name of the adapter, a search term and optionally the maximum number of results and the user ID. The search term should contain keywords that would otherwise be used as a query to a fashion retailers eshop or to a search engine and they should best describe the desired content. Afterwards, the selected adapter will query the respective source for the desired content and attempt to capture a number of attributes for each result. The product name, brand, image, description, genre, price and other metadata will be stored in the system's database. 
 
 As soon as the adapter finishes retrieving the requested information from the source, the automated annotation process is initiated that will seek to infer specific clothing attributes regarding the color, neck-line, sleeves, length and fit of the clothing article. The annotation is driven by the retrieved image, the description and the metadata.
 
@@ -30,6 +30,8 @@ Wrapper script for website crawling and automatic annotation of the results. Rec
 -a|--adapter (required): sets one or more adapters to perform the query
 
 -n|--numberResults (optional): sets the number of results to return
+
+-u|--user (optional): sets the information of the user that conducts the search request
 ```
 
 
