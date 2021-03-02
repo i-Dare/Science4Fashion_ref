@@ -22,13 +22,14 @@ import matplotlib.pyplot as plt
 import prince 
 from light_famd import FAMD
 
-from core.helper_functions import *
 import core.config as config
 from core.logger import S4F_Logger
 
 class ConsensusClustering:
 
    def __init__(self, linkage='', train=False):
+      # Logger setup
+      self.logger = S4F_Logger('ClusteringLogger').logger
       #
       # Initialize argument parser
       #
@@ -90,9 +91,9 @@ class ConsensusClustering:
       # Update clustering table
       self.update_clusters(labels)
 
-      logger.info('Number of final clusters: %s Final Silhouette Score: %s' % (n_clusters, score))
+      self.logger.info('Number of final clusters: %s Final Silhouette Score: %s' % (n_clusters, score))
       # End Counting Time
-      logger.info("--- %s seconds ---" % (time.time() - start_time))
+      self.logger.info("--- %s seconds ---" % (time.time() - start_time))
 
    def clustering_preprocessing(self,):
       #
@@ -100,7 +101,7 @@ class ConsensusClustering:
       #     
       # Collect information from the Product, ProductColor and ColorRGB tables of S4F database
       #
-      logger.info('Start preprocessing of product attributes...')
+      self.logger.info('Start preprocessing of product attributes...')
       productDF, productColorDF, colorRGBDF = self._init_preprocessing()
       self.productOID_dict = productDF['Oid'].to_dict()
 
@@ -168,7 +169,7 @@ class ConsensusClustering:
       return attributesDF
 
    def famd_features(self, data):
-      logger.info('Start FAMD feature endcoding...')
+      self.logger.info('Start FAMD feature endcoding...')
       try:
          famd = prince.FAMD(check_input=True, n_components=self.n_components, random_state=42)
          famd.fit(data)
@@ -185,12 +186,11 @@ class ConsensusClustering:
       #
       # Execute clustering
       #
-      logger.info('Start clustering...')
+      self.logger.info('Start clustering...')
       self.run_clustering(data)
       #
       # Execute consensus clustering
       labels, n_clusters, score = self.consensus_clustering()
-
       
       return labels, n_clusters, score
 
@@ -216,7 +216,7 @@ class ConsensusClustering:
    def update_clusters(self, labels):
       ## Update Cluster table
       # Delete all existing records from Cluster table
-      logger.info('Start updating S4F database...')
+      self.logger.info('Start updating S4F database...')
       with self.engine.begin() as conn:
          conn.execute('''ALTER TABLE %s.dbo.Product NOCHECK CONSTRAINT FK_Product_Cluster''' % (self.dbName))
          conn.execute('''DELETE FROM %s.dbo.Cluster''' % (self.dbName))
@@ -487,7 +487,7 @@ class ConsensusClustering:
 
       ind_famd = np.argmax(norm_scores_famd[:,0] + (1 - norm_scores_famd[:,1]) + norm_scores_famd[:,2])
       
-      logger.info('''
+      self.logger.info('''
          Evaluation score of %s clustering:
          > Silhouette score: %s
          > Davies-Bouldin Index score: %s
@@ -538,10 +538,6 @@ class ConsensusClustering:
 
 
 if __name__ == "__main__":
-   # Logger setup
-   logger = S4F_Logger('ClusteringLogger').logger
-   helper = Helper(logger)
-
    clustering = ConsensusClustering()
    clustering.executeClustering()
 
