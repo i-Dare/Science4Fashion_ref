@@ -36,13 +36,14 @@ class ConsensusClustering:
             functionality', prog = 'ConsensusClustering')
       self.parser.add_argument('-train', help = '''Execute clustering by retraining the model, \
             if not selected, the clustering will be executed with the exesting model''', 
-            action="store_true")
+            action="store_true", default = train)
       self.parser.add_argument('-l','--linkage', type = str, help = '''Input linkage type for the \
             Agglomerative clustering''', default = config.LINKAGE, choices=['ward', 'complete', 'average', 'sinlge'])
       self.parser.add_argument('-u', '--user', type = str, help = '''Input user''')
 
       # Parse arguments
-      self.args = self.parser.parse_args()
+      # self.args = self.parser.parse_args()
+      self.args, unknown = self.parser.parse_known_args()
       self.training_mode = self.args.train
       self.linkage = self.args.linkage
       self.user = self.args.user
