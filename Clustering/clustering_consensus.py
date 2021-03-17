@@ -43,9 +43,12 @@ class ConsensusClustering:
       self.parser.add_argument('-u', '--user', type = str, help = '''Input user''')
 
       # Parse arguments
-      # self.args = self.parser.parse_args()
       self.args, unknown = self.parser.parse_known_args()
       self.training_mode = self.args.train
+      if self.training_mode:
+         self.logger.info('Executing Consensus Clustering without training.')
+      else:
+         self.logger.info('Executing Consensus Clustering with training.')
       self.linkage = self.args.linkage
       self.user = self.args.user
       
@@ -135,7 +138,6 @@ class ConsensusClustering:
             del attributesDF[col]
       
       ## Fill NA and None values
-      # Fill NA and NONE values
       attributesDF.fillna(np.nan, inplace=True)
       feat_columns = config.PRODUCT_ATTRIBUTES + ['Gender']
 
@@ -162,7 +164,7 @@ class ConsensusClustering:
          attributesDF[col].fillna('NOT_APPLIED', inplace=True)
       # replace numerical NaN values with the mean of the column
       for col in num_columns:                                          
-         attributesDF[col].fillna(attributesDF[col].median(), inplace=True)
+         attributesDF[col].fillna(attributesDF[col].mean(), inplace=True)
 
       # Normalize numeric values
       attributesDF[num_columns] = MinMaxScaler().fit_transform(attributesDF[num_columns])
@@ -459,7 +461,9 @@ class ConsensusClustering:
       #    ATTENTION: A final clustering solution may indicate structure where there is none, since we
       #              seek to force an ultimate clustering solution
       #
-      ## Caclulate the similarity matrix
+      ##
+
+      ## Calculate the similarity matrix
       sim_matrix_df = self._build_similarity_matrix()
 
       # Execute Agglomerative Clustering with ward linkage and the maximum of the minimum
@@ -532,7 +536,7 @@ class ConsensusClustering:
       famd_data.columns = ['axis_%s' %col for col in famd_data.columns]
       famd_data['clustering'] = clustering
       famd_data['clustering'] = clustering.astype(str)    
-      fig = px.scatter_3d(famd_data, x='axis_0', y='axis_1', z='axis_2',
+      fig = px.scatter_3d(famd_data.sort_values('clustering'), x='axis_0', y='axis_1', z='axis_2',
                      color='clustering', title=title)
       fig.show()
 
@@ -540,4 +544,3 @@ class ConsensusClustering:
 if __name__ == "__main__":
    clustering = ConsensusClustering()
    clustering.executeClustering()
-
