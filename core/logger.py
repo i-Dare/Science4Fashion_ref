@@ -2,6 +2,7 @@ from datetime import datetime
 import logging
 import os
 import core.config as config
+from core.query_manager import QueryManager
 import sys
 import traceback as tb
 
@@ -25,10 +26,8 @@ logging.addLevelName(_SKIPPED, "SKIPPED")
 class S4F_Logger():
     def __init__(self, name, level=1, user=config.DEFAULT_USER):
         self.level = level
-        self.name = name
-        self.dbName = config.DB_NAME
-        self.engine = config.ENGINE
-
+        self.name = name    
+        
         self.logger = self.initLogger(name, user)
 
     def initLogger(self, name, user=config.DEFAULT_USER):
@@ -47,7 +46,7 @@ class S4F_Logger():
         stdHandler = logging.StreamHandler()
         stdHandler.setFormatter(formatter)
 
-        sqlHandler = SqlHandler(self.dbName, self.engine)
+        sqlHandler = SqlHandler()
         sqlHandler.setFormatter(formatter)
 
         # add file handlers to logger
@@ -177,26 +176,25 @@ class SqlHandler(logging.Handler):
     A handler class which writes straight to the S4F databaset Log table
     """
 
-    def __init__(self, dbName, engine, level=logging.NOTSET):
+    def __init__(self, level=logging.NOTSET):
         """
         Get DB information
-        """
-        self.dbName = dbName
-        self.engine = engine
+        """        
         self.terminator = ';'
         super().__init__(level=level)
 
-    def runQuery(self, query, args=None):
-        with self.engine.begin() as conn:
-            if args:
-                conn.execute(query, args)
-            else:
-                conn.execute(query)
+    # def runQuery(self, query, args=None):
+    #     with self.engine.begin() as conn:
+    #         if args:
+    #             conn.execute(query, args)
+    #         else:
+    #             conn.execute(query)
     #
     # Extend the native "emit" function to write logs to S4F DB
     # 
     def emit(self, record):
         try:
+            
             message = self.format(record)
             user = record.user
             name = record.name
@@ -204,10 +202,16 @@ class SqlHandler(logging.Handler):
             logType = record.levelno
             note = "%s:%s" % (name, level)
             details = record.msg
-            query = "INSERT INTO %s.dbo.Log (LogType, Note, Details)" % self.dbName \
-                        + " VALUES (CAST(%s AS INTEGER), %s, STRING_ESCAPE(%s, 'json'))"
-            args=  logType, note, str(details)
-            self.runQuery(query, args)
+            
+            params = {'table': 'Log', 'LogType': logType, 'Note': note, 'Details': str(details)}
+            sql = QueryManager(user=user)
+            sql.runInsertQuery(params)
+
+            self.flush()
+            # query = "INSERT INTO %s.dbo.Log (LogType, Note, Details)" % self.dbName \
+            #             + " VALUES (CAST(%s AS INTEGER), %s, STRING_ESCAPE(%s, 'json'))"
+            # args=  logType, note, str(details)
+            # self.runQuery(query, args)
 
         except Exception as ex:
             msg = ''.join(tb.format_exception(None, ex, ex.__traceback__))

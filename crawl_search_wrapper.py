@@ -13,10 +13,6 @@ from core.logger import S4F_Logger
 
 class WebCrawlers:
    def __init__(self):
-      # Init logger
-      self.logger = S4F_Logger('WrapperLogger').logger
-      self.helper = Helper(self.logger)
-
       self.engine = config.ENGINE
       self.dbName = config.DB_NAME
       
@@ -28,7 +24,7 @@ class WebCrawlers:
       self.allAdapters = [adapter.lower() for adapter in self.adapterDF['Description'].values]
      
       # Get all python scripts in the WebCrawlers directory
-      pythonScripts = [f for f in os.listdir(self.helper.WEB_CRAWLERS) if str(f).endswith('.py')]
+      pythonScripts = [f for f in os.listdir(config.WEB_CRAWLERS) if str(f).endswith('.py')]
       adapterScripts = [f for f in pythonScripts if str(f).lower().rstrip('.py') in self.allAdapters]
       implementedAdapters = [a for a in self.allAdapters if a.lower() in 
             [f.lower().rstrip('.py') for f in adapterScripts]]
@@ -36,9 +32,9 @@ class WebCrawlers:
       # sort Adapters and scripts by name for grouping            
       implementedAdapters = sorted(implementedAdapters, key = lambda x: str(x).lower())
       adapterScripts = sorted(adapterScripts, key = lambda x: str(x).lower())
-      
+
       # create Adapter dictionary
-      self.adapter_dict = {a:os.path.join(self.helper.WEB_CRAWLERS, f) for a,f in \
+      self.adapter_dict = {a:os.path.join(config.WEB_CRAWLERS, f) for a,f in \
          zip(implementedAdapters, adapterScripts)}
       
       # Initialize argument parser      
@@ -61,18 +57,24 @@ class WebCrawlers:
       self.numberResults = self.args.numberResults
       self.user = self.args.user
 
+      self.loggerInit()
       self.checkArgConstrains()
 
 
-   # Check argument constrains      
-   def checkArgConstrains(self,):
+   # Init logger
+   def loggerInit(self,):
+       # Init logger
       if not self.user:
-         self.user = config.DEFAULT_USER
+         self.user = config.DEFAULT_USER        
+         self.logger = S4F_Logger('WrapperLogger').logger
          self.logger.warning('Logging for default user')
       else:
          self.logger = S4F_Logger('WrapperLogger', user=self.user).logger
-         self.logger.warning('Logging for user: %s' % self.user)
+      # Init helper
+      self.helper = Helper(self.logger)
 
+   # Check argument constrains      
+   def checkArgConstrains(self,):
       for adapter in self.adapter:
          if adapter not in self.adapter_dict.keys():
             availableAdapters = [a for a in self.adapterDF['Description'].values if a.lower() in self.adapter_dict.keys()]

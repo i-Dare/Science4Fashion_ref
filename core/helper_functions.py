@@ -80,14 +80,21 @@ class Helper():
             'User-Agent': user_agent
         }
         self.logger.info('Get content from: %s' % url+suffix)
-        req = requests.get(url+suffix, headers=headers)
+        try:
+            req = requests.get(url+suffix, headers=headers, timeout =10 ,verify=False)
+            soup = BeautifulSoup(req.content, 'html.parser')
+        except requests.exceptions.Timeout:
+            self.logger.warning("Timeout occurred when getting %s" % url+suffix)
+            return None
         new_req = ''
         if req.history:
             self.logger.info('Request redirected to %s ' % (req.url+suffix))
-            new_req = requests.get(req.url+suffix, headers=headers)
-            soup = BeautifulSoup(new_req.content, 'html.parser')
-        else:
-            soup = BeautifulSoup(req.content, 'html.parser')
+            try:
+                new_req = requests.get(req.url+suffix, headers=headers, timeout =10 ,verify=False)
+                soup = BeautifulSoup(new_req.content, 'html.parser')
+            except requests.exceptions.Timeout:
+                self.logger.warning("Timeout occurred when getting %s" % url+suffix)     
+                return None  
 
         return soup
         
@@ -445,9 +452,13 @@ class Helper():
 
         # Prepare ajax request URL
         # Capture hidden parameters of ajax request for the image loading
-        jsonUnparsed = [script.text for script in soup.findAll('script') if 'ANALYTICS_REMOVE_PENDING_EVENT' in script.text][0]
-        jsonInfo = json.loads(re.findall(r'JSON\.parse\(\'({\"(?=analytics).+products\":.+\]}})', jsonUnparsed)[0].replace('\\', ''))
-        products = jsonInfo['search']['products']
+        try:
+            jsonUnparsed = [script for script in soup.findAll('script') if 'ANALYTICS_REMOVE_PENDING_EVENT' in str(script)]
+            jsonInfo = json.loads(re.findall(r'JSON\.parse.+({\"(?=analytics).+products\".+\]}}})', str(jsonUnparsed))[0].replace('\\', ''))
+            products = jsonInfo['search']['products']
+            breakPointNumber = len(products)
+        except Exception as e:        
+            self.logger.warn_and_trace(e)
 
         self.logger.info('Prepare to fetch results according to %s order' % order)
         # DataFrame to hold results
@@ -531,8 +542,8 @@ class Helper():
         '''
         # Capture json structure with the product information
         try:
-            jsonUnparsed = soup.find('script', text=re.compile(r'window\.asos\.pdp\.config\.product.+')).text
-            jsonInfo = json.loads(re.findall(r'window\.asos\.pdp\.config\.product = ({.+});', jsonUnparsed)[0])
+            jsonUnparsed = soup.find('script', text=re.compile(r'window\.asos\.pdp\.config\.product.+'))
+            jsonInfo = json.loads(re.findall(r'window\.asos\.pdp\.config\.product = ({.+});', str(jsonUnparsed))[0])
         except Exception as e: 
             self.logger.info(e)
             self.logger.info('Exception: Failed to capture json object with products\' info')
@@ -550,14 +561,7 @@ class Helper():
         except Exception as e: 
             sku = None
             self.logger.info(e)
-            self.logger.info("SKU ID not captured at %s" % url)
-        # Is active
-        try:
-            isActive = not jsonInfo['isDeadProduct']
-        except Exception as e: 
-            isActive = True
-            self.logger.info(e)
-            self.logger.info("Active info not captured at %s" % url)    
+            self.logger.info("SKU ID not captured at %s" % url) 
         # Gender
         try:
             gender = jsonInfo['gender']
@@ -592,8 +596,18 @@ class Helper():
         except:
             meta = None
             self.logger.info("Product Description not captured at %s" % url)
+        # Price
+        try:
+            productID = jsonInfo['id']
+            priceApiURL = 'https://www.asos.com/api/product/catalogue/v3/stockprice?productIds=%s&store=ROE&currency=EUR' % productID
+            priceSoup = self.get_content(priceApiURL)
+            price = json.loads(str(priceSoup))[0]['productPrice']['current']['value']
+        except:
+            price = None
+            self.logger.info("Product price not captured at %s" % url)   
+    
 
-        return head, brand, color, genderid, meta, sku, isActive
+        return head, brand, color, genderid, meta, sku, True, price
 
 
     ## sOliver specific functionality 

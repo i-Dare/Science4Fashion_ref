@@ -8,7 +8,7 @@ import sqlalchemy
 CWD = os.getcwd()
 PROJECT_HOME = os.environ['PROJECT_HOME']
 PROJECT_CONFIG = os.path.join(PROJECT_HOME, 'config.json')
-#PROJECT_CONFIG = os.path.join(PROJECT_HOME, 'config_test.json')
+
 # Get project's configuration file
 with open(PROJECT_CONFIG) as f:
     config = json.load(f)
@@ -23,14 +23,6 @@ UPDATESQLQUERY = """
     WHERE Product.Oid = temp_table.Oid;
     DROP TABLE temp_table;
 """
-# UPDATESQLQUERY = """
-#     UPDATE "Product" 
-#     SET "ProductCategory" = temp_table."ProductCategory", "ProductSubcategory" = temp_table."ProductSubcategory", "Length" = temp_table."Length", "Sleeve" = temp_table."Sleeve", "CollarDesign" = temp_table."CollarDesign", "NeckDesign" = temp_table."NeckDesign", "Fit" = temp_table."Fit"
-#     FROM temp_table 
-#     WHERE public."Product"."Oid" = public."temp_table"."Oid";
-#     DROP TABLE public."temp_table";
-# """
-
 
 #
 ########### Modules paths ###########
@@ -131,14 +123,6 @@ UPDATE_CLUSTERS_QUERY = """
     FROM Cluster
     WHERE Cluster.Cluster = temp_table.Cluster
 """
-# K-Modes clustering
-# UPDATE_CLUSTERS_QUERY = """
-#     UPDATE "Cluster" 
-#     SET "Oid" = "temp_table"."Cluster", "ProductCategory" = "temp_table"."ProductCategory", "ProductSubcategory" = "temp_table"."ProductSubcategory", "Gender" = "temp_table"."Gender",
-#         "LifeStage" = "temp_table"."LifeStage", "Length" = "temp_table"."Length", "Sleeve" = "temp_table"."Sleeve", "CollarDesign" = "temp_table"."CollarDesign", "NeckDesign" = "temp_table"."NeckDesign", "Fit" = "temp_table"."Fit"
-#     FROM temp_table 
-#     WHERE public."Cluster"."Oid" = "temp_table"."Cluster"
-# """
 
 UPDATE_PRODUCT_CLUSTERS_QUERY = """
     UPDATE Product
@@ -147,13 +131,6 @@ UPDATE_PRODUCT_CLUSTERS_QUERY = """
     WHERE Product.Oid = temp_table.Oid;
     DROP TABLE temp_table;
 """
-# UPDATE_PRODUCT_CLUSTERS_QUERY = """
-#     UPDATE "Product"
-#     SET "Cluster" = "temp_table"."Cluster"
-#     FROM "temp_table"
-#     WHERE "Product"."Oid" = "temp_table"."Oid";
-#     DROP TABLE public."temp_table";
-# """
 
 # Consensus Clustering variables
 FAMD_COMPONENTS = config['clustering']['famd_components']
@@ -166,10 +143,3 @@ UPDATE_PRODUCT_CONSENSUS_CLUSTERS_QUERY = """
     WHERE Product.Oid = temp_table.Oid;
     DROP TABLE temp_table;
 """
-# UPDATE_PRODUCT_CONSENSUS_CLUSTERS_QUERY = """
-#     UPDATE "Product"
-#     SET "ConsensusCluster" = "temp_table"."ConsensusCluster"
-#     FROM "temp_table"
-#     WHERE "Product"."Oid" = "temp_table"."Oid";
-#     DROP TABLE public."temp_table";
-# """
