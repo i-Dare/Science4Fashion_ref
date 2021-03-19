@@ -118,7 +118,7 @@ Apart from the color information, the rest of the product's attributes regarding
 8. Edit DB connection details in %PROJECT_HOME%/config.json
 	* Execute the following to make sure the database connection is responsive
 
-	```$ python -c "import pandas as pd;import helper_functions;pd.read_sql_query('''SELECT * FROM %s.dbo.Product''' % helper_functions.DB_NAME, helper_functions.ENGINE)"```
+	```$ python -c "import pandas as pd;import core.config as config;pd.read_sql_query('''SELECT * FROM %s.dbo.Product''' % config.DB_NAME, config.ENGINE)"```
 	
 
 

@@ -11,6 +11,7 @@ import regex as re
 
 from bs4 import BeautifulSoup, ResultSet
 from datetime import datetime
+import core.config as config
 
 
 ############ This function will be called every new keyword line is encountered and will start scraping the amazon web page of the search result according to the text mention in the keywords text file ############
@@ -85,9 +86,9 @@ def performScraping(urlReceived, category):
 if __name__ == '__main__':
     start_time_all = time.time()
     
-    currendDir = helper_functions.WEB_CRAWLERS
-    engine = helper_functions.ENGINE
-    dbName = helper_functions.DB_NAME
+    currendDir = config.WEB_CRAWLERS
+    engine = config.ENGINE
+    dbName = config.DB_NAME
     # Webpage URL
     standardUrl = 'https://www.soliver.eu/'    
     site = str((standardUrl.split('.')[1]).capitalize())

@@ -32,6 +32,7 @@ from sklearn.metrics import mean_squared_error
 from math import sqrt
 from sklearn.metrics import mean_absolute_error
 import helper_functions
+import core.config as config
 
 def novelty(user_id, items):
     products = data.loc[data['UserId'] == user_id]
@@ -273,8 +274,8 @@ def query_accuracy(ratedClothes, model):
 # load multi data
 import pandas as pd
 # read dataset
-engine = helper_functions.ENGINE
-dbName = helper_functions.DB_NAME
+engine = config.ENGINE
+dbName = config.DB_NAME
 dataset = pd.read_sql_query('''SELECT PRD.Adapter, PRD.Description, PRD.Image, PRD.ImageSource, PRD.Brand, PRD.ProductCategory, PRD.ProductSubcategory, PRD.Length, PRD.Sleeve, PRD.CollarDesign, PRD.NeckDesign
                                 FROM %s.dbo.PRODUCT AS PRD''' % dbName, engine)
 dataset.rename(columns={'Oid': 'clothId'}, inplace=True)

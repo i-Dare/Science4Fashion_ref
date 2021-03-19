@@ -50,7 +50,7 @@ if __name__ == "__main__":
         ### Read Table Products from S4F database ###
         logger.info('Loading Product table...')
         #Connect to database with sqlalchemy
-        currendDir = helper.TEXT_MINING
+        currendDir = config.TEXT_MINING
         engine = config.ENGINE
         dbName = config.DB_NAME
 

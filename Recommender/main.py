@@ -2,10 +2,12 @@ import pandas as pd
 from evaluator import evaluator
 from ContentBasedRecom import cb_rf
 from core.helper_functions import Helper
+import core.config as config
+
 eval = evaluator()
-currendDir = Helper.WEB_CRAWLERS
-engine = Helper.ENGINE
-dbName = Helper.DB_NAME
+currendDir = config.WEB_CRAWLERS
+engine = config.ENGINE
+dbName = config.DB_NAME
 
 df = pd.DataFrame(columns=['user','metric','score'])
 df2 = pd.DataFrame(columns=['user','metric','score'])

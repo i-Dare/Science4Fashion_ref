@@ -122,7 +122,7 @@ class WebCrawlers:
    # Execute text metadata based annotation  
    def executeTextBasedAnnotation(self,):
       self.logger.info('Executing: text based annotation')
-      scriptPath = os.path.join(self.helper.TEXT_MINING, 'metadata_annotation.py')      
+      scriptPath = os.path.join(config.TEXT_MINING, 'metadata_annotation.py')      
       proc = subprocess.run(['python',
                               scriptPath, 
                               str(self.user),
@@ -135,7 +135,7 @@ class WebCrawlers:
    # Execute color based annotation 
    def executeColorBasedAnnotation(self,):
       self.logger.info('Executing: color based annotation')
-      scriptPath = os.path.join(self.helper.IMAGE_ANNOTATION, 'Color', 'color_annotation.py')
+      scriptPath = os.path.join(config.IMAGE_ANNOTATION, 'Color', 'color_annotation.py')
       proc = subprocess.run(['python',
                               scriptPath, 
                               str(self.user),
@@ -148,7 +148,7 @@ class WebCrawlers:
    # Execute clothing based annotation
    def executeClothingBasedAnnotation(self,):
       self.logger.info('Executing: clothing based annotation')
-      scriptPath = os.path.join(self.helper.IMAGE_ANNOTATION, 'Clothing', 'clothing_annotation.py')
+      scriptPath = os.path.join(config.IMAGE_ANNOTATION, 'Clothing', 'clothing_annotation.py')
       proc = subprocess.run(['python',
                               scriptPath, 
                               str(self.user),
@@ -161,7 +161,7 @@ class WebCrawlers:
    # Execute product clustering module
    def executeClustering(self, train=False):
       self.logger.info('Executing: Clustering')      
-      scriptPath = os.path.join(self.helper.CLUSTERING, 'clustering_consensus.py')
+      scriptPath = os.path.join(config.CLUSTERING, 'clustering_consensus.py')
       if train:
          args = ['python', scriptPath, '-train', '--user', str(self.user)]
       else:

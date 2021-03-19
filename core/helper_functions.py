@@ -29,21 +29,6 @@ warnings.filterwarnings('ignore')
 
 
 class Helper():
-
-    # Database variables
-    DB_CONNECTION = config.DB_CONNECTION
-    DB_NAME = config.DB_NAME
-    ENGINE = config.ENGINE
-
-    # Directory navigation variables
-    TEXT_MINING = config.TEXT_MINING
-    CLUSTERING = config.CLUSTERING
-    IMAGE_ANNOTATION = config.IMAGE_ANNOTATION
-    RECOMMENDER = config.RECOMMENDER
-    WEB_CRAWLERS = config.WEB_CRAWLERS
-    RESOURCESDIR = config.RESOURCESDIR
-    IMAGEDIR = config.IMAGEDIR
-
     # Define stop words
     STOP_WORDS = set(nltk.corpus.stopwords.words('english'))
     STOP_WORDS = STOP_WORDS.union(set(nltk.corpus.stopwords.words('italian')),
@@ -175,7 +160,7 @@ class Helper():
         ImageType = ".jpeg"
         imgSiteFolder = (standardUrl.split('.')[1]).capitalize() + 'Images'
         # Creates the path where the images will be stored
-        imageDir = os.path.join(self.IMAGEDIR, imgSiteFolder, keyword)
+        imageDir = os.path.join(config.IMAGEDIR, imgSiteFolder, keyword)
         # Create The folder according to search name
         if not os.path.exists(imageDir):
             os.makedirs(imageDir)
@@ -217,7 +202,7 @@ class Helper():
             'kids': ['kid', 'kids', 'child', 'children'],
             'unisex': ['unisex']}
 
-        genderdf = pd.read_sql_query("SELECT * FROM %s.dbo.Gender" % self.DB_NAME, self.ENGINE)
+        genderdf = pd.read_sql_query("SELECT * FROM %s.dbo.Gender" % config.DB_NAME, config.ENGINE)
         genderdf_dict = genderdf.set_index('Oid').loc[:, 'Description'].str.lower().to_dict()
 
         # Find gender in gender_dict
@@ -230,7 +215,7 @@ class Helper():
     ## Execute query 
     #
     def runQuery(self, query, args=None):
-        with self.ENGINE.begin() as conn:
+        with config.ENGINE.begin() as conn:
             if args:
                 conn.execute(query, args)
             else:
@@ -240,10 +225,10 @@ class Helper():
     #
     def getLastRecordID(self, table, where=None):
         if where:
-            query = "SELECT TOP 1 * FROM %s.dbo.%s  %s  ORDER BY Oid DESC" % (self.DB_NAME, table, where)
+            query = "SELECT TOP 1 * FROM %s.dbo.%s  %s  ORDER BY Oid DESC" % (config.DB_NAME, table, where)
         else:
-            query = "SELECT TOP 1 * FROM %s.dbo.%s ORDER BY Oid DESC" % (self.DB_NAME, table)
-        with self.ENGINE.begin() as conn:    
+            query = "SELECT TOP 1 * FROM %s.dbo.%s ORDER BY Oid DESC" % (config.DB_NAME, table)
+        with config.ENGINE.begin() as conn:    
             result = conn.execute(query)
             oid = result.fetchone()
         return oid[0] if oid else None
@@ -254,18 +239,18 @@ class Helper():
         '''
         Adds new brand info to the Brand table if it does not exist. 
         '''
-        branddf = pd.read_sql_query("SELECT * FROM %s.dbo.Brand" % self.DB_NAME, self.ENGINE)
-        # branddf = pd.read_sql_query("SELECT * FROM public.\"Brand\"", self.ENGINE)
+        branddf = pd.read_sql_query("SELECT * FROM %s.dbo.Brand" % config.DB_NAME, config.ENGINE)
+        # branddf = pd.read_sql_query("SELECT * FROM public.\"Brand\"", config.ENGINE)
         if brand:
             brand = brand.replace("'", "''")
             if branddf.loc[branddf['Description']==brand].empty:
                 self.logger.info('Adding new brand')
                 querydf = pd.DataFrame([{'Description': brand, 'AlternativeDescription': None, 
                                         'Active': isActive, 'Ordering': 0, 'OptimisticLockField': None}])   
-                querydf.to_sql("Brand", schema='%s.dbo' % self.DB_NAME, con=self.ENGINE, if_exists='append', index=False)
-                # querydf.to_sql("Brand", con=self.ENGINE, if_exists='append', index=False)
-                querydf = pd.read_sql_query("SELECT * FROM %s.dbo.Brand" % self.DB_NAME, self.ENGINE)
-                #querydf = pd.read_sql_query("SELECT * FROM public.\"Brand\"", self.ENGINE)
+                querydf.to_sql("Brand", schema='%s.dbo' % config.DB_NAME, con=config.ENGINE, if_exists='append', index=False)
+                # querydf.to_sql("Brand", con=config.ENGINE, if_exists='append', index=False)
+                querydf = pd.read_sql_query("SELECT * FROM %s.dbo.Brand" % config.DB_NAME, config.ENGINE)
+                #querydf = pd.read_sql_query("SELECT * FROM public.\"Brand\"", config.ENGINE)
                 querydf = querydf[(querydf['UpdatedOn']==querydf['UpdatedOn'].max()) & (querydf['Description']==brand)]
                 return querydf['Oid'].values[0]
             else:
@@ -280,7 +265,7 @@ class Helper():
         '''
         Adds new product info to the Product table. 
         '''
-        queryAdaptersdf = pd.read_sql_query("SELECT * FROM %s.dbo.Adapter WHERE %s.dbo.Adapter.Description = '%s'" % (self.DB_NAME, self.DB_NAME, site), self.ENGINE)
+        queryAdaptersdf = pd.read_sql_query("SELECT * FROM %s.dbo.Adapter WHERE %s.dbo.Adapter.Description = '%s'" % (config.DB_NAME, config.DB_NAME, site), config.ENGINE)
         # submit record to the Product table
         brandID = self.addNewBrand(brand, isActive)
         self.logger.info('Adding new product')                              
@@ -294,8 +279,8 @@ class Helper():
                                 'ProductSubcategory': None, 'Sleeve': None, 'LifeStage': None, 'TrendTheme': None,
                                 'InspirationBackground': None, 'Gender': genderid, 'BusinessUnit': None, 
                                 'Season': None, 'Cluster': None, 'FinancialCluster': None, 'OptimisticLockField': None}])
-        submitdf.to_sql("Product", schema='%s.dbo' % self.DB_NAME, con=self.ENGINE, if_exists='append', index=False)
-        # submitdf.to_sql('Product', con=self.ENGINE, if_exists='append', index=False)
+        submitdf.to_sql("Product", schema='%s.dbo' % config.DB_NAME, con=config.ENGINE, if_exists='append', index=False)
+        # submitdf.to_sql('Product', con=config.ENGINE, if_exists='append', index=False)
                         
 
     ## Add new product to the ProductHistory table 
@@ -307,9 +292,9 @@ class Helper():
         self.logger.info('Adding new product history')
         url = url.replace("'", "''")
         querydf = pd.read_sql_query("SELECT * FROM %s.dbo.Product WHERE  CONVERT(VARCHAR(MAX), %s.dbo.PRODUCT.URL) = \
-            CONVERT(VARCHAR(MAX),'%s')" % (self.DB_NAME, self.DB_NAME, str(url)), self.ENGINE)
+            CONVERT(VARCHAR(MAX),'%s')" % (config.DB_NAME, config.DB_NAME, str(url)), config.ENGINE)
         # querydf = pd.read_sql_query(
-        #    "SELECT * FROM public.\"Product\" WHERE public.\"Product\".\"URL\" = '{}'".format(url.replace("%", "%%")), self.ENGINE)
+        #    "SELECT * FROM public.\"Product\" WHERE public.\"Product\".\"URL\" = '{}'".format(url.replace("%", "%%")), config.ENGINE)
         if not querydf.empty:
             oid = querydf['Oid'].values[0]
             lastCrawlSearchID = self.getLastRecordID('CrawlSearch', "WHERE Description='%s'" % searchTerm)
@@ -321,8 +306,8 @@ class Helper():
                                     'CrawlSearch': lastCrawlSearchID, 
                                     'OptimisticLockField': None
                                     }])
-            submitdf.to_sql("ProductHistory", schema='%s.dbo' % self.DB_NAME, con=self.ENGINE, if_exists='append', index=False)
-            # submitdf.to_sql("ProductHistory", con=self.ENGINE, if_exists='append', index=False)
+            submitdf.to_sql("ProductHistory", schema='%s.dbo' % config.DB_NAME, con=config.ENGINE, if_exists='append', index=False)
+            # submitdf.to_sql("ProductHistory", con=config.ENGINE, if_exists='append', index=False)
         else:
             self.logger.warning('Product history for product at %s was not added...' % url)
 
@@ -334,8 +319,8 @@ class Helper():
         Updates product's latest entry in ProductHistory table
         '''    
         # Get info from most recent product record from ProductHistory table - CONVERT_TO_SQL
-        updatedf = pd.read_sql_query("SELECT * FROM %s.dbo.ProductHistory" % self.DB_NAME, self.ENGINE)
-        # updatedf = pd.read_sql_query("SELECT * FROM public.\"ProductHistory\"", self.ENGINE)
+        updatedf = pd.read_sql_query("SELECT * FROM %s.dbo.ProductHistory" % config.DB_NAME, config.ENGINE)
+        # updatedf = pd.read_sql_query("SELECT * FROM public.\"ProductHistory\"", config.ENGINE)
         if updatedf.loc[(updatedf['SearchDate']== updatedf['SearchDate'].max()) & (updatedf['Product']== oid)].empty:
             # Create new entry in ProductHistory table
             self.logger.info('Product %s history not found, creating history...' % oid)
@@ -346,7 +331,7 @@ class Helper():
             lastCrawlSearchID = self.getLastRecordID('CrawlSearch', "WHERE Description='%s'" % searchTerm)
             updatedf.loc[(updatedf['SearchDate']== updatedf['SearchDate'].max()) & (updatedf['Product']== oid), 
                         ['ReferenceOrder', 'TrendingOrder', 'Price', 'CrawlSearch']] = [referenceOrder, trendOrder, price, lastCrawlSearchID]
-            updatedf.to_sql("ProductHistory", schema='%s.dbo' % self.DB_NAME, con=self.ENGINE, if_exists='replace', index=False)
+            updatedf.to_sql("ProductHistory", schema='%s.dbo' % config.DB_NAME, con=config.ENGINE, if_exists='replace', index=False)
 
 
 # --------------------------------------------------------------------------

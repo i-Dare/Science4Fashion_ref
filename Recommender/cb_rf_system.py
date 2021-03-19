@@ -11,8 +11,8 @@ import helper_functions
 
 # read data
 path = config.RECOMMENDER
-engine = helper_functions.ENGINE
-dbName = helper_functions.DB_NAME
+engine = config.ENGINE
+dbName = config.DB_NAME
 dataset = pd.read_sql_query('''SELECT PRD.Oid, RSLT.Clicked, RSLT.IsFavorite, RSLT.GradeBySystem, RSLT.GradeByUser,RSLT.CreatedBy
                                 FROM %s.dbo.PRODUCT AS PRD
                                 LEFT JOIN %s.dbo.RESULT AS RSLT

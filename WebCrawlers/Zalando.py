@@ -92,7 +92,7 @@ if __name__ == '__main__':
 
     start_time_all = time.time()
     
-    currendDir = helper.WEB_CRAWLERS
+    currendDir = config.WEB_CRAWLERS
     engine = config.ENGINE
     dbName = config.DB_NAME
     # Webpage URL

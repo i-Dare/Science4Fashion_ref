@@ -11,6 +11,7 @@ from datetime import datetime
 import sys
 from core.helper_functions import *
 from core.logger import S4F_Logger
+import core.config as config
 
 
 ############ This function will be called every new keyword line is encountered and will start scraping the amazon web page of the search result according to the text mention in the searchTerm text file ############
@@ -103,7 +104,7 @@ if __name__ == '__main__':
 
     start_time_all = time.time()
     
-    currendDir = helper.WEB_CRAWLERS
+    currendDir = config.WEB_CRAWLERS
     engine = config.ENGINE
     dbName = config.DB_NAME
     # Webpage URL
