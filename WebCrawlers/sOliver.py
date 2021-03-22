@@ -99,8 +99,9 @@ def performScraping(urlReceived, searchTerm, breakPointNumber):
 if __name__ == '__main__':
     # Get input arguments
     searchTerm, threshold, user = sys.argv[1], int(sys.argv[2]), sys.argv[3]
-    logger = S4F_Logger('SoliverLogger').logger
-    helper = Helper(logger)
+    logging = S4F_Logger('SoliverLogger', user=user)
+    logger = logging.logger
+    helper = Helper(logging)
 
     start_time_all = time.time()
     

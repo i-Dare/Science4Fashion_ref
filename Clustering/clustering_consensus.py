@@ -24,12 +24,11 @@ from light_famd import FAMD
 
 import core.config as config
 from core.logger import S4F_Logger
+from core.query_manager import QueryManager
 
 class ConsensusClustering:
 
    def __init__(self, linkage='', train=False):
-      # Logger setup
-      self.logger = S4F_Logger('ClusteringLogger').logger
       #
       # Initialize argument parser
       #
@@ -40,7 +39,11 @@ class ConsensusClustering:
             action="store_true", default = train)
       self.parser.add_argument('-l','--linkage', type = str, help = '''Input linkage type for the \
             Agglomerative clustering''', default = config.LINKAGE, choices=['ward', 'complete', 'average', 'sinlge'])
-      self.parser.add_argument('-u', '--user', type = str, help = '''Input user''')
+      self.parser.add_argument('-u', '--user', default=config.DEFAULT_USER, type = str, help = '''Input user''')
+
+      # Logger setup
+      self.logging = S4F_Logger('ClusteringLogger', user=self.user)
+      self.logger = self.logging.logger
 
       # Parse arguments
       self.args, unknown = self.parser.parse_known_args()
@@ -224,13 +227,12 @@ class ConsensusClustering:
          conn.execute('''DELETE FROM %s.dbo.Cluster''' % (self.dbName))
          conn.execute('''ALTER TABLE  %s.dbo.Product CHECK CONSTRAINT FK_Product_Cluster''' % (self.dbName))
 
-         # conn.execute('''DELETE FROM "%s".public."Cluster" *''' % (self.dbName))
       # Insert new cluster labels    
       for label in set(labels):
-         query = '''INSERT INTO %s.dbo.Cluster ("Description") VALUES (%s)''' % (self.dbName, label)
-         # query = '''INSERT INTO "%s".public."Cluster" ("Description") VALUES (%s)''' % (self.dbName, label)
-         with self.engine.begin() as conn:
-            conn.execute(query)
+         params = {'table': 'Cluster', 'Description': label}
+         db_manager = QueryManager(user=self.user)
+         db_manager.runInsertQuery(params)
+
 
       #  ## Update Product table
       # Join cluster label and product ID information

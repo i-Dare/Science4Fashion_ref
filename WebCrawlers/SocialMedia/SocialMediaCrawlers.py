@@ -27,8 +27,9 @@ class PinterestCrawler(Pinterest):
     '''
     def __init__(self, username, password, user):
         self.user = user
-        self.logger = S4F_Logger('PinterestLogger').logger
-        self.helper = Helper(self.logger)
+        self.logging = S4F_Logger('PinterestLogger', user=user)
+        self.logger = self.logging.logger
+        self.helper = Helper(self.logging)
 
         cred_root = os.path.join(config.RESOURCESDIR, 'data')
         super().__init__(password=password, proxies=None, username='', email=username, cred_root=cred_root, user_agent=None)
@@ -95,8 +96,9 @@ class InstagramCrawler():
     '''
     def __init__(self, username, password, user):
         self.user = user
-        self.logger = S4F_Logger('InstagramLogger').logger
-        self.helper = Helper(self.logger)
+        self.logging = S4F_Logger('InstagramLogger', user=user)
+        self.logger = self.logging.logger
+        self.helper = Helper(self.logging)
 
         self.username = username
         self.password = password

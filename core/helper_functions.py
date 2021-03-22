@@ -23,6 +23,7 @@ import wordsegment
 import warnings
 
 import core.config as config
+from core.query_manager import QueryManager
 
 wordsegment.load()
 warnings.filterwarnings('ignore')
@@ -40,10 +41,12 @@ class Helper():
     # Add 'via' in stop_words
     STOP_WORDS.add('via')
 
-    def __init__(self, logger):
-        self.logger = logger
-
-
+    def __init__(self, logging):
+        self.logging = logging
+        self.logger = logging.logger
+        self.user = logging.user
+        self.db_manager = QueryManager(user=self.user)
+        
 # --------------------------------------------------------------------------                        
 #          Miscellaneous Functionality
 # -------------------------------------------------------------------------- 
@@ -66,7 +69,7 @@ class Helper():
         }
         self.logger.info('Get content from: %s' % url+suffix)
         try:
-            req = requests.get(url+suffix, headers=headers, timeout =10 ,verify=False)
+            req = requests.get(url+suffix, headers=headers, timeout=config.CRAWLER_TIMEOUT ,verify=False)
             soup = BeautifulSoup(req.content, 'html.parser')
         except requests.exceptions.Timeout:
             self.logger.warning("Timeout occurred when getting %s" % url+suffix)
@@ -212,127 +215,100 @@ class Helper():
         return gender_id   
 
 
-    ## Execute query 
-    #
-    def runQuery(self, query, args=None):
-        with config.ENGINE.begin() as conn:
-            if args:
-                conn.execute(query, args)
-            else:
-                conn.execute(query)
-
-    ## Returns the last record ID from the specified column and table
-    #
-    def getLastRecordID(self, table, where=None):
-        if where:
-            query = "SELECT TOP 1 * FROM %s.dbo.%s  %s  ORDER BY Oid DESC" % (config.DB_NAME, table, where)
-        else:
-            query = "SELECT TOP 1 * FROM %s.dbo.%s ORDER BY Oid DESC" % (config.DB_NAME, table)
-        with config.ENGINE.begin() as conn:    
-            result = conn.execute(query)
-            oid = result.fetchone()
-        return oid[0] if oid else None
-
     ## Add new product to the Product table 
     #
-    def addNewBrand(self, brand, isActive):
+    def getBrand(self, brand):
         '''
-        Adds new brand info to the Brand table if it does not exist. 
+        Adds new brand info to the Brand table if it does not exist,  and returns the added record's 
+        `Oid`. Otherwise returns the existing record 'Oid'. 
         '''
-        branddf = pd.read_sql_query("SELECT * FROM %s.dbo.Brand" % config.DB_NAME, config.ENGINE)
-        # branddf = pd.read_sql_query("SELECT * FROM public.\"Brand\"", config.ENGINE)
-        if brand:
-            brand = brand.replace("'", "''")
-            if branddf.loc[branddf['Description']==brand].empty:
-                self.logger.info('Adding new brand')
-                querydf = pd.DataFrame([{'Description': brand, 'AlternativeDescription': None, 
-                                        'Active': isActive, 'Ordering': 0, 'OptimisticLockField': None}])   
-                querydf.to_sql("Brand", schema='%s.dbo' % config.DB_NAME, con=config.ENGINE, if_exists='append', index=False)
-                # querydf.to_sql("Brand", con=config.ENGINE, if_exists='append', index=False)
-                querydf = pd.read_sql_query("SELECT * FROM %s.dbo.Brand" % config.DB_NAME, config.ENGINE)
-                #querydf = pd.read_sql_query("SELECT * FROM public.\"Brand\"", config.ENGINE)
-                querydf = querydf[(querydf['UpdatedOn']==querydf['UpdatedOn'].max()) & (querydf['Description']==brand)]
-                return querydf['Oid'].values[0]
-            else:
-                return branddf.loc[branddf['Description']==brand, 'Oid'].values[0]
-        else:
-            return None
+        uniq_params = {'table': 'Brand', 'Description': brand}
+        params = {'table': 'Brand', 'Description': brand}
+        
+        brand_df =  self.db_manager.runCriteriaInsertQuery(
+                                                            uniq_params=uniq_params, 
+                                                            params=params, 
+                                                            get_identity=True
+                                                        )
+        return brand_df.loc[0, 'Oid']
         
 
     ## Add new product to the Product table 
     #
-    def addNewProduct(self, site, keywords, imageFilePath, empPhoto, url, imgsrc, head, color, genderid, brand, meta, sku, isActive, price=None):
+    def addNewProduct(self, site, keywords, imageFilePath, empPhoto, url, imgsrc, head, color, 
+                            genderid, brand, meta, sku, isActive, price=None):
         '''
         Adds new product info to the Product table. 
         '''
-        queryAdaptersdf = pd.read_sql_query("SELECT * FROM %s.dbo.Adapter WHERE %s.dbo.Adapter.Description = '%s'" % (config.DB_NAME, config.DB_NAME, site), config.ENGINE)
-        # submit record to the Product table
-        brandID = self.addNewBrand(brand, isActive)
-        self.logger.info('Adding new product')                              
-        submitdf = pd.DataFrame([{'Adapter': queryAdaptersdf.loc[0, 'Oid'], 'Description': keywords, 'AlternativeDescription': None, 'Active':  True, 
-                                'Ordering': 0, 'ProductCode': sku, 'ProductTitle': head, 'Composition': None, 
-                                'ForeignComposition': None, 'SiteHeadline': head, 'ColorsDescription': color, 'Metadata': meta, 
-                                'SamplePrice': None, 'ProductionPrice': None, 'WholesalePrice': None, 'RetailPrice': price, 
-                                'Image': empPhoto, 'Photo': imageFilePath, 'Sketch': None, 'URL': url, 'ImageSource': imgsrc,
-                                'Brand': brandID, 'Fit': None, 'CollarDesign': None, 'SampleManufacturer': None, 
-                                'ProductionManufacturer': None, 'Length': None, 'NeckDesign': None, 'ProductCategory': None, 
-                                'ProductSubcategory': None, 'Sleeve': None, 'LifeStage': None, 'TrendTheme': None,
-                                'InspirationBackground': None, 'Gender': genderid, 'BusinessUnit': None, 
-                                'Season': None, 'Cluster': None, 'FinancialCluster': None, 'OptimisticLockField': None}])
-        submitdf.to_sql("Product", schema='%s.dbo' % config.DB_NAME, con=config.ENGINE, if_exists='append', index=False)
-        # submitdf.to_sql('Product', con=config.ENGINE, if_exists='append', index=False)
-                        
+        queryAdaptersdf = pd.read_sql_query("SELECT * FROM %s.dbo.Adapter WHERE \
+                %s.dbo.Adapter.Description = '%s'" % (config.DB_NAME, config.DB_NAME, site), config.ENGINE)
+        # Add a new Brand if it does not exist dn return the 'Oid' or just return existing 'Oid'
+        brandID = self.getBrand(brand)        
+        
+        ## Add product and return new records in DataFrame
+        # Check if product exists
+        # If DataFrame is empty add new product
+        self.logger.info('Adding new product')
+        uniq_params = {'table': 'Product', 'URL': url}
+        params = {'table': 'Product', 'Adapter': queryAdaptersdf.loc[0, 'Oid'], 'Description': keywords, 
+                'AlternativeDescription': None, 'Active':  True, 'Ordering': 0, 'ProductCode': sku, 
+                'ProductTitle': head, 'Composition': None, 'ForeignComposition': None, 'SiteHeadline': head, 
+                'ColorsDescription': color, 'Metadata': meta, 'SamplePrice': None, 'ProductionPrice': None, 
+                'WholesalePrice': None, 'RetailPrice': price, 'Image': empPhoto, 'Photo': imageFilePath, 
+                'Sketch': None, 'URL': url, 'ImageSource': imgsrc, 'Brand': brandID, 'Fit': None, 
+                'CollarDesign': None, 'SampleManufacturer': None, 'ProductionManufacturer': None, 
+                'Length': None, 'NeckDesign': None, 'ProductCategory': None, 'ProductSubcategory': None, 
+                'Sleeve': None, 'LifeStage': None, 'TrendTheme': None, 'InspirationBackground': None, 
+                'Gender': genderid, 'BusinessUnit': None, 'Season': None, 'Cluster': None, 'FinancialCluster': None, 
+                'OptimisticLockField': None}
+        product_df = self.db_manager.runCriteriaInsertQuery(
+                                                            uniq_params=uniq_params, 
+                                                            params=params, 
+                                                            get_identity=True
+                                                        )
+        return product_df
+  
 
     ## Add new product to the ProductHistory table 
     #
-    def addNewProductHistory(self, url, referenceOrder, trendOrder, price, searchTerm):
+    def addNewProductHistory(self, product_df, referenceOrder, trendOrder):
         '''
         Adds new product info to the ProductHistory table.
         '''
+        oid, price, searchTerm, adapter = product_df.loc[0, ['Oid', 'RetailPrice', 'Description', 'Adapter']]
+        ## If entry in ProductHistory for Product 'Oid' and CrawlSearch 'Oid' does not exist, create new entry
+        # Get latest 'Oid' from CrawlSearch table for the specific search term and user
+        lastCrawlSearchID = self.db_manager.getLastRecordID('CrawlSearch', "WHERE Description='%s' \
+                AND CreatedBy='%s' AND Adapter=%s" % (searchTerm, self.user, adapter))
+        
         self.logger.info('Adding new product history')
-        url = url.replace("'", "''")
-        querydf = pd.read_sql_query("SELECT * FROM %s.dbo.Product WHERE  CONVERT(VARCHAR(MAX), %s.dbo.PRODUCT.URL) = \
-            CONVERT(VARCHAR(MAX),'%s')" % (config.DB_NAME, config.DB_NAME, str(url)), config.ENGINE)
-        # querydf = pd.read_sql_query(
-        #    "SELECT * FROM public.\"Product\" WHERE public.\"Product\".\"URL\" = '{}'".format(url.replace("%", "%%")), config.ENGINE)
-        if not querydf.empty:
-            oid = querydf['Oid'].values[0]
-            lastCrawlSearchID = self.getLastRecordID('CrawlSearch', "WHERE Description='%s'" % searchTerm)
-            submitdf = pd.DataFrame([{
-                                    'Product': oid, 
-                                    'ReferenceOrder': referenceOrder, 
-                                    'TrendingOrder': trendOrder, 
-                                    'Price': price, 
-                                    'CrawlSearch': lastCrawlSearchID, 
-                                    'OptimisticLockField': None
-                                    }])
-            submitdf.to_sql("ProductHistory", schema='%s.dbo' % config.DB_NAME, con=config.ENGINE, if_exists='append', index=False)
-            # submitdf.to_sql("ProductHistory", con=config.ENGINE, if_exists='append', index=False)
-        else:
-            self.logger.warning('Product history for product at %s was not added...' % url)
-
+        uniq_params = {'table': 'ProductHistory', 'Product': oid, 'CrawlSearch': lastCrawlSearchID}
+        params = {'table': 'ProductHistory', 'Product': oid, 'ReferenceOrder': referenceOrder, 
+                  'TrendingOrder': trendOrder, 'Price': price, 'CrawlSearch': lastCrawlSearchID}
+        return self.db_manager.runCriteriaInsertQuery(uniq_params=uniq_params, params=params, get_identity=True)
 
     ## Update product history 
     #
-    def updateProductHistory(self, oid, referenceOrder, trendOrder, price, url, searchTerm):
+    def updateProductHistory(self, product_df, referenceOrder, trendOrder):
         '''
         Updates product's latest entry in ProductHistory table
         '''    
-        # Get info from most recent product record from ProductHistory table - CONVERT_TO_SQL
-        updatedf = pd.read_sql_query("SELECT * FROM %s.dbo.ProductHistory" % config.DB_NAME, config.ENGINE)
-        # updatedf = pd.read_sql_query("SELECT * FROM public.\"ProductHistory\"", config.ENGINE)
-        if updatedf.loc[(updatedf['SearchDate']== updatedf['SearchDate'].max()) & (updatedf['Product']== oid)].empty:
-            # Create new entry in ProductHistory table
-            self.logger.info('Product %s history not found, creating history...' % oid)
-            self.addNewProductHistory(url, referenceOrder, trendOrder, price, searchTerm)
-        else:
-            self.logger.info('Product already exists, updating history')
-            
-            lastCrawlSearchID = self.getLastRecordID('CrawlSearch', "WHERE Description='%s'" % searchTerm)
-            updatedf.loc[(updatedf['SearchDate']== updatedf['SearchDate'].max()) & (updatedf['Product']== oid), 
-                        ['ReferenceOrder', 'TrendingOrder', 'Price', 'CrawlSearch']] = [referenceOrder, trendOrder, price, lastCrawlSearchID]
-            updatedf.to_sql("ProductHistory", schema='%s.dbo' % config.DB_NAME, con=config.ENGINE, if_exists='replace', index=False)
+        productID, price, searchTerm, adapter = product_df.loc[0, ['Oid', 'RetailPrice', 'Description', 'Adapter']]
+        # Get latest 'Oid' from CrawlSearch table for the specific search term and adapter
+        params = {'table': 'CrawlSearch', 'SearchTerm': searchTerm, 'Adapter': adapter}         
+        crawlSearch_df = self.db_manager.runSelectQuery(params)
+        crawlSearch_df.sort_values('Oid', ascending=False, inplace=True)
+        # Get all productHistory for the specific product
+        params = {'table': 'ProductHistory', 'Product': productID}
+        productHist_df = self.db_manager.runSelectQuery(params)
+        # Select the relevant CrawlSerach 'Oid' as the latest (max) 'Oid' in the retrieved ProductHistory
+        lastCrawlSearchID = crawlSearch_df[crawlSearch_df['Oid'].isin(productHist_df['CrawlSearch'])]['Oid'].max()
 
+        uniq_params = {'table': 'ProductHistory', 'Product': productID, 'CrawlSearch': lastCrawlSearchID}
+        params = {'table': 'ProductHistory', 'UpdatedBy': self.user, 'Price': price, 'TrendingOrder': trendOrder,  
+                  'ReferenceOrder': referenceOrder, 'CrawlSearch': lastCrawlSearchID}
+        return self.db_manager.runCriteriaUpdateQuery(uniq_params=uniq_params, params=params, get_identity=True)
+        
 
 # --------------------------------------------------------------------------
 #          Natural Language Processing Functionality 
@@ -399,6 +375,43 @@ class Helper():
 # --------------------------------------------------------------------------                        
 #          Web crawler functionality, specific for each website
 # --------------------------------------------------------------------------
+    ## Generic functionaloty
+    # Add/update product indormation
+    def registerData(self, site, standardUrl, url, imgURL, searchTerm, referenceOrder, trendOrder, 
+                     cnt, crawlFunc):                     
+        # Check if product url exists to decide if addition of update is needed
+        params = {'table': 'Product', 'URL': url}
+        product_df = self.db_manager.runSelectQuery(params)
+
+        if not product_df.empty:
+            action = 'update' # action flag
+            ## Product exists, proceed to update ProductHistory table
+            # Update ProductHistory
+            _df = self.updateProductHistory(product_df, referenceOrder, trendOrder)
+            cnt += 1
+            
+        else:
+            action = 'addition' # action flag
+            # Download product image
+            imageFilePath = self.setImageFilePath(standardUrl, ''.join(searchTerm.split()), trendOrder)
+            empPhoto = self.getImage(imgURL, imageFilePath)
+            cnt += 1
+            # Find fields from product's webpage
+            soup = self.get_content(url)
+            head, brand, color, genderid, meta, sku, isActive, price = crawlFunc(soup, url)
+            # Create new entry in PRODUCT table
+            product_df = self.addNewProduct(site, searchTerm, imageFilePath, empPhoto, url, 
+                                                imgURL, head, color, genderid, brand, meta, sku, 
+                                                isActive, price)
+
+            # Create new entry in ProductHistory table
+            _df = self.addNewProductHistory(product_df, referenceOrder, trendOrder)
+        productID = _df.loc[0, 'Product']
+        if action == 'addition':           
+            self.logger.info('Information for product %s added' % productID)
+        else: 
+            self.logger.info('Information for product %s updated' % productID)
+        return cnt, productID
 
     ## Asos specific functionality 
     ## Fetch search results form Asos according to 'order' parameter 
@@ -530,23 +543,23 @@ class Helper():
             jsonUnparsed = soup.find('script', text=re.compile(r'window\.asos\.pdp\.config\.product.+'))
             jsonInfo = json.loads(re.findall(r'window\.asos\.pdp\.config\.product = ({.+});', str(jsonUnparsed))[0])
         except Exception as e: 
-            self.logger.info(e)
-            self.logger.info('Exception: Failed to capture json object with products\' info')
+            self.logger.warn_and_trace(e)
+            self.logger.warning('Exception: Failed to capture json object with products\' info')
         # Get attributes
         # Header
         try:
             head = jsonInfo['name']
         except Exception as e:
             head = None 
-            self.logger.info(e)
-            self.logger.info("Header not captured at %s" % url)
+            self.logger.warn_and_trace(e)
+            self.logger.warning("Header not captured at %s" % url)
         # Sku ID
         try:
             sku = jsonInfo['productCode']
         except Exception as e: 
             sku = None
-            self.logger.info(e)
-            self.logger.info("SKU ID not captured at %s" % url) 
+            self.logger.warn_and_trace(e)
+            self.logger.warning("SKU ID not captured at %s" % url) 
         # Gender
         try:
             gender = jsonInfo['gender']
@@ -554,22 +567,22 @@ class Helper():
 
         except Exception as e: 
             genderid = None
-            self.logger.info(e)
-            self.logger.info("GenderID not captured at %s" % url)    
+            self.logger.warn_and_trace(e)
+            self.logger.warning("GenderID not captured at %s" % url)    
         # Brand
         try:
             brand = jsonInfo['brandName']
         except Exception as e: 
             brand = None
-            self.logger.info(e)
-            self.logger.info("Brand info not captured at %s" % url)    
+            self.logger.warn_and_trace(e)
+            self.logger.warning("Brand info not captured at %s" % url)    
         # Color
         try:
             color = jsonInfo['variants'][0]['colour']
         except Exception as e: 
             color = None
-            self.logger.info(e)
-            self.logger.info("Color info not captured at %s" % url)   
+            self.logger.warn_and_trace(e)
+            self.logger.warning("Color info not captured at %s" % url)   
         # Description
         try:
             description = [li.text.strip() for li in soup.find(
@@ -578,18 +591,20 @@ class Helper():
                 'about-me')}).find('p').text.strip()]
             attr_list = description + about
             meta = ' - '.join(attr_list)
-        except:
+        except Exception as e: 
             meta = None
-            self.logger.info("Product Description not captured at %s" % url)
+            self.logger.warn_and_trace(e)
+            self.logger.warning("Product Description not captured at %s" % url)
         # Price
         try:
             productID = jsonInfo['id']
             priceApiURL = 'https://www.asos.com/api/product/catalogue/v3/stockprice?productIds=%s&store=ROE&currency=EUR' % productID
+            time.sleep(3)  # suspend execution for 5 secs
             priceSoup = self.get_content(priceApiURL)
             price = json.loads(str(priceSoup))[0]['productPrice']['current']['value']
         except:
             price = None
-            self.logger.info("Product price not captured at %s" % url)   
+            self.logger.warning("Product price not captured at %s" % url)   
     
 
         return head, brand, color, genderid, meta, sku, True, price

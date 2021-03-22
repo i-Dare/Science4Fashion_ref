@@ -15,8 +15,9 @@ if __name__ == "__main__":
     # Begin Counting Time
     start_time = time.time()
     # Logger setup
-    logger = S4F_Logger('ClusteringCLLogger').logger
-    helper = Helper(logger)
+    logging = S4F_Logger('ClusteringCLLogger') 
+    logger = logging.logger
+    helper = Helper(logging)
     
     # Database settings
     engine = config.ENGINE

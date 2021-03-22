@@ -10,6 +10,7 @@ import time
 from core.helper_functions import *
 import core.config as config
 from core.logger import S4F_Logger
+from core.query_manager import QueryManager
 
 class WebCrawlers:
    def __init__(self):
@@ -34,8 +35,8 @@ class WebCrawlers:
       adapterScripts = sorted(adapterScripts, key = lambda x: str(x).lower())
 
       # create Adapter dictionary
-      self.adapter_dict = {a:os.path.join(config.WEB_CRAWLERS, f) for a,f in \
-         zip(implementedAdapters, adapterScripts)}
+      self.adapter_dict = {a: os.path.join(config.WEB_CRAWLERS, f) for a,f in zip(implementedAdapters, 
+            adapterScripts)}
       
       # Initialize argument parser      
       self.parser = argparse.ArgumentParser(description = 'A wrapper script for executing the website\
@@ -57,28 +58,31 @@ class WebCrawlers:
       self.numberResults = self.args.numberResults
       self.user = self.args.user
 
-      self.loggerInit()
+      self.initCrawling()
       self.checkArgConstrains()
 
 
-   # Init logger
-   def loggerInit(self,):
+   # Init function
+   def initCrawling(self,):
        # Init logger
       if not self.user:
          self.user = config.DEFAULT_USER        
-         self.logger = S4F_Logger('WrapperLogger').logger
-         self.logger.warning('Logging for default user')
-      else:
-         self.logger = S4F_Logger('WrapperLogger', user=self.user).logger
+
+      self.logging = S4F_Logger('WrapperLogger', user=self.user)
+      self.logger = self.logging.logger
       # Init helper
-      self.helper = Helper(self.logger)
+      self.helper = Helper(self.logging)
+      # Init db_manager
+      self.db_manager = QueryManager(user=self.user)
 
    # Check argument constrains      
    def checkArgConstrains(self,):
       for adapter in self.adapter:
          if adapter not in self.adapter_dict.keys():
-            availableAdapters = [a for a in self.adapterDF['Description'].values if a.lower() in self.adapter_dict.keys()]
-            self.logger.warning('Adapter %s not implemented yet. Plese choose one of %s.' % (adapter, availableAdapters))
+            availableAdapters = [a for a in self.adapterDF['Description'].values if a.lower() in \
+                  self.adapter_dict.keys()]
+            self.logger.warning('Adapter %s not implemented yet. Plese choose one of %s.' \
+                  % (adapter, availableAdapters))
 
    # Update CrawlSearch table
    def updateCrawlSearchTable(self, description, adapter, numberResults):
@@ -88,10 +92,12 @@ class WebCrawlers:
       #                                                           
       # Update CrawlSearch table
       #  
-      query = "INSERT INTO %s.dbo.CrawlSearch (Description, Adapter, NumberOfProductsToReturn, SearchTerm)" % self.dbName \
-                     + " VALUES (%s, CAST(%s AS INTEGER), CAST(%s AS INTEGER), %s)"
-      args = description, int(adapter_row['Oid'].values[0]), numberResults, description
-      self.helper.runQuery(query, args)
+      params = {'table': 'CrawlSearch', 
+                'Description': description, 
+                'Adapter': int(adapter_row.iloc[0]['Oid']),
+                'NumberOfProductsToReturn': numberResults,
+                'SearchTerm':description}
+      self.db_manager.runInsertQuery(params)
 
 
 # ------------------------------------------------------------

@@ -14,8 +14,9 @@ if __name__ == "__main__":
     # Begin Counting Time
     start_time = time.time() 
     user = sys.argv[1]
-    logger = S4F_Logger('ClothingAnnotationLogger').logger
-    helper = Helper(logger)
+    logging = S4F_Logger('ClothingAnnotationLogger', user=user)
+    logger = logging.logger
+    helper = Helper(logging)
 
     # Set Device
     defaults.device = torch.device(config.DEVICE)

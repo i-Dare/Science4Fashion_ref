@@ -43,8 +43,9 @@ if __name__ == "__main__":
     # Begin Counting Time
     start_time = time.time() 
     user = sys.argv[1]
-    logger = S4F_Logger('TextAnnotationLogger').logger
-    helper = Helper(logger)
+    logging = S4F_Logger('TextAnnotationLogger', user=user)
+    logger = logging.logger
+    helper = Helper(logging)
 
     try:
         ### Read Table Products from S4F database ###

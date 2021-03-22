@@ -60,6 +60,8 @@ PINTEREST_PASSWORD = config['social_media']['pinterest_password']
 # Instagram fields
 INSTAGRAM_USERNAME = config['social_media']['pinterest_username']
 INSTAGRAM_PASSWORD = config['social_media']['pinterest_password']
+# Connection timeout
+CRAWLER_TIMEOUT = config['crawler_timeout']
 
 #
 ########### TextMining variables ###########

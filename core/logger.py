@@ -27,14 +27,18 @@ class S4F_Logger():
     def __init__(self, name, level=1, user=config.DEFAULT_USER):
         self.level = level
         self.name = name    
-        
+        self.user = user
         self.logger = self.initLogger(name, user)
 
-    def initLogger(self, name, user=config.DEFAULT_USER):
+    def initLogger(self, name, user=None):
         os.environ['PYTHONUNBUFFERED'] = "1"
         logging.setLoggerClass(MyLogger)
         # Setup formatter
-        formatter = MyFormatter(fmt='[%(asctime)s]  %(levelname)-2s:%(user)s:  %(message)-5s (%(name)s)', user=user)
+        if user:
+            self.user = user
+  
+        formatter = MyFormatter(fmt='[%(asctime)s]  %(levelname)-2s:%(user)s:  %(message)-5s \
+                (%(name)s)', user=self.user)
         
         # Get or create a logger
         logger = logging.getLogger(name)  
@@ -53,7 +57,10 @@ class S4F_Logger():
         logger.addHandler(stdHandler)
         logger.addHandler(sqlHandler)
 
-        logger.info('Start logging')
+        if self.user is config.DEFAULT_USER:
+            logger.warning('Start logging for user %s' % self.user) 
+        else:
+            logger.info('Start logging for user %s'  % self.user)
         return logger       
 
 
@@ -183,13 +190,7 @@ class SqlHandler(logging.Handler):
         self.terminator = ';'
         super().__init__(level=level)
 
-    # def runQuery(self, query, args=None):
-    #     with self.engine.begin() as conn:
-    #         if args:
-    #             conn.execute(query, args)
-    #         else:
-    #             conn.execute(query)
-    #
+
     # Extend the native "emit" function to write logs to S4F DB
     # 
     def emit(self, record):
@@ -204,14 +205,10 @@ class SqlHandler(logging.Handler):
             details = record.msg
             
             params = {'table': 'Log', 'LogType': logType, 'Note': note, 'Details': str(details)}
-            sql = QueryManager(user=user)
-            sql.runInsertQuery(params)
-
+            db_manager = QueryManager(user=user)
+            db_manager.runInsertQuery(params)
+            # flush
             self.flush()
-            # query = "INSERT INTO %s.dbo.Log (LogType, Note, Details)" % self.dbName \
-            #             + " VALUES (CAST(%s AS INTEGER), %s, STRING_ESCAPE(%s, 'json'))"
-            # args=  logType, note, str(details)
-            # self.runQuery(query, args)
 
         except Exception as ex:
             msg = ''.join(tb.format_exception(None, ex, ex.__traceback__))
