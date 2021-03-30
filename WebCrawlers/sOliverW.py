@@ -27,7 +27,7 @@ def performScraping(urlReceived, category):
     if not os.path.exists(folderIndividualName):
         os.makedirs(folderIndividualName)
 
-    soup = helper_functions.get_content(urlReceived)
+    url, soup = helper_functions.get_content(urlReceived)
     # Get all relevant results for searh term
     refDF = helper_functions.resultDataframeSOliver(urlReceived, 'reference')
     # Get trending products
@@ -45,7 +45,7 @@ def performScraping(urlReceived, category):
             referenceOrder = 0
 
         # Find fields from product's webpage
-        soup = helper_functions.get_content(url)
+        url, soup = helper_functions.get_content(url)
         price, head, brand, color, genderid, meta, sku, isActive = helper_functions.parseSOliverFields(soup, url, imgURL)
 
         url=url.replace("'", "''")
@@ -93,7 +93,7 @@ if __name__ == '__main__':
     standardUrl = 'https://www.soliver.eu/'    
     site = str((standardUrl.split('.')[1]).capitalize())
     # Capture categories and category URLs form header
-    soup = helper_functions.get_content(standardUrl)    
+    url, soup = helper_functions.get_content(standardUrl)    
     category, categoryURLs = [], []
     jsonInfo = json.loads(soup.findAll('span', {'data-pagecontext': re.compile('showAllProducts')})[0].get('data-pagecontext'))
     for element in jsonInfo['global']['navigationTree']:

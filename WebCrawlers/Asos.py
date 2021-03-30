@@ -17,19 +17,25 @@ import core.config as config
 from core.logger import S4F_Logger
 
 
-############ This function will be called every new keyword line is encountered and will start scraping the amazon web page of the search result according to the text mention in the searchTerm text file ############
+## This function handles the scraping functionality of the web crawler
 def performScraping(urlReceived, searchTerm, breakPointNumber):
+    # initialize scraping
+    start_time = time.time()
     # stats counters
     cnt = 0
     ## Check no results page
     # Get search results page
-    soup = helper.get_content(urlReceived)
+    try:
+        url, soup = helper.get_content(urlReceived, retry=5)
+    except Exception as e:                
+        logger.warn_and_trace(e)
+        logger.warning('Failed to parse %s' % urlReceived)
     
     # If timeout or no result is returned
     try:
         noResultsMessage = soup.find('link', {'href': re.compile(r'no-results-page')})
         if noResultsMessage:
-            logger.info('Unfortunately, your search for produced no results.')
+            logger.info('Your search produced no results.')
             return 0
     except:
         return None
@@ -38,7 +44,7 @@ def performScraping(urlReceived, searchTerm, breakPointNumber):
     #    parse single product
     # else 
     #   parse according to reference and trending order
-    if 'Search' not in soup.title :
+    if 'Search' not in str(soup.title) :
         logger.warning('Redirected to product page')
         jsonUnparsed = soup.find('script', {'id': re.compile(r'split-structured-data')})
         product = json.loads(re.findall(r'({\".+})', str(jsonUnparsed))[0].replace('\\', ''))
@@ -47,10 +53,16 @@ def performScraping(urlReceived, searchTerm, breakPointNumber):
         imgURL = product['image']
         #  Download product image
         trendOrder = referenceOrder = 0
+
         # Register product information
-        cnt, productID = helper.registerData(site, standardUrl, url, imgURL, searchTerm, 
-                                                    referenceOrder, trendOrder, cnt, 
-                                                    helper.parseAsosFields)
+        head, brand, color, genderid, meta, sku, price = helper.parseAsosFields(soup, url)
+        uniq_params = {'table': 'Product', 'URL': url}
+        params = {'table': 'Product', 'Description': searchTerm, 'Active':  True, 'Gender': genderid,
+                'ColorsDescription': color, 'Ordering': 0, 'ProductCode': sku, 'ProductTitle': head, 
+                'SiteHeadline': head, 'Metadata': meta, 'RetailPrice': price, 'URL': url, 
+                'ImageSource': imgURL, 'Brand': brand}
+        cnt, productID = helper.registerData(site, standardUrl, referenceOrder, trendOrder, cnt, 
+                uniq_params, params)
     else:
         # Get trending products
         trendDF = helper.resultDataframeAsos(urlReceived, 'trend', breakPointNumber=breakPointNumber)
@@ -69,12 +81,20 @@ def performScraping(urlReceived, searchTerm, breakPointNumber):
                 referenceOrder = 0
             # url = url.replace("'", "''")
             # Register product information
-            cnt, productID = helper.registerData(site, standardUrl, url, imgURL, searchTerm, 
-                                                    referenceOrder, trendOrder, cnt, helper.parseAsosFields)
+            urlReceived, soup = helper.get_content(url, retry=3)
+            head, brand, color, genderid, meta, sku, price = helper.parseAsosFields(soup, url)
+            uniq_params = {'table': 'Product', 'URL': url}
+            params = {'table': 'Product', 'Description': searchTerm, 'Active':  True, 'Gender': genderid,
+                    'ColorsDescription': color, 'Ordering': 0, 'ProductCode': sku, 'ProductTitle': head, 
+                    'SiteHeadline': head, 'Metadata': meta, 'RetailPrice': price, 'URL': url, 
+                    'ImageSource': imgURL, 'Brand': brand}
+            cnt, productID = helper.registerData(site, standardUrl, referenceOrder, 
+                    trendOrder, cnt, uniq_params, params)
 
-    logger.info('Images requested: %s,   Images Downloaded: %s (%s%%)' % (
-        breakPointNumber, cnt, round(cnt/breakPointNumber,2 ) * 100))
+    logger.info('Images requested: %s, Images needed: %s, Images Downloaded: %s (%s%%)' % \
+            (breakPointNumber, len(trendDF), cnt, round(cnt/len(trendDF),2 ) * 100))
     # The time needed to scrape this query
+    logger.info("Time to scrape this query is %s seconds ---" % round(time.time() - start_time, 2))
 
 
 ############ Main function ############

@@ -27,7 +27,7 @@ def performScraping(urlReceived, category):
     if not os.path.exists(folderIndividualName):
         os.makedirs(folderIndividualName)
 
-    soup = helper_functions.get_content(urlReceived)
+    url, soup = helper_functions.get_content(urlReceived)
     # Get all relevant results for searh term
     refDF = helper_functions.resultDataframeAsos(urlReceived, 'reference')
     # Get trending products
@@ -69,7 +69,7 @@ def performScraping(urlReceived, category):
             print('Image number %s: %s' % (trendOrder, imageFilePath.split(os.sep)[-1]))
 
             ## Find fields from product's webpage
-            soup = helper_functions.get_content(url)
+            url, soup = helper_functions.get_content(url)
             head, brand, color, genderid, meta, sku, isActive = helper_functions.parseAsosFields(soup, url)
             # Create new entry in PRODUCT table
             helper_functions.addNewProduct(
@@ -95,7 +95,7 @@ if __name__ == '__main__':
     # Webpage URL
     standardUrl = 'https://www.asos.com/'
     site = str((standardUrl.split('.')[1]).capitalize())
-    soup = helper_functions.get_content(standardUrl)
+    url, soup = helper_functions.get_content(standardUrl)
     categoryDF = pd.DataFrame(columns=['Category', 'CategoryUrl'])
     
     # Capture genders form header
@@ -108,7 +108,7 @@ if __name__ == '__main__':
     category, categoryURLs, gensearch = [], [], []
     for gender in genders:
         genderURL = 'https://www.asos.com/' + gender
-        soup = helper_functions.get_content(genderURL)
+        url, soup = helper_functions.get_content(genderURL)
         buttons = soup.findAll('button')
         for b in buttons:
             for span in b.findAll('span', text=re.compile('cloth.+', re.IGNORECASE)):

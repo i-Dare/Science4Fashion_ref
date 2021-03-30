@@ -4,6 +4,7 @@ import os
 import time
 import pandas as pd
 import regex as re
+import json
 
 from bs4 import BeautifulSoup, ResultSet
 from datetime import datetime
@@ -13,19 +14,18 @@ from core.logger import S4F_Logger
 import core.config as config
 
 
-########### This function will be called every new keyword line is encountered and will start scraping the amazon web page of the search result according to the text mention in the searchTerm text file ###########
+## This function handles the scraping functionality of the web crawler
 def performScraping(urlReceived, searchTerm, breakPointNumber):
     # initialize scraping
     start_time = time.time()
     # stats counters
-    numUrlExist = 0
-    numImagesDown = 0
+    cnt = 0
     ## Check no results page
     # Get search results page
-    soup = helper.get_content(urlReceived)
+    url, soup = helper.get_content(urlReceived)
     noResultsMessage = soup.find('span', {'class': re.compile(r'cat_subHeadline-11sbl')})
     if noResultsMessage:
-        logger.info('Unfortunately, your search for produced no results.')
+        logger.info('Your search produced no results.')
         return 0
     ## Get reference and trend order. Handle the case where the user enters the exact product 
     # name as search terms, and the webpage skips search results page and redirects to the product page
@@ -35,50 +35,30 @@ def performScraping(urlReceived, searchTerm, breakPointNumber):
     # Get trending products
     trendDF = helper.resultDataframeZalando(urlReceived, 'trend', breakPointNumber=breakPointNumber)
     # Get all relevant results for searh term
-    refDF = helper.resultDataframeZalando(urlReceived, 'reference', filterDF=trendDF)    
-    
+    refDF = helper.resultDataframeZalando(urlReceived, 'reference', filterDF=trendDF)
+    # Iterate captured products
     for _, row in trendDF.iterrows():
         trendOrder = row['trendOrder']
-        url = row['URL']
-        imgURL = row['imgURL']
+        productPage, imgURL, brand, head, sku, price = row['URL'], row['imgURL'], row['Brand'], \
+                row['Head'], row['SKU'], row['Price']
         # Retrieve reference order
-        if not refDF.loc[refDF['URL']==url, 'referenceOrder'].empty:
-            referenceOrder = refDF.loc[refDF['URL']==url, 'referenceOrder'].values[0]
+        if not refDF.loc[refDF['URL']==productPage, 'referenceOrder'].empty:
+            referenceOrder = refDF.loc[refDF['URL']==productPage, 'referenceOrder'].values[0]
         else:
             referenceOrder = 0
-        # Find fields from product's webpage
-        soup = helper.get_content(url)
-        price, head, brand, color, genderid, meta, sku, isActive = helper.parseZalandoFields(soup, url, imgURL)
-
-        # Check if url already exists in the PRODUCT table
-        # If TRUE update the latest record in ProductHistory table
-        # Otherwise download product image and create new product entry in PRODUCT and ProductHistory tables
-        url = url.replace("'", "''")
-        querydf = pd.read_sql_query("SELECT * FROM %s.dbo.Product WHERE  CONVERT(VARCHAR(MAX), %s.dbo.PRODUCT.URL) = \
-            CONVERT(VARCHAR(MAX),'%s')" % (dbName, dbName, str(url)), engine)
-        # querydf = pd.read_sql_query("SELECT * FROM public.\"Product\" WHERE public.\"Product\".\"URL\" = '%s'" %  url, engine)
-
-        if not querydf.empty:
-            # Update ProductHistory
-            prdno = querydf['Oid'].values[0]
-            helper.updateProductHistory(prdno, referenceOrder, trendOrder, price, url, searchTerm)
-            numUrlExist += 1
-            logger.info('Info for product %s updated' % prdno)
-        else:
-            # Download product image
-            imageFilePath = helper.setImageFilePath(standardUrl, ''.join(searchTerm.split()), trendOrder)
-            empPhoto = helper.getImage(imgURL, imageFilePath)
-            numImagesDown += 1
-            logger.info('Image number %s: %s' % (trendOrder, imageFilePath.split(os.sep)[-1]))
-
-            # Create new entry in PRODUCT table
-            helper.addNewProduct(site, folderName, imageFilePath, empPhoto, url, imgURL, head, color, genderid, brand, meta, sku, isActive, price)
-
-            # Create new entry in ProductHistory table
-            helper.addNewProductHistory(url, referenceOrder, trendOrder, price, searchTerm)
-
-    logger.info('Images requested: %s,   Images Downloaded: %s (%s%%),   Images Existed: %s' % (
-        breakPointNumber, numImagesDown, round(numImagesDown/breakPointNumber,2 ) * 100, numUrlExist))
+        
+        paramsFromProductPage = helper.parseZalandoFields(productPage)
+        paramsFromSearchPage = {'table': 'Product', 'Description': searchTerm, 'Active':  True, 
+                'Ordering': 0, 'ProductCode': sku, 'ProductTitle': head, 'SiteHeadline': head, 
+                'RetailPrice': price, 'URL': productPage, 'ImageSource': imgURL, 'Brand': brand}
+        uniq_params = {'table': 'Product', 'URL': productPage}
+        params = dict(paramsFromProductPage, **paramsFromSearchPage)
+        # Register product information
+        cnt, productID = helper.registerData(site, standardUrl, referenceOrder, trendOrder, cnt,
+                uniq_params, params)
+    
+    logger.info('Images requested: %s, Images needed: %s, Images Downloaded: %s (%s%%)' % \
+            (breakPointNumber, len(trendDF), cnt, round(cnt/len(trendDF),2 ) * 100))
     # The time needed to scrape this query
     logger.info("Time to scrape this query is %s seconds ---" % round(time.time() - start_time, 2))
 
@@ -97,10 +77,10 @@ if __name__ == '__main__':
     engine = config.ENGINE
     dbName = config.DB_NAME
     # Webpage URL
-    standardUrl = 'https://www.zalando.co.uk/catalog/?q='
+    standardUrl = 'https://www.zalando.co.uk/api/catalog/articles?&query='
     site = str((standardUrl.split('.')[1]).capitalize())
 
-    query = standardUrl + '+'.join(searchTerm.split())
+    query = standardUrl + '%20'.join(searchTerm.split())
     logger.info('Parsing: ' + str(query))
 
     folderName = helper.getFolderName(searchTerm)

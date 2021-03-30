@@ -5,7 +5,7 @@
   "db_server": "10.56.48.35",
   "db_username": "sa",
   "db_pass": "SYSADM",
-  "crawler_timeout": 30,
+  "crawler_timeout": 15,
   "social_media":{"pinterest_username": "idare.issel@gmail.com",
                   "pinterest_password": "science4f",
                   "instagram_username": "fashion_idare",

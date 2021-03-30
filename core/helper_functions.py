@@ -53,38 +53,41 @@ class Helper():
 
     ## This function will create a soup and returns which is the parsed html format for extracting 
     # html tags of the webpage 
-    def get_content(self, url, suffix=''):
-        user_agent_list = [
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_5) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.1.1 Safari/605.1.15',
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:77.0) Gecko/20100101 Firefox/77.0',
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.97 Safari/537.36',
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:77.0) Gecko/20100101 Firefox/77.0',
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.97 Safari/537.36',
-        ]
-        # Setup header request with random User-Agent
-        user_agent = random.choice(user_agent_list)
-        headers = {
-            'Referer': url,
-            'User-Agent': user_agent
-        }
-        self.logger.info('Get content from: %s' % url+suffix)
-        try:
-            req = requests.get(url+suffix, headers=headers, timeout=config.CRAWLER_TIMEOUT ,verify=False)
-            soup = BeautifulSoup(req.content, 'html.parser')
-        except requests.exceptions.Timeout:
-            self.logger.warning("Timeout occurred when getting %s" % url+suffix)
-            return None
-        new_req = ''
-        if req.history:
-            self.logger.info('Request redirected to %s ' % (req.url+suffix))
+    def get_content(self, url, suffix='', retry=2):
+        for i in range(1, retry):
+            user_agent_list = [
+                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_5) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.1.1 Safari/605.1.15',
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:77.0) Gecko/20100101 Firefox/77.0',
+                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.97 Safari/537.36',
+                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:77.0) Gecko/20100101 Firefox/77.0',
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.97 Safari/537.36',
+            ]
+            # Setup header request with random User-Agent
+            user_agent = random.choice(user_agent_list)
+            headers = {
+                'Referer': url,
+                'User-Agent': user_agent
+            }
+            self.logger.info('Get content from: %s, try: %s ' % (url+suffix, i))
             try:
-                new_req = requests.get(req.url+suffix, headers=headers, timeout =10 ,verify=False)
-                soup = BeautifulSoup(new_req.content, 'html.parser')
+                req = requests.get(url+suffix, headers=headers, timeout=config.CRAWLER_TIMEOUT ,verify=False)
+                soup = BeautifulSoup(req.content, 'html.parser')
+                if req.reason == 'OK':
+                    url = req.url
+                    return url, soup
+                
+                new_req = ''            
+                if req.history:
+                    self.logger.info('Request redirected to %s try: %s ' % (url+suffix, i))
+                    new_req = requests.get(req.url+suffix, headers=headers, timeout=config.CRAWLER_TIMEOUT, 
+                            verify=False)
+                    soup = BeautifulSoup(new_req.content, 'html.parser')                    
+                    if new_req.reason == 'OK':
+                        url = new_req.url
+                        return url, soup
             except requests.exceptions.Timeout:
-                self.logger.warning("Timeout occurred when getting %s" % url+suffix)     
-                return None  
-
-        return soup
+                self.logger.warning("Timeout occurred when getting %s try: %s " % (url+suffix, i))
+        return None, None
         
 
     ## This function returns the folder name removing the number of images range from they line of 
@@ -202,7 +205,7 @@ class Helper():
         gender_dict = {
             'man': ['man', 'men', 'male'],
             'woman': ['woman', 'women', 'female'],
-            'kids': ['kid', 'kids', 'child', 'children'],
+            'kids': ['kid', 'kids', 'child', 'children', 'junior'],
             'unisex': ['unisex']}
 
         genderdf = pd.read_sql_query("SELECT * FROM %s.dbo.Gender" % config.DB_NAME, config.ENGINE)
@@ -215,7 +218,7 @@ class Helper():
         return gender_id   
 
 
-    ## Add new product to the Product table 
+    ## Add new Brand to the Brand table 
     #
     def getBrand(self, brand):
         '''
@@ -231,36 +234,72 @@ class Helper():
                                                             get_identity=True
                                                         )
         return brand_df.loc[0, 'Oid']
+
+    ## Add new ProductCategory to the ProductCategory table 
+    #
+    def getProductCat(self, prodCat):
+        '''
+        Adds new ProductCategory info to the ProductCategory table if it does not exist,  
+        and returns the added record's  `Oid`. Otherwise returns the existing record 'Oid'. 
+        '''
+        uniq_params = {'table': 'ProductCategory', 'Description': prodCat}
+        params = {'table': 'ProductCategory', 'Description': prodCat}
+        
+        prodCat_df =  self.db_manager.runCriteriaInsertQuery(
+                                                            uniq_params=uniq_params, 
+                                                            params=params, 
+                                                            get_identity=True
+                                                        )
+        return prodCat_df.loc[0, 'Oid'] 
+    
+    def getProductSubCat(self,  prodSubCat, prodCat):
+        '''
+        Adds new ProductSubcategory info to the ProductSubcategory table if it does not exist,  
+        and returns the added record's `Oid`. Otherwise returns the existing record 'Oid'. 
+        Receives the product category and subCategory as arguments. If the product category is a 
+        string, it is used to find the respective category from ProductCategory table, if it is an
+        integer, it is considered as productCategory Oid.
+
+        '''        
+        if type(prodCat) == str:
+            prodCatID = self.getProductCat(prodCat)
+        elif type(prodCat) == int:
+            prodCatID = prodCat
+        else:
+            return None
+
+        uniq_params = {'table': 'ProductSubcategory', 
+                        'Description': prodSubCat, 
+                        'ProductCategory': prodCatID}
+
+        params = {'table': 'ProductSubcategory', 
+                  'Description': prodSubCat, 
+                  'ProductCategory': prodCatID}
+        
+        prodSubCat_df =  self.db_manager.runCriteriaInsertQuery(
+                                                            uniq_params=uniq_params, 
+                                                            params=params, 
+                                                            get_identity=True
+                                                        )
+        return prodSubCat_df.loc[0, 'Oid']
         
 
     ## Add new product to the Product table 
     #
-    def addNewProduct(self, site, keywords, imageFilePath, empPhoto, url, imgsrc, head, color, 
-                            genderid, brand, meta, sku, isActive, price=None):
+    def addNewProduct(self, site, uniq_params, params):
         '''
         Adds new product info to the Product table. 
         '''
-        queryAdaptersdf = pd.read_sql_query("SELECT * FROM %s.dbo.Adapter WHERE \
-                %s.dbo.Adapter.Description = '%s'" % (config.DB_NAME, config.DB_NAME, site), config.ENGINE)
+        params['Adapter'] = pd.read_sql_query("SELECT * FROM %s.dbo.Adapter WHERE \
+                %s.dbo.Adapter.Description = '%s'" % (config.DB_NAME, config.DB_NAME, site), 
+                config.ENGINE).loc[0, 'Oid']
         # Add a new Brand if it does not exist dn return the 'Oid' or just return existing 'Oid'
-        brandID = self.getBrand(brand)        
+        params['Brand'] = self.getBrand(params['Brand'])        
         
         ## Add product and return new records in DataFrame
         # Check if product exists
         # If DataFrame is empty add new product
         self.logger.info('Adding new product')
-        uniq_params = {'table': 'Product', 'URL': url}
-        params = {'table': 'Product', 'Adapter': queryAdaptersdf.loc[0, 'Oid'], 'Description': keywords, 
-                'AlternativeDescription': None, 'Active':  True, 'Ordering': 0, 'ProductCode': sku, 
-                'ProductTitle': head, 'Composition': None, 'ForeignComposition': None, 'SiteHeadline': head, 
-                'ColorsDescription': color, 'Metadata': meta, 'SamplePrice': None, 'ProductionPrice': None, 
-                'WholesalePrice': None, 'RetailPrice': price, 'Image': empPhoto, 'Photo': imageFilePath, 
-                'Sketch': None, 'URL': url, 'ImageSource': imgsrc, 'Brand': brandID, 'Fit': None, 
-                'CollarDesign': None, 'SampleManufacturer': None, 'ProductionManufacturer': None, 
-                'Length': None, 'NeckDesign': None, 'ProductCategory': None, 'ProductSubcategory': None, 
-                'Sleeve': None, 'LifeStage': None, 'TrendTheme': None, 'InspirationBackground': None, 
-                'Gender': genderid, 'BusinessUnit': None, 'Season': None, 'Cluster': None, 'FinancialCluster': None, 
-                'OptimisticLockField': None}
         product_df = self.db_manager.runCriteriaInsertQuery(
                                                             uniq_params=uniq_params, 
                                                             params=params, 
@@ -377,36 +416,41 @@ class Helper():
 # --------------------------------------------------------------------------
     ## Generic functionaloty
     # Add/update product indormation
-    def registerData(self, site, standardUrl, url, imgURL, searchTerm, referenceOrder, trendOrder, 
-                     cnt, crawlFunc):                     
+    def registerData(self, site, standardUrl, referenceOrder, trendOrder, cnt, uniq_params, params):                     
         # Check if product url exists to decide if addition of update is needed
-        params = {'table': 'Product', 'URL': url}
-        product_df = self.db_manager.runSelectQuery(params)
+        url = params['URL']
+        _params = {'table': 'Product', 'URL': url}
+        product_df = self.db_manager.runSelectQuery(_params)
 
         if not product_df.empty:
             action = 'update' # action flag
             ## Product exists, proceed to update ProductHistory table
             # Update ProductHistory
-            _df = self.updateProductHistory(product_df, referenceOrder, trendOrder)
-            cnt += 1
+            try:
+                productHist_df = self.updateProductHistory(product_df, referenceOrder, trendOrder)
+                cnt += 1
+            except Exception as e:
+                self.logger.warn_and_trace(e)
             
         else:
             action = 'addition' # action flag
             # Download product image
-            imageFilePath = self.setImageFilePath(standardUrl, ''.join(searchTerm.split()), trendOrder)
-            empPhoto = self.getImage(imgURL, imageFilePath)
-            cnt += 1
-            # Find fields from product's webpage
-            soup = self.get_content(url)
-            head, brand, color, genderid, meta, sku, isActive, price = crawlFunc(soup, url)
-            # Create new entry in PRODUCT table
-            product_df = self.addNewProduct(site, searchTerm, imageFilePath, empPhoto, url, 
-                                                imgURL, head, color, genderid, brand, meta, sku, 
-                                                isActive, price)
-
-            # Create new entry in ProductHistory table
-            _df = self.addNewProductHistory(product_df, referenceOrder, trendOrder)
-        productID = _df.loc[0, 'Product']
+            params['Photo'] = self.setImageFilePath(standardUrl, 
+                    ''.join(params['Description'].split()), trendOrder)
+            params['Image'] = self.getImage(params['ImageSource'], params['Photo'])
+            try:
+                # Create new entry in PRODUCT table
+                product_df = self.addNewProduct(site, uniq_params=uniq_params, params=params)
+                cnt += 1
+                # Create new entry in ProductHistory table
+                productHist_df = self.addNewProductHistory(product_df, referenceOrder, trendOrder)
+            except Exception as e:
+                self.logger.warn_and_trace(e)       
+                self.logger.warning('Information for product at %s not added' % \
+                        re.findall(r'\'(http.+)\',', params['URL'])[0])
+                return cnt, None
+            
+        productID = productHist_df.loc[0, 'Product']
         if action == 'addition':           
             self.logger.info('Information for product %s added' % productID)
         else: 
@@ -429,7 +473,6 @@ class Helper():
             resultsDF: pandas DataFrame with columns the ordering sequence, the product webpage URL, the product's image URL 
         '''
         # initialize scraping
-        start_time = time.time()
         orderDict = {'reference': 'referenceOrder', 'trend': 'trendOrder'}
         try:
             ordering = orderDict[order]  # results' ordering
@@ -437,7 +480,6 @@ class Helper():
             self.logger.info(
                 'Result parser error: \"order\" argument is either \"reference\" or \"trend\"')
             return None
-        parsedItems = 0
         pageNo = 1
         # results' ordering
         rule = '' if ordering == orderDict['reference'] else '&sort=freshness'
@@ -445,25 +487,76 @@ class Helper():
         resultsURL = keyUrl + rule + paging
 
         # Fetch initial search result page
-        soup = self.get_content(resultsURL)
+        url, soup = self.get_content(resultsURL, retry=5)
         maxItems = int(soup.find('progress').get('max'))
-
+        breakPointNumber = breakPointNumber if breakPointNumber <= maxItems else maxItems
         # Prepare ajax request URL
         # Capture hidden parameters of ajax request for the image loading
         try:
             jsonUnparsed = [script for script in soup.findAll('script') if 'ANALYTICS_REMOVE_PENDING_EVENT' in str(script)]
             jsonInfo = json.loads(re.findall(r'JSON\.parse.+({\"(?=analytics).+products\".+\]}}})', str(jsonUnparsed))[0].replace('\\', ''))
-            products = jsonInfo['search']['products']
-            breakPointNumber = len(products)
+            articles = jsonInfo['search']['products']
+            products = articles
         except Exception as e:        
             self.logger.warn_and_trace(e)
 
         self.logger.info('Prepare to fetch results according to %s order' % order)
         # DataFrame to hold results
         resultsDF = pd.DataFrame(columns=[ordering, 'URL', 'imgURL', 'price'])
-        while True:
-
+        if order=='reference':
+            breakPointNumber = len(filterDF)
+            # Search for URLs if they exist in the filterDF
+            while len(products) < maxItems:
+                urlList = ['https://www.asos.com/uk/' + a['url'] for a in articles]
+                if not filterDF[filterDF['URL'].isin(urlList)].empty:
+                    resultsDF = resultsDF.append(filterDF[filterDF['URL'].isin(urlList)], 
+                            ignore_index=True)
+                if len(resultsDF) >= len(filterDF): # Exit condition for reference order
+                    resultsDF = resultsDF[:len(filterDF)]
+                    break
+                pageNo += 1
+                _paging = '&page=%s' % pageNo
+                _resultsURL = keyUrl + rule + _paging
+                url, _soup = self.get_content(_resultsURL, retry=5)
+                try:
+                    # Prepare ajax request URL
+                    # Capture hidden parameters of ajax request for the image loading
+                    _jsonUnparsed = [script for script in _soup.findAll('script') if 'ANALYTICS_REMOVE_PENDING_EVENT' in str(script)]
+                    _jsonInfo = json.loads(re.findall(r'JSON\.parse.+({\"(?=analytics).+products\".+\]}}})', 
+                            str(_jsonUnparsed))[0].replace('\\', ''))
+                    articles = _jsonInfo['search']['products']
+                    products += articles
+                    if len(articles)==0:
+                        break
+                except Exception as e:                
+                    self.logger.warn_and_trace(e)
+                    self.logger.warning('Failed to parse %s' % resultsURL)
+        else:
+            maxItems = breakPointNumber
+            while len(products) < maxItems:
+                pageNo += 1
+                _paging = '&page=%s' % pageNo
+                _resultsURL = keyUrl + rule + _paging
+                url, _soup = self.get_content(_resultsURL, retry=5)
+                try:
+                    # Prepare ajax request URL
+                    # Capture hidden parameters of ajax request for the image loading
+                    _jsonUnparsed = [script for script in _soup.findAll('script') if 'ANALYTICS_REMOVE_PENDING_EVENT' in str(script)]
+                    _jsonInfo = json.loads(re.findall(r'JSON\.parse.+({\"(?=analytics).+products\".+\]}}})', 
+                            str(_jsonUnparsed))[0].replace('\\', ''))
+                    articles = _jsonInfo['search']['products']
+                    if len(articles)==0:
+                        break
+                except Exception as e:                
+                    self.logger.warn_and_trace(e)
+                    self.logger.warning('Failed to parse %s' % resultsURL)
+                products += articles
+            products = products[:maxItems]  
+            # Iterate result pages
             for product in products:
+                # Capture actual products information from json fields
+                series = pd.Series([])
+
                 productPage = product['url']
                 productPage = 'https://www.asos.com/uk/' + productPage
                 productImg = 'https://' + product['image']
@@ -481,48 +574,9 @@ class Helper():
                 series = pd.Series({'URL': productPage.replace("'", "''").replace("%", "%%"),
                                     'imgURL': productImg,
                                     'price': price},
-                                index=resultsDF.columns)            
-                
-                # Return if number of wanted results is reached
-                if not filterDF.empty :
-                    if series['URL'] in filterDF['URL'].values:
-                        resultsDF = resultsDF.append(series, ignore_index=True)
-                        parsedItems += 1
-                        if len(resultsDF) >= len(filterDF):
-                            resultsDF[ordering] = range(1, len(resultsDF)+1)
-                            return resultsDF
-                else:
-                    resultsDF = resultsDF.append(series, ignore_index=True)
-                    parsedItems += 1
-                    if len(resultsDF) > breakPointNumber-1:
-                        resultsDF[ordering] = range(1, len(resultsDF)+1)
-                        return resultsDF
-
-            # Prepare next result page URL
-            pageNo += 1
-            paging = '&page=%s' % pageNo
-            resultsURL = keyUrl + rule + paging
-            # Fetch next search result page
-            soup = self.get_content(resultsURL)
-
-            # Prepare ajax request URL
-            # Capture hidden parameters of ajax request for the image loading
-            jsonUnparsed = [script.text for script in soup.findAll(
-                'script') if 'ANALYTICS_REMOVE_PENDING_EVENT' in script.text][0]
-            jsonInfo = json.loads(re.findall(
-                r'JSON\.parse\(\'({\"(?=analytics).+products\":.+\]}})', jsonUnparsed)[0].replace('\\', ''))
-            products = jsonInfo['search']['products']
-
-            if parsedItems >= maxItems or len(resultsDF) > breakPointNumber-1:
-                break
-        try:
-            resultsDF[ordering] = range(1, maxItems+1)
-        except:
-            self.logger.info('Failed to fetch eveything. %s/%s (%s%%) fetched' %
-                (len(resultsDF), maxItems, round(len(resultsDF)*100/maxItems, 2)))
-            resultsDF[ordering] = range(1, len(resultsDF)+1)
-        
-        self.logger.info("Time to retrieve %s results: %s seconds ---" % (order, round(time.time() - start_time, 2)))
+                                index=resultsDF.columns)
+                resultsDF = resultsDF.append(series, ignore_index=True)
+        resultsDF[ordering] = range(1, len(resultsDF)+1)
         return resultsDF
 
 
@@ -530,7 +584,7 @@ class Helper():
     #
     def parseAsosFields(self, soup, url):
         '''
-        Gets product information from Zalando
+        Gets product information from Asos
         - Input:
             soup: BeautifulSoup navigator
             url: URL currently parsing
@@ -600,14 +654,14 @@ class Helper():
             productID = jsonInfo['id']
             priceApiURL = 'https://www.asos.com/api/product/catalogue/v3/stockprice?productIds=%s&store=ROE&currency=EUR' % productID
             time.sleep(3)  # suspend execution for 5 secs
-            priceSoup = self.get_content(priceApiURL)
+            url, priceSoup = self.get_content(priceApiURL, retry=3)
             price = json.loads(str(priceSoup))[0]['productPrice']['current']['value']
         except:
             price = None
             self.logger.warning("Product price not captured at %s" % url)   
     
 
-        return head, brand, color, genderid, meta, sku, True, price
+        return head, brand, color, genderid, meta, sku, price
 
 
     ## sOliver specific functionality 
@@ -626,7 +680,6 @@ class Helper():
         - Returns:
             resultsDF: pandas DataFrame with columns the ordering sequence, the product webpage URL, the product's image URL 
         '''
-        start_time = time.time()
         orderDict = {'reference': 'referenceOrder', 'trend': 'trendOrder'}
         try:
             ordering = orderDict[order]  # results' ordering
@@ -636,7 +689,7 @@ class Helper():
             return None
 
         # Fetch initial search result page
-        soup = self.get_content(keyUrl)
+        url, soup = self.get_content(keyUrl)
 
         # Initialize parameters
         start = 0  # starting point of lazy-loading
@@ -654,8 +707,7 @@ class Helper():
 
         # Setup custom ajax request
         maxItems = reqParams['hitCount']  # max number of results
-        resultRange = 'start=%s&sz=%s' % (
-            start, step)  # lazy-loading URL parameter
+        resultRange = 'start=%s&sz=%s' % (start, step)  # lazy-loading URL parameter
         # results' ordering
         rule = 'srule=default&' if ordering == orderDict['reference'] else 'srule=newest-products&'
         suffix = '&lazyloadFollowing=true&view=ajax'  # ajx request suffix
@@ -666,53 +718,66 @@ class Helper():
         urlAjax += rule + resultRange + suffix
 
         self.logger.info('Prepare to fetch results according to %s order' % order)
+
+        # lazy-loading iteration until reaching the maxItems - 12 products in each iteration
+        url, soupAjax = self.get_content(urlAjax)
+        articles = soupAjax.findAll('div', {'class': re.compile("productlist__product js-ovgrid-item")})
+        products = articles
+
         # DataFrame to hold results
         resultsDF = pd.DataFrame(columns=[ordering, 'URL', 'imgURL'])
-        # lazy-loading iteration until reaching the maxItems - 12 products in each iteration
-        while True:
-            # Fetch results from lazy-loading
-            soupAjax = self.get_content(urlAjax)
-            products = soupAjax.findAll(
-                'div', {'class': re.compile("productlist__product js-ovgrid-item")})
-
+        if order=='reference':
+            breakPointNumber = len(filterDF)
+            while len(products) < maxItems:
+                urlList = ['https://www.soliver.eu' + a.find('a', {'class': 
+                            re.compile("js-ovlistview-productdetaillink")}).get('href') 
+                            for a in articles]
+                if not filterDF[filterDF['URL'].isin(urlList)].empty:
+                    resultsDF = resultsDF.append(filterDF[filterDF['URL'].isin(urlList)], ignore_index=True)
+                if len(resultsDF) >= len(filterDF): # Exit condition for reference order
+                    resultsDF = resultsDF[:len(filterDF)]
+                    break
+                # Prepare next ajax request
+                start += step
+                resultRange = 'start=%s&sz=%s' % (start, step)
+                urlAjax = re.sub(r'start=[0-9]+&sz=[0-9]+', resultRange, urlAjax)
+                url, soupAjax = self.get_content(urlAjax)
+                articles = soupAjax.findAll('div', {'class': re.compile("productlist__product js-ovgrid-item")})
+                products += articles
+                if len(articles)==0: # Exit if no more results
+                    break
+        else:
+            maxItems = breakPointNumber
+            while len(products) < maxItems:
+                # Prepare next ajax request
+                start += step
+                resultRange = 'start=%s&sz=%s' % (start, step)
+                urlAjax = re.sub(r'start=[0-9]+&sz=[0-9]+', resultRange, urlAjax)
+                url, soupAjax = self.get_content(urlAjax)
+                articles = soupAjax.findAll('div', {'class': re.compile("productlist__product js-ovgrid-item")})
+                products += articles
+            products = products[:maxItems]
             for product in products:
                 productPage = product.find('a', {'class': re.compile(
                     "js-ovlistview-productdetaillink")}).get('href')
                 productPage = 'https://www.soliver.eu' + productPage
-                productImg = json.loads(product.findAll('div', {'class': re.compile("lazyload jsLazyLoad")})[
-                                        0].get('data-picture'))['sources'][0]['srcset'].split(',')[0]
-                series = pd.Series({'URL': productPage.rsplit('?', 1)[0].replace("'", "''").replace("%", "%%"),
-                                    'imgURL': productImg},
-                                index=resultsDF.columns)
-                
-                # Return if number of wanted results is reached
-                if not filterDF.empty :
-                    if series['URL'] in filterDF['URL'].values:
-                        resultsDF = resultsDF.append(series, ignore_index=True)
-                        if len(resultsDF) >= len(filterDF):
-                            resultsDF[ordering] = range(1, len(resultsDF)+1)
-                            return resultsDF
-                else:
-                    resultsDF = resultsDF.append(series, ignore_index=True)
-                    if len(resultsDF) > breakPointNumber-1:
-                        resultsDF[ordering] = range(1, len(resultsDF)+1)
-                        return resultsDF
+                productImg = (json.loads(product.find('li', {'class': 'plproduct__color'})
+                        .get('data-ovlistview-color-config'))['images'][0]['absURL'])
+                color = (json.loads(product.find('li', {'class': 'plproduct__color'})
+                        .get('data-ovlistview-color-config'))['colorName'])
+                price = (float(product.find('div', {'class': 'ta_prodMiniWrapper'})
+                        .get('data-maxprice').split()[0].replace(',', '.')))
 
-            if start + step >= maxItems:
-                break
-
-            # Prepare next ajax request
-            start += step
-            resultRange = 'start=%s&sz=%s' % (start, step)
-            urlAjax = re.sub(r'start=[0-9]+&sz=[0-9]+', resultRange, urlAjax)
-
-        try:
-            resultsDF[ordering] = range(1, maxItems+1)
-        except:
-            self.logger.info('Failed to fetch eveything. %s/%s (%s%%) fetched' %
-                (len(resultsDF), maxItems, round(len(resultsDF)*100/maxItems, 2)))
-            resultsDF[ordering] = range(1, len(resultsDF)+1)
-        self.logger.info("Time to retrieve %s results: %s seconds ---" % (order, round(time.time() - start_time, 2)))
+                series = pd.Series()
+                series['URL'] = (productPage.rsplit('?', 1)[0]
+                        .replace("'", "''")
+                        .replace("%", "%%"))
+                series['imgURL'] = productImg
+                series['color'] = color
+                series['price'] = price
+                resultsDF = resultsDF.append(series, ignore_index=True)
+        # Set ordering
+        resultsDF[ordering] = range(1, len(resultsDF)+1)
         return resultsDF
 
 
@@ -720,7 +785,7 @@ class Helper():
     #
     def parseSOliverFields(self, soup, url, imgURL):
         '''
-        Gets product information from Zalando
+        Gets product information from s.Oliver
         - Input:
             soup: BeautifulSoup navigator
             url: URL currently parsing
@@ -730,7 +795,7 @@ class Helper():
             price, head, brand, color, genderid, meta
         '''
         # Get product id according to the captured image URL
-        pid, sku, isActive = '', '', False
+        pid, sku = '', ''
         for hidden in soup.findAll('div', {'class': re.compile('hidden')}):
             if hidden.get('data-mms-spv-variationmodel'):
                 jsonInfoImg = json.loads(hidden.get('data-mms-spv-variationmodel'))
@@ -739,49 +804,44 @@ class Helper():
                         pid = swatch['variantID']
                         sku = pid
                         break
-                for colorSize in jsonInfoImg['availableColorSizes']:
-                    for size in jsonInfoImg['availableColorSizes'][colorSize]:
-                        if jsonInfoImg['availableColorSizes'][colorSize][size]['variantID'] == sku:         
-                            isActive = jsonInfoImg['availableColorSizes'][colorSize][size]['isAvailable']
-                            break
                 
         if sku == '':
             self.logger.info("ProductCode and active information not captured at %s" % url)
         ajaxURL = 'https://www.soliver.eu/on/demandware.store/Sites-soliverEU-Site/en/Catalog-GetProductData?pview=variant&pid='
         ajaxURL += pid
         # return ajax request for the selected image
-        soupTemp = self.get_content(ajaxURL)
+        url, soupTemp = self.get_content(ajaxURL)
         try:
             jsonInfo = json.loads(soupTemp.text)['product']['variantInfo']
         except:
-            self.logger.info("JSON information for product at %s not found" % url)
+            self.logger.warn_and_trace("JSON information for product at %s not found" % url)
         # color - Clothe's Color
         try:
             color = jsonInfo['variationAttrData']['color']['displayValue']
         except:
             color = None
-            self.logger.info("Color not captured at %s" % url)
+            self.logger.warn_and_trace("Color not captured at %s" % url)
 
         # price
         try:
             price = jsonInfo['priceData']['salePrice']['value']
         except:
             price = None
-            self.logger.info("Price not captured at %s" % url)
+            self.logger.warn_and_trace("Price not captured at %s" % url)
 
         # head - Clothe's General Description
         try:
             head = jsonInfo['microdata']['description']
         except:
             head = None
-            self.logger.info("Header not captured at %s" % url)
+            self.logger.warn_and_trace("Header not captured at %s" % url)
 
         # brand - Clothe's Brand
         try:
             brand = jsonInfo['microdata']['brand']
         except:
             brand = None
-            self.logger.info("Brand not captured at %s" % url)    
+            self.logger.warn_and_trace("Brand not captured at %s" % url)    
             
         # gender
         try:
@@ -792,6 +852,28 @@ class Helper():
         except:
             gender = ''
             genderid = None
+            self.logger.info("Gender not captured at %s" % url)
+
+        # category - sub category
+        try:
+            info_json = soup.findAll('span', {'class': re.compile(
+                'jsPageContextData')})[-1].get('data-pagecontext')
+            # Capture category information    
+            prodCatStr = json.loads(info_json)['product']['categoryName']
+            # NLP process category
+            processedCategories = self.preprocess_metadata(prodCatStr)
+            # Get categories from DB and match the captured one
+            allCategories = self.db_manager.runSelectQuery(params={'table': 'ProductCategory'})
+            matchedCategories = (allCategories.loc[allCategories['Description'].str.lower()
+                    .isin( processedCategories.split() ), 'Description'].values)
+            if len(matchedCategories>1):
+                prodCatID = self.getProductCat(matchedCategories[0])
+            else: 
+                prodCatID = self.getProductCat(processedCategories)
+            prodSubCatID = self.getProductSubCat(prodSubCat=prodCatStr, prodCat=prodCatID)
+        except:
+            prodCatID = None
+            prodSubCatID = None
             self.logger.info("Gender not captured at %s" % url)
 
         ### Other attributes #
@@ -813,7 +895,7 @@ class Helper():
         except:
             meta = None
             self.logger.info("Product Description not captured at %s" % url)
-        return price, head, brand, color, genderid, meta, sku, isActive
+        return price, head, brand, color, genderid, meta, sku, prodCatID, prodSubCatID
 
 
     ## Zalando specific functionality 
@@ -822,16 +904,16 @@ class Helper():
     def resultDataframeZalando(self, keyUrl, order, filterDF=pd.DataFrame([]), breakPointNumber=9999999):
         '''
         Fetches search results form Zalando according to 'order' parameter. Parameter "filterDF" is 
-        filled with the trending order dataframe to call the script with reference order and get the reference order
-        only for the trending items.
+        filled with the trending order dataframe to call the script with reference order and get the 
+        reference order only for the trending items.
         - Input:
             keyUrl: search URL according to keywords
             order: ordering of results, valid values are 'reference' and 'trend'
 
         - Returns:
-            resultsDF: pandas DataFrame with columns the ordering sequence, the product webpage URL, the product's image URL 
+            resultsDF: pandas DataFrame with columns the ordering sequence, the product webpage URL,
+            the product's image URL 
         '''
-        start_time = time.time()
         orderDict = {'reference': 'referenceOrder', 'trend': 'trendOrder'}
         try:
             ordering = orderDict[order]  # results' ordering
@@ -839,66 +921,75 @@ class Helper():
             self.logger.info(
                 'Result parser error: \"order\" argument is either \"reference\" or \"trend\"')
             return None
-        pageNo = 1
         # results' ordering
-        rule = '&p=%s' % pageNo if ordering == orderDict[
-            'reference'] else '&p=%s&order=activation_date' % pageNo
+        rule = '&sort=popularity' if ordering == orderDict['reference'] else '&sort=activation_date'
         resultsURL = keyUrl + rule
-
+        
         # Fetch initial search result page
-        soup = self.get_content(resultsURL)
+        url, soup = self.get_content(resultsURL)
+        jsonInfo = json.loads(str(soup))
+        # Capture query error
+        if not jsonInfo['articles']:
+            self.logger.info('Your search produced no results.')
+            return 0
 
-        # Prepare ajax request URL
-        # Capture hidden parameters of request
-        reqParams = json.loads(
-            str(soup.findAll('script', {'id': re.compile("z-nvg-cognac-props")})[0].next)[9:-3])
-        maxItems = reqParams['total_count']
-        max_pageNo = reqParams['pagination']['page_count']
+        # Handle pagination and gather all products
+        articles = jsonInfo['articles']
+        products = articles
 
+        ## Capture product information according to the 'breakPointNumber'
+        # if 'breakPointNumber' is less than the 'maxItems' return 'breakPointNumber' items
+        # Otherwise parse additional result pages
+        maxItems = jsonInfo['total_count']
+        breakPointNumber = breakPointNumber if breakPointNumber <= maxItems else maxItems
+        offset, limit = len(products), 84
         # DataFrame to hold results
         resultsDF = pd.DataFrame(columns=[ordering, 'URL', 'imgURL'])
-        # Iterate result pages
-        while pageNo <= max_pageNo:
-            # Capture products in the page
-            products = json.loads(
-                    str(soup.findAll('script', {'id': re.compile("z-nvg-cognac-props")})[0].next)[9:-3])['articles']
+        if order=='reference':  
+            breakPointNumber = len(filterDF)   
+            while len(products) < maxItems:
+                urlList = ['https://www.zalando.co.uk/%s.html' % a['url_key'] for a in articles]
+                if not filterDF[filterDF['URL'].isin(urlList)].empty:
+                    resultsDF = resultsDF.append(filterDF[filterDF['URL'].isin(urlList)], ignore_index=True)
+                if len(resultsDF) >= len(filterDF): # Exit condition for reference order
+                    resultsDF = resultsDF[:len(filterDF)]
+                    break
+                # Prepare next request
+                _resultsURL = resultsURL + '&offset=%s' % offset
+                url, _soup = self.get_content(_resultsURL)
+                _jsonInfo = json.loads(str(_soup))
+                articles = _jsonInfo['articles']
+                offset += limit
+                products += articles
+        else:
+            maxItems = breakPointNumber 
+            while len(products) < maxItems:
+                _resultsURL = resultsURL + '&offset=%s' % offset
+                url, _soup = self.get_content(_resultsURL)
+                _jsonInfo = json.loads(str(_soup))
+                articles = _jsonInfo['articles']
+                products += articles
+                offset += limit      
+            products = products[:maxItems]  
+            # Iterate result pages
             for product in products:
-                productPage = 'https://www.zalando.co.uk/%s.html' % product['url_key']
-                productImg = 'https://img01.ztat.net/article/' + \
-                    product['media'][0]['path']
-                series = pd.Series({'URL': productPage.rsplit('?', 1)[0].replace("'", "''").replace("%", "%%"),
-                                    'imgURL': productImg},
-                                index=resultsDF.columns)
-                # Return if number of wanted results is reached
-                if not filterDF.empty :
-                    if series['URL'] in filterDF['URL'].values:
-                        resultsDF = resultsDF.append(series, ignore_index=True)
-                        if len(resultsDF) >= len(filterDF):
-                            resultsDF[ordering] = range(1, len(resultsDF)+1)
-                            return resultsDF
-                else:
-                    resultsDF = resultsDF.append(series, ignore_index=True)
-                    if len(resultsDF) > breakPointNumber-1:
-                        resultsDF[ordering] = range(1, len(resultsDF)+1)
-                        return resultsDF
-
-            # Prepare next request
-            pageNo += 1
-            resultsURL = re.sub(r'&p=[0-9]+', '&p=%s' % pageNo, resultsURL)
-            soup = self.get_content(resultsURL)
-        try:
-            resultsDF[ordering] = range(1, maxItems+1)
-        except:
-            self.logger.info('Failed to fetch eveything. %s/%s (%s%%) fetched' %
-                (len(resultsDF), maxItems, round(len(resultsDF)*100/maxItems, 2)))
-            resultsDF[ordering] = range(1, len(resultsDF)+1)
-        self.logger.info("Time to retrieve %s results: %s seconds ---" % (order, round(time.time() - start_time, 2)))
+                # Capture actual products information from json fields
+                series = pd.Series([])
+                series['Brand'] = product['brand_name']
+                series['Head'] = product['name']
+                series['SKU'] = product['sku']
+                series['Price'] = float(''.join(re.findall(r'[0-9\.]', product['price']['original'])))
+                series['URL'] = 'https://www.zalando.co.uk/%s.html' % product['url_key']
+                series['imgURL'] = 'https://img01.ztat.net/article/' + product['media'][0]['path']            
+                resultsDF = resultsDF.append(series, ignore_index=True)
+        # Set ordering                
+        resultsDF[ordering] = range(1, len(resultsDF)+1)
         return resultsDF
 
 
-    ## Get product information from Zalando 
-    #
-    def parseZalandoFields(self, soup, url, imgURL):
+    # Get product information from Zalando 
+    
+    def parseZalandoFields(self, url):
         '''
         Gets product information from Zalando
         - Input:
@@ -906,76 +997,131 @@ class Helper():
             url: URL currently parsing
 
         - Returns:
-            price, head, brand, color, genderid, meta
+            head, brand, color, genderid, meta, sku, True, price
         '''
-        # price
+        # Parse product page
+        url, soup = self.get_content(url)
+        jsonUnparsed = soup .find('script', attrs={'id': re.compile(r'z-vegas-pdp-props')})
         try:
-            price = soup.find('span', text=re.compile(
-                r'[0-9]+[\.,][0-9]')).text.replace(',', '.')
-            price = float(re.findall(r"[+-]?\d+\.\d+", price)[0])
-        except:
-            price = None
-            self.logger.info("Price not captured at %s" % url)
-
-        # head - Clothe's General Description
+            jsonInfo = re.findall(r'{.+}', str(jsonUnparsed))[0]
+            productInfo = json.loads(jsonInfo)
+        except Exception as e:        
+            self.logger.warn_and_trace(e)
+            return {}
+        # Color 
         try:
-            head = soup.find('h1').text
-            head = re.sub(r'\s+', ' ', head).strip()
-        except:
-            head = ''
-            self.logger.info("Header not captured at %s" % url)
-            
-        # color, brand, sku, active information
-        sku = ''
-        color = ''   
-        brand = '' 
-        img = imgURL.split('?')[0]
-        try:
-            parseInfo = soup.find('script', attrs={'id': re.compile(r'z-vegas-pdp-props')}).text
-            jsonInfo = json.loads(parseInfo[parseInfo.find('{'):len(parseInfo)-parseInfo[::-1].find('}')])
-            items = jsonInfo['model']['articleInfo']['colors'] 
-        except Exception as e: 
-            self.logger.info(e)
-            self.logger.info("Failed to parse jsonInfo at  %s" % url)
-        try:    
-            for i, item in enumerate(items):
-                for imgColor in item['media']['images']:
-                    if img in imgColor['sources']['color']:
-                        color = items[i]['color']
-                        sku = items[i]['id']
-                        break
-            isActive = jsonInfo['model']['articleInfo']['active']
-            brand = jsonInfo['model']['articleInfo']['brand']['name']
-        except:
+            color = productInfo['model']['articleInfo']['color']
+        except Exception as e:
             color = None
-            sku = None
-            isActive = 1
-            self.logger.info("Color, brand, sku, active not captured at %s" % url)
-        # gender - Clothe's Gender
+            self.logger.info("ColorsDescription not captured at %s" % url)
+        # Product category
         try:
-            jsonInfo = soup.find(text=re.compile(r'navigationTargetGroup'))
-            gender = json.loads(jsonInfo)[
-                'rootEntityData']['navigationTargetGroup']
+            prodCat = productInfo['model']['articleInfo']['silhouette_code']
+            prodCatID = self.getProductCat(prodCat)
+        except Exception as e:
+            prodCat = None
+            self.logger.info("ProductCategory not captured at %s" % url)
+        # Product subcategory
+        try:
+            prodSubCat = productInfo['model']['articleInfo']['category_tag']
+            prodSubCatID = self.getProductSubCat(prodSubCat=prodSubCat, prodCat=prodCat)
+        except Exception as e:
+            prodSubCat = None
+            self.logger.info("ProductSubCategory not captured at %s" % url)
+        # Gender
+        try:
+            gender = [g for g in ['MEN', 'WOMEN', 'KID', 'MAN', 'WOMAN', 'KIDS', 'UNISEX']  \
+                    if g.lower() in map(lambda x: x.lower(), 
+                    productInfo['model']['articleInfo']['categories'])][0].lower()
             genderid = self.getGender(gender)
-        except:
-            gender = ''
+        except Exception as e:
             genderid = None
             self.logger.info("Gender not captured at %s" % url)
-        # Other attributes
-        # For Description
-        meta = ''
+        # Metadata
         try:
-            # parse metadata
-            parseInfo = soup.find(text=re.compile(r'heading_details'))
-            jsonInfo = parseInfo[parseInfo.find('{'):len(parseInfo)-parseInfo[::-1].find('}')]
-            attr_list = []
-            for field in json.loads(jsonInfo)['model']['productDetailsCluster']:
-                for data in field['data']:
-                    if 'values' in data.keys():
-                        attr_list.append(data['values'])
-            # keep only unique attributes
-            attr_list = list(set(attr_list))
-            meta = ' - '.join(attr_list)
-        except:
-            self.logger.info("Product Description not captured at %s" % url)
-        return price, head, brand, color, genderid, meta, sku, isActive
+            attributes = productInfo['model']['articleInfo']['attributes']
+            meta_names = [data['name'] for attr in attributes for data in attr['data'] 
+                    if attr['category'] in ['heading_material', 'heading_details']]
+            meta_values = [data['values'] for attr in attributes for data in attr['data'] 
+                    if attr['category'] in ['heading_material', 'heading_details']]
+            meta = '. '.join(meta_names + meta_values)
+        except Exception as e:
+            meta = None
+            self.logger.info("Metadata not captured at %s" % url)
+       
+        params = {'ColorsDescription': color, 'Metadata': meta, 'ProductCategory': prodCatID, 
+                'ProductSubcategory': prodSubCatID, 'Gender': genderid}
+        return params
+
+
+
+
+    #     # price
+    #     try:
+    #         price = soup.find('span', text=re.compile(
+    #             r'[0-9]+[\.,][0-9]')).text.replace(',', '.')
+    #         price = float(re.findall(r"[+-]?\d+\.\d+", price)[0])
+    #     except:
+    #         price = None
+    #         self.logger.info("Price not captured at %s" % url)
+
+    #     # head - Clothe's General Description
+    #     try:
+    #         head = soup.find('h1').text
+    #         head = re.sub(r'\s+', ' ', head).strip()
+    #     except:
+    #         head = ''
+    #         self.logger.info("Header not captured at %s" % url)
+            
+    #     # color, brand, sku, active information
+    #     sku = ''
+    #     color = ''   
+    #     brand = '' 
+    #     img = imgURL.split('?')[0]
+    #     try:
+    #         parseInfo = soup.find('script', attrs={'id': re.compile(r'z-vegas-pdp-props')}).text
+    #         jsonInfo = json.loads(parseInfo[parseInfo.find('{'):len(parseInfo)-parseInfo[::-1].find('}')])
+    #         items = jsonInfo['model']['articleInfo']['colors'] 
+    #     except Exception as e: 
+    #         self.logger.info(e)
+    #         self.logger.info("Failed to parse jsonInfo at  %s" % url)
+    #     try:    
+    #         for i, item in enumerate(items):
+    #             for imgColor in item['media']['images']:
+    #                 if img in imgColor['sources']['color']:
+    #                     color = items[i]['color']
+    #                     sku = items[i]['id']
+    #                     break
+    #         brand = jsonInfo['model']['articleInfo']['brand']['name']
+    #     except:
+    #         color = None
+    #         sku = None
+    #         self.logger.info("Color, brand, sku not captured at %s" % url)
+    #     # gender - Clothe's Gender
+    #     try:
+    #         jsonInfo = soup.find(text=re.compile(r'navigationTargetGroup'))
+    #         gender = json.loads(jsonInfo)[
+    #             'rootEntityData']['navigationTargetGroup']
+    #         genderid = self.getGender(gender)
+    #     except:
+    #         gender = ''
+    #         genderid = None
+    #         self.logger.info("Gender not captured at %s" % url)
+    #     # Other attributes
+    #     # For Description
+    #     meta = ''
+    #     try:
+    #         # parse metadata
+    #         parseInfo = soup.find(text=re.compile(r'heading_details'))
+    #         jsonInfo = parseInfo[parseInfo.find('{'):len(parseInfo)-parseInfo[::-1].find('}')]
+    #         attr_list = []
+    #         for field in json.loads(jsonInfo)['model']['productDetailsCluster']:
+    #             for data in field['data']:
+    #                 if 'values' in data.keys():
+    #                     attr_list.append(data['values'])
+    #         # keep only unique attributes
+    #         attr_list = list(set(attr_list))
+    #         meta = ' - '.join(attr_list)
+    #     except:
+    #         self.logger.info("Product Description not captured at %s" % url)
+    #     return head, brand, color, genderid, meta, sku, True, price

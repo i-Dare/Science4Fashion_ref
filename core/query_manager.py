@@ -161,7 +161,7 @@ class QueryManager():
         return 'CAST(%s AS INTEGER)' % i
     
     def parseStr(self, i):
-        return 'STRING_ESCAPE(\'%s\', \'json\')' % i
+        return "STRING_ESCAPE('%s', \'json\')" % i.replace("'", "''")
 
     def parseBool(self, i):
         return str(1) if i else str(0)
@@ -190,9 +190,15 @@ class QueryManager():
                     
                 query = query + '\n SELECT * FROM %s t WHERE t.Oid = SCOPE_IDENTITY()' % table
                 if args:
-                    result = conn.execute(query, args)
-                else:
-                    result = conn.execute(query)
+                    try:
+                        result = conn.execute(query, args)
+                    except Exception as e: 
+                        return e                        
+                else:                    
+                    try:
+                        result = conn.execute(query)
+                    except Exception as e: 
+                        return e
                 records  = result.fetchall()
                 ## Create DataFrame from returned queries
                 # Set DataFrame rows
