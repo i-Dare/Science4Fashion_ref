@@ -79,7 +79,6 @@ def performScraping(urlReceived, searchTerm, breakPointNumber):
                 referenceOrder = refDF.loc[refDF['URL']==url, 'referenceOrder'].values[0]
             else:
                 referenceOrder = 0
-            # url = url.replace("'", "''")
             # Register product information
             urlReceived, soup = helper.get_content(url, retry=3)
             head, brand, color, genderid, meta, sku, price = helper.parseAsosFields(soup, url)

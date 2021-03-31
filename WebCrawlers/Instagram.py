@@ -33,9 +33,12 @@ if __name__ == '__main__':
     helper = instagram.helper
     instagram.login()
 
-    insta = instagram.search_query(query=searchTerm, threshold=threshold)
-    # Store results in the database ranked by the relevance of the experts terminology
-    dataDF = save_ranked(helper, insta, adapter='Instagram')
+    insta = instagram.search_query(searchTerm=searchTerm, threshold=threshold)
+    if len(insta) > 0:
+        # Store results in the database ranked by the relevance of the experts terminology
+        dataDF = save_ranked(helper, insta, adapter='Instagram')
 
-    logger.info('Images requested: %s,   Images Downloaded: %s (%s%%)' % (threshold, len(dataDF), round(len(dataDF)/threshold,2 ) * 100)) 
-    logger.info("Time to scrape ALL queries is %s seconds ---" % round(time.time() - start_time_all, 2))
+        logger.info('Images requested: %s,   Images Downloaded: %s (%s%%)' % (threshold, len(dataDF), round(len(dataDF)/threshold,2 ) * 100)) 
+        logger.info("Time to scrape ALL queries is %s seconds ---" % round(time.time() - start_time_all, 2))
+    else:
+        logger.warning('No results in Instagram for %s' % searchTerm)

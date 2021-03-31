@@ -193,7 +193,6 @@ class Helper():
         # convert image to binary
         empPhoto = self.convertToBinaryData(imageFilePath)
         return empPhoto
-
     
 # --------------------------------------------------------------------------                        
 #          Database IO Functionality
@@ -294,7 +293,8 @@ class Helper():
                 %s.dbo.Adapter.Description = '%s'" % (config.DB_NAME, config.DB_NAME, site), 
                 config.ENGINE).loc[0, 'Oid']
         # Add a new Brand if it does not exist dn return the 'Oid' or just return existing 'Oid'
-        params['Brand'] = self.getBrand(params['Brand'])        
+        if 'Brand' in params.keys():
+            params['Brand'] = self.getBrand(params['Brand'])        
         
         ## Add product and return new records in DataFrame
         # Check if product exists
@@ -571,7 +571,7 @@ class Helper():
                     price = None
                     self.logger.info("Price not captured for %s" % productPage)
 
-                series = pd.Series({'URL': productPage.replace("'", "''").replace("%", "%%"),
+                series = pd.Series({'URL': productPage,
                                     'imgURL': productImg,
                                     'price': price},
                                 index=resultsDF.columns)
@@ -769,9 +769,7 @@ class Helper():
                         .get('data-maxprice').split()[0].replace(',', '.')))
 
                 series = pd.Series()
-                series['URL'] = (productPage.rsplit('?', 1)[0]
-                        .replace("'", "''")
-                        .replace("%", "%%"))
+                series['URL'] = productPage.rsplit('?', 1)[0]
                 series['imgURL'] = productImg
                 series['color'] = color
                 series['price'] = price

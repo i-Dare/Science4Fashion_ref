@@ -17,7 +17,7 @@ from instaloader import Instaloader, Hashtag
 import core.config as config
 from core.helper_functions import *
 from core.logger import S4F_Logger
-
+from core.query_manager import QueryManager
 
 # Pinterest crawler class
 class PinterestCrawler(Pinterest):
@@ -30,34 +30,39 @@ class PinterestCrawler(Pinterest):
         self.logging = S4F_Logger('PinterestLogger', user=user)
         self.logger = self.logging.logger
         self.helper = Helper(self.logging)
+        self.db_manager = QueryManager()
 
         cred_root = os.path.join(config.RESOURCESDIR, 'data')
         super().__init__(password=password, proxies=None, username='', email=username, cred_root=cred_root, user_agent=None)
         self.logger.info('Connected to Pinterest')
-        # self.home_page = 'https://gr.pinterest.com/login/?referrer=home_page'        
         self.home_page = 'https://gr.pinterest.com/'        
         self.fashion_att = self.helper.get_fashion_attributes()
 
-    def _search(self, query, threshold):
-        engine = config.ENGINE
-        dbName = config.DB_NAME
+    def _search(self, searchTerm, threshold):      
+        results = self.search('pins', searchTerm, page_size=threshold)
+        # Discard irrelevant results
+        results = [r for r in results if r['type'] == 'pin' and r['videos'] == None]
+        # Filter out results that are already in the Product table
+        urlList = [self.db_manager.parseStr(r['link']) for r in results]
+        where = ' OR '.join(["URL = %s" % url for url in urlList])
+        query = "SELECT * FROM S4F.dbo.Product WHERE %s" % where
+        filter_df = self.db_manager.runSimpleQuery(query, get_identity=True)
+        if type(filter_df)==pd.DataFrame:
+            # If resulting URL is already in the database, skip it
+            if not filter_df.empty:
+                results = [r for r in results 
+                        if self.db_manager.parseStr(r['link']) not in filter_df['URL'].values.tolist()]
 
-        productsDF = pd.read_sql_query('''SELECT * FROM %s.dbo.Product''' % dbName, engine)
-        # productsDF = pd.read_sql_query('''SELECT * FROM  public.\"Product\"''', engine)
-
-        results = self.search('pins', query, page_size=threshold)
-        query_result = []
-        for index, result in enumerate(results, start=1):
-            if result['type'] == 'pin' and result['videos'] == None:
-                tempDF = productsDF.loc[productsDF['URL'] == result['link']]
+            query_result = []
+            for index, result in enumerate(results, start=1):
                 promotion = result['is_promoted']
-                if tempDF.empty and not promotion:
-                    searchwords = ''.join(query.split(" "))
+                if not promotion:
+                    searchwords = ''.join(searchTerm.split(" "))
                     imageFilePath = self.helper.setImageFilePath(self.home_page, searchwords, index)
                     description = result['description'] + result['rich_summary']['display_description'] \
                                         if result['rich_summary'] else result['description']
                     # Capture the main attributes of the result to evaluate and enchance the final recommendation
-                    query_result.append({'query':query,
+                    query_result.append({'searchTerm':searchTerm,
                                     'timestamp': str(datetime.now()),
                                     'URL': result['link'],
                                     'imgURL':result['images']['orig']['url'], 
@@ -66,22 +71,27 @@ class PinterestCrawler(Pinterest):
                                     'description': description })
                 else:
                     pass
-        return query_result
+            return query_result
+        else:
+            self.logger.warn_and_trace(filter_df)
+            return []
 
 
-    def search_query(self, query, threshold=10):
+    def search_query(self, searchTerm, threshold=10):
         max_threshold = 250
         if threshold > max_threshold:
-            self.logger.info('Number of requested items exceeds the maximum number of items, up to 250 items \
-                    will be collected.')
+            self.logger.warning('Number of requested items exceeds the maximum number of items, up to \
+                    250 items will be collected.')
             threshold = 250
 
         # Initial search, may return existing products
-        query_result = self._search(query, max_threshold) if threshold > max_threshold else self._search(query, threshold)
+        query_result = self._search(searchTerm, max_threshold) if threshold > max_threshold else self._search(searchTerm, threshold)
+        if len(query_result)==0:
+            return []
         # Setup new search constrains
         _thresh = threshold - len(query_result)
         while len(query_result) < threshold:     
-            _q = self._search(query, max_threshold) if threshold > max_threshold else self._search(query, _thresh)
+            _q = self._search(searchTerm, max_threshold) if threshold > max_threshold else self._search(searchTerm, _thresh)
             query_result += _q
             _thresh = threshold-len(query_result)
         
@@ -99,6 +109,7 @@ class InstagramCrawler():
         self.logging = S4F_Logger('InstagramLogger', user=user)
         self.logger = self.logging.logger
         self.helper = Helper(self.logging)
+        self.db_manager = QueryManager()
 
         self.username = username
         self.password = password
@@ -111,40 +122,34 @@ class InstagramCrawler():
         self.instagram.login(self.username, self.password)
         self.logger.info('Connected to Instagram')
 
-    def search_query(self, query, threshold=10):
-        engine = config.ENGINE
-        dbName = config.DB_NAME
-
-        productsDF = pd.read_sql_query('''SELECT * FROM %s.dbo.Product''' % dbName, engine)
-
-        # Create hashtag from query term
-        hashtag = Hashtag.from_name(self.instagram.context, query.replace(' ',''))
+    def search_query(self, searchTerm, threshold=10):
+        # Create hashtag from searchTerm term
+        hashtag = Hashtag.from_name(self.instagram.context, searchTerm.replace(' ',''))
         query_result = []
         n_exists = 0
         for index, result in enumerate(hashtag.get_posts(), start=1):
-            if index - n_exists> threshold:
-                break
             post_url = self.base_url + str(result.shortcode) + "/"
             imgSource = result.url
-            tempDF = productsDF.loc[productsDF['URL'] == post_url]
-            video = result.is_video
-            imageFilePath = self.helper.setImageFilePath(post_url, query.replace(' ',''), index)
-            if tempDF.empty and not video:
-                post_info = " ".join(re.findall("[a-zA-Z]+", result.caption))
-                post_title = ' '.join(result.caption_hashtags)
-                # post_hashtags = result.caption_hashtags
-                # post_likes = result.likes
-                post_date = result.date
-                query_result.append(({'query': query,
-                            'timestamp': post_date,
-                            'URL': post_url,
-                            'imgURL': imgSource,
-                            'imageFilePath':imageFilePath,
-                            'title': post_title,
-                            'description': post_info}))
-            else:
-                self.logger.info('Product already exists')
-                n_exists += 1
+            isVideo = result.is_video
+            imageFilePath = self.helper.setImageFilePath(post_url, searchTerm.replace(' ',''), index)
+            tempDF = self.db_manager.runSelectQuery({'table': 'Product', 'URL': post_url})
+            if type(tempDF)==pd.DataFrame:
+                if tempDF.empty and not isVideo:
+                    post_info = " ".join(re.findall("[a-zA-Z]+", result.caption))
+                    post_title = ' '.join(result.caption_hashtags)
+                    # post_hashtags = result.caption_hashtags
+                    # post_likes = result.likes
+                    post_date = result.date
+                    query_result.append(({'searchTerm': searchTerm,
+                                'timestamp': post_date,
+                                'URL': post_url,
+                                'imgURL': imgSource,
+                                'imageFilePath':imageFilePath,
+                                'title': post_title,
+                                'description': post_info}))
+                else:
+                    self.logger.info('Product already exists')
+                    n_exists += 1
 
             if index - n_exists> threshold:
                 break
@@ -159,21 +164,22 @@ def save_ranked(helper, query_result, adapter, segmentation=False):
     dataDF['metadata'] = dataDF['title'].str.cat(dataDF['description'].astype(str), sep=' ')
     # Preprocess metadata
     dataDF['processed_metadata'] = dataDF['metadata'].apply(lambda row: helper.preprocess_metadata(row, segmentation))
-    # Preprocess query
-    dataDF['query'] = dataDF['query'].apply(lambda row: ' '.join(helper.preprocess_words(row.split())))
+    # Preprocess searchTerm
+    dataDF['searchTerm'] = dataDF['searchTerm'].apply(lambda row: ' '.join(helper.preprocess_words(row.split())))
 
     ## Calculate a factor for tokens that appear in metatdata
-    keywords = dataDF.iloc[0]['query'].split()
-    dataDF['factor'] = dataDF['processed_metadata'].apply(lambda row: len(set([word for word in row.split() if word in keywords])) / len(keywords))
+    keywords = dataDF.iloc[0]['searchTerm'].split()
+    dataDF['factor'] = dataDF['processed_metadata'].apply(lambda row: \
+            len(set([word for word in row.split() if word in keywords])) / len(keywords))
 
-    ## Calculate a factor based on the cosine similarity of TFIDF transformation of the query terms and 
+    ## Calculate a factor based on the cosine similarity of TFIDF transformation of the searchTerm terms and 
     # the processed metadata using the fashion expert terminology as vocabulary
     vectorizer = TfidfVectorizer(analyzer='word', ngram_range=(1,2), min_df=2)
     vectorizer.fit_transform(helper.get_fashion_attributes())
     metadata_tfidf = vectorizer.transform(dataDF['processed_metadata'])
-    query_tfidf = vectorizer.transform(dataDF['query'])
+    query_tfidf = vectorizer.transform(dataDF['searchTerm'])
 
-    ## Calculate cosine similarity of query tokens and metadata tokens
+    ## Calculate cosine similarity of searchTerm tokens and metadata tokens
     cosine_vector = cosine_similarity(query_tfidf[0], metadata_tfidf)
     dataDF['cosine_ranking_score'] = np.hstack(cosine_vector).tolist() * dataDF['factor']
 
@@ -190,25 +196,18 @@ def save_ranked(helper, query_result, adapter, segmentation=False):
     # Save ranked results to the database
     for _, row in dataDF.iterrows():
         site = adapter
-        searchwords = query_result[0]['query']
+        searchTerm = query_result[0]['searchTerm']
         imageFilePath = row['imageFilePath']    
         url = row['URL']
         imgURL = row['imgURL']
         empPhoto = helper.getImage(imgURL, imageFilePath)
         head = row['title']
         meta = row['description']
-        helper.addNewProduct(site, 
-                            searchwords, 
-                            imageFilePath, 
-                            empPhoto, 
-                            url,
-                            imgURL, 
-                            head, 
-                            None, 
-                            None, 
-                            None, 
-                            meta, 
-                            None, 
-                            None)
+        uniq_params = {'table': 'Product', 'URL': url}
+        params = {'table': 'Product', 'Description': searchTerm, 'Active':  True, 'Ordering': 0, 
+                 'ProductTitle': head, 'SiteHeadline': head, 'Metadata': meta, 'URL': url, 
+                 'ImageSource': imgURL, 'Image': empPhoto, 'Photo': imageFilePath}
+
+        _ = helper.addNewProduct(site, uniq_params, params)
     return dataDF
 

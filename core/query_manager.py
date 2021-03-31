@@ -161,7 +161,7 @@ class QueryManager():
         return 'CAST(%s AS INTEGER)' % i
     
     def parseStr(self, i):
-        return "STRING_ESCAPE('%s', \'json\')" % i.replace("'", "''")
+        return "STRING_ESCAPE('%s', \'json\')" % i.replace("'", "''").replace('%', '%%')
 
     def parseBool(self, i):
         return str(1) if i else str(0)
