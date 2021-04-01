@@ -27,6 +27,7 @@ class QueryManager():
             raise ValueError('The "table" information is missing from "params" dictionary')
         else:
             table = params['table']
+            # parse parameters
             params = self.parseParams(params, has_owner=True)            
             
             # prepare INSERT INTO statement
@@ -38,8 +39,8 @@ class QueryManager():
                 if type(v) is bytes:
                     fields += ', %s' % k
                     values += ', %s'
-                    bins.append(v)  
-                    
+                    bins.append(v)
+       
             query = "INSERT INTO %s.dbo.%s (%s)" % (self.dbName, table, fields) + \
                 " VALUES (%s)" % values
             return self.runSimpleQuery(query, args=tuple(bins,), get_identity=get_identity)
@@ -66,7 +67,6 @@ class QueryManager():
             else:
                 return df
                 
-
     def runCriteriaUpdateQuery(self, uniq_params=dict, params=dict, get_identity=False):
         """
         Execute "UPDATE ... SET ... WHERE ...." queries using a unique parameter dictionary 
@@ -90,10 +90,10 @@ class QueryManager():
                 params = self.parseParams(params, has_owner=True)  
             
                 # prepare query statement
-                setValues = ', '.join(['%s = %s' % (k,v) for k,v in params.items() if k!='table'])
-                setValues += ', UpdatedOn = GETDATE()'
+                values = ', '.join(['%s = %s' % (k,v) for k,v in params.items() if k!='table'])
+                values += ', UpdatedOn = GETDATE()'
                 where = " Oid=%s" % df.loc[0, 'Oid']
-                query = "UPDATE %s.dbo.%s SET %s WHERE %s" % (self.dbName, table, setValues, where)
+                query = "UPDATE %s.dbo.%s SET %s WHERE %s" % (self.dbName, table, values, where)
                 self.runSimpleQuery(query, get_identity=get_identity)
                 return df
             
@@ -113,7 +113,18 @@ class QueryManager():
             params = self.parseParams(params)            
             if len(params.keys())>0:
                 # prepare criteria statement
-                where = ' AND '.join(['t.%s = %s' % (k,v) for k,v in params.items() if k!='table'])
+                where = ''
+                for k,v in params.items():
+                    if k!='table':
+                        if where == '' and v == 'NULL':
+                            where = 't.%s is NULL' % k
+                        elif where == '' and v != 'NULL':
+                            where = 't.%s = %s' % (k,v)
+                        elif where != '' and v == 'NULL':
+                            where += ' AND t.%s is NULL' % k
+                        else:
+                            where += ' AND t.%s = %s' % (k,v)
+                # where = ' AND '.join(['t.%s = %s' % (k,v) for k,v in params.items() if k!='table'])
                 query = "SELECT * FROM  %s.dbo.%s t WHERE %s" % (self.dbName, table, where)
             else:
                 query = "SELECT * FROM  %s.dbo.%s t" % (self.dbName, table)
@@ -161,7 +172,10 @@ class QueryManager():
         return 'CAST(%s AS INTEGER)' % i
     
     def parseStr(self, i):
-        return "STRING_ESCAPE('%s', \'json\')" % i.replace("'", "''").replace('%', '%%')
+        if i == 'NULL':
+            return i
+        else:
+            return "STRING_ESCAPE('%s', \'json\')" % i.replace("'", "''").replace('%', '%%')
 
     def parseBool(self, i):
         return str(1) if i else str(0)
