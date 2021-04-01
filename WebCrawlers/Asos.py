@@ -107,8 +107,6 @@ if __name__ == '__main__':
     start_time_all = time.time()
 
     currendDir = config.WEB_CRAWLERS
-    engine = config.ENGINE
-    dbName = config.DB_NAME
     # Webpage URL
     standardUrl = 'https://www.asos.com/uk/search/?q='
     site = str((standardUrl.split('.')[1]).capitalize())
