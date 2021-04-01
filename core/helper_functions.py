@@ -132,13 +132,15 @@ class Helper():
         return blobData
 
 
-    ## Convert blob to img
+    ## Convert imageBlob to img
     #
-    def convertBlobToImage(self, blob):        
-        x = np.frombuffer(blob, dtype='uint8')
+    def convertBlobToImage(self, imageBlob):
+        '''
+        Converts byte stream to 3D numpy array
+        '''
+        imgArray = np.frombuffer(imageBlob, dtype='uint8')
         # decode the array into an image
-        img = cv2.imdecode(x, cv2.IMREAD_UNCHANGED)
-        return img
+        return cv2.imdecode(imgArray, cv2.IMREAD_UNCHANGED)
 
 
     def convertCVtoPIL(self, img):
@@ -147,6 +149,10 @@ class Helper():
         im_pil = PILImage.fromarray(img)
         return im_pil    
 
+
+    def openUnicodeImgPath(self, imgPath):
+        imgArray = np.fromfile(imgPath, dtype=np.uint8)
+        return cv2.imdecode(imgArray, cv2.IMREAD_UNCHANGED)
 
     ## Set image destination path 
     #
@@ -174,10 +180,17 @@ class Helper():
         return imageFilePath
 
 
+    def getWebImage(self, imgURL):
+        from urllib.request import urlopen
+        resp = urlopen(imgURL)
+        image = np.asarray(bytearray(resp.read()), dtype="uint8")
+        return cv2.imdecode(image, cv2.IMREAD_UNCHANGED)
 
-    def getImage(self, imgURL, imageFilePath):
+
+    def saveImage(self, imgURL, imageFilePath):
         '''
-        Gets image from a URL and saves it to given file path
+        Retrieves image from a URL and saves it to given file path and returns its binary data 
+        representation
         - Input:
             imgURL: image URI
             imageFilePath: image destination directory
@@ -437,7 +450,7 @@ class Helper():
             # Download product image
             params['Photo'] = self.setImageFilePath(standardUrl, 
                     ''.join(params['Description'].split()), trendOrder)
-            params['Image'] = self.getImage(params['ImageSource'], params['Photo'])
+            params['Image'] = self.saveImage(params['ImageSource'], params['Photo'])
             try:
                 # Create new entry in PRODUCT table
                 product_df = self.addNewProduct(site, uniq_params=uniq_params, params=params)

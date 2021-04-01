@@ -18,7 +18,7 @@ if __name__ == "__main__":
     logging = S4F_Logger('ClothingAnnotationLogger', user=user)
     logger = logging.logger
     helper = Helper(logging)
-    db_manager = QueryManager(user=user)        
+    db_manager = QueryManager(user=user)
 
     # Set Device
     defaults.device = torch.device(config.DEVICE)
@@ -67,6 +67,8 @@ if __name__ == "__main__":
             params = {attr: productDF.loc[index, attr] for attr in config.ATTRIBUTE_COLUMNS}
             params['table'] = 'Product'
             _ = db_manager.runCriteriaUpdateQuery(uniq_params=uniq_params, params=params)
+        else:
+            logger.warning('Failed to load image for Product with Oid %s' % row['Oid'])
 
     # End Counting Time
     logger.info("--- %s seconds ---" % (time.time() - start_time))
