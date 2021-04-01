@@ -7,7 +7,8 @@ from six.moves import urllib
 from matplotlib import gridspec
 from matplotlib import pyplot as plt
 import numpy as np
-from PIL import Image
+from PIL import Image as PIL_image
+
 
 import tensorflow.compat.v1 as tf
 tf.logging.set_verbosity(tf.logging.ERROR)
@@ -60,7 +61,7 @@ class DeepLabModel(object):
     self.FULL_COLOR_MAP = label_to_color_image(self.FULL_LABEL_MAP)
 
 
-  def run(self, imgPath):
+  def run(self, image):
     """Runs inference on a single image.
 
     Args:
@@ -70,11 +71,10 @@ class DeepLabModel(object):
       resized_image: RGB image resized from original input image.
       seg_map: Segmentation map of `resized_image`.
     """
-    image = Image.open(imgPath)
     width, height = image.size
     resize_ratio = 1.0 * self.INPUT_SIZE / max(width, height)
     target_size = (int(resize_ratio * width), int(resize_ratio * height))
-    resized_image = image.convert('RGB').resize(target_size, Image.ANTIALIAS)
+    resized_image = image.convert('RGB').resize(target_size, PIL_image.ANTIALIAS)
     batch_seg_map = self.sess.run(
         self.OUTPUT_TENSOR_NAME,
         feed_dict={self.INPUT_TENSOR_NAME: [np.asarray(resized_image)]})
