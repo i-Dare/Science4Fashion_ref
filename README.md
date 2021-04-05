@@ -87,7 +87,7 @@ Apart from the color information, the rest of the product's attributes regarding
 	
 5. Install python packages:
 	* ```$ pip install kmodes==0.10.2```
-	* ```$ pip install skfuzzy==0.4.2```
+	* ```$ pip install scikit-fuzzy==0.4.2```
 	* ```$ pip install textblob==0.15.3```
 	* ```$ pip install instaloader==4.5.5```
 	* ```$ pip install plotly==4.14.3```
@@ -97,7 +97,7 @@ Apart from the color information, the rest of the product's attributes regarding
 	* ```$ conda install -c pytorch torchvision```
 	* ```$ pip install pymssql```
 	* ```$ pip install opencv-python==4.0.1```
-	* ```$ pip install --upgrade tensorflow```
+	* ```$ pip install tensorflow==2.4.1```
 	* ```$ pip install fastai```
 	* ```$ pip install wordsegment```
 	* ```$ pip install py3-pinterest```
