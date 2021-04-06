@@ -23,6 +23,10 @@ if __name__ == "__main__":
     # Set Device
     defaults.device = torch.device(config.DEVICE)
 
+    # Create the directories for the product attribute models
+    if not os.path.exists(config.PRODUCT_ATTRIBUTE_MODEL_DIR):
+        os.makedirs(config.PRODUCT_ATTRIBUTE_MODEL_DIR)
+        
     # Initialize Learners (5/5)
     necklineLearner = load_learner(config.PRODUCT_ATTRIBUTE_MODEL_DIR, config.MODELNECKLINE)
     sleeveLearner = load_learner(config.PRODUCT_ATTRIBUTE_MODEL_DIR, config.MODELSLEEVE)
