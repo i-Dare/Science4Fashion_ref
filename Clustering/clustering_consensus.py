@@ -41,19 +41,22 @@ class ConsensusClustering:
             Agglomerative clustering''', default = config.LINKAGE, choices=['ward', 'complete', 'average', 'sinlge'])
       self.parser.add_argument('-u', '--user', default=config.DEFAULT_USER, type = str, help = '''Input user''')
 
+      # Parse arguments
+      self.args, unknown = self.parser.parse_known_args()
+
       # Logger setup
+      self.user = self.args.user
       self.logging = S4F_Logger('ClusteringLogger', user=self.user)
       self.logger = self.logging.logger
 
-      # Parse arguments
-      self.args, unknown = self.parser.parse_known_args()
       self.training_mode = self.args.train
+      
       if self.training_mode:
-         self.logger.info('Executing Consensus Clustering without training.')
-      else:
          self.logger.info('Executing Consensus Clustering with training.')
+      else:
+         self.logger.info('Executing Consensus Clustering without training.')
       self.linkage = self.args.linkage
-      self.user = self.args.user
+      
       
       ## Get initial configuration from "config" package
       #      

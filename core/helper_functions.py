@@ -454,6 +454,8 @@ class Helper():
             try:
                 # Create new entry in PRODUCT table
                 product_df = self.addNewProduct(site, uniq_params=uniq_params, params=params)
+                if type(product_df) != type(pd.DataFrame()):
+                    self.logger.warn_and_trace(e)
                 cnt += 1
                 # Create new entry in ProductHistory table
                 productHist_df = self.addNewProductHistory(product_df, referenceOrder, trendOrder)

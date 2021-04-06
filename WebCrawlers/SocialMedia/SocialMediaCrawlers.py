@@ -132,9 +132,9 @@ class InstagramCrawler():
             imgSource = result.url
             isVideo = result.is_video
             imageFilePath = self.helper.setImageFilePath(post_url, searchTerm.replace(' ',''), index)
-            tempDF = self.db_manager.runSelectQuery({'table': 'Product', 'URL': post_url})
-            if type(tempDF)==pd.DataFrame:
-                if tempDF.empty and not isVideo:
+            filter_df = self.db_manager.runSelectQuery({'table': 'Product', 'URL': post_url})
+            if type(filter_df)==pd.DataFrame:
+                if filter_df.empty and not isVideo:
                     post_info = " ".join(re.findall("[a-zA-Z]+", result.caption))
                     post_title = ' '.join(result.caption_hashtags)
                     # post_hashtags = result.caption_hashtags
