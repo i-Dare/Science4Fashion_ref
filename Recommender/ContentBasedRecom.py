@@ -4,12 +4,13 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error
 from sklearn.metrics import mean_squared_error
 import pandas as pd
-import evaluator
 
 
 class cb_rf():
-
-    def __init__(self, input_user,engine):
+    '''
+    Content-based recommendation using Random Forest classification
+    '''
+    def __init__(self, input_user, engine):
         self.input_user = input_user
         self.ASK_SQL_Query = pd.read_sql_query('''SELECT * FROM S4F.dbo.Product''', engine)
         self.df = pd.DataFrame(self.ASK_SQL_Query)

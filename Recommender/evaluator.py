@@ -15,22 +15,22 @@ import numpy as np
 
 class evaluator:
 
-  def calculate_metrics(self,df,threshold):
+  def calculate_metrics(self, df, threshold):
 
     y_true = df['y_true'].tolist()
     y_pred = df['y_pred'].tolist()
 
     # calculate rmse
-    rmse = mean_squared_error(y_true,y_pred)**(1/2)
+    rmse = mean_squared_error(y_true, y_pred)**(1/2)
 
     # calculate mae
-    mae = mean_absolute_error(y_true,y_pred)
+    mae = mean_absolute_error(y_true, y_pred)
     # convert predictions to binary based on threshold
 
     pred = [1 if x >=threshold else 0 for x in y_pred]
     true = [1 if x >=threshold else 0 for x in y_true]
     # calculate accuracy
-    acc_ = accuracy_score(true,pred)
+    acc_ = accuracy_score(true, pred)
     # calculate recall
     rec_ = recall_score(true, pred)
     # calculate precision
@@ -38,9 +38,9 @@ class evaluator:
     # calculate f1 score
     f1_ = f1_score(true, pred)
 
-    return rmse,mae,acc_,rec_,prec_,f1_
+    return rmse, mae, acc_, rec_, prec_, f1_
 
-  def average_arpf_rm(self,data,cols,threshold,model):
+  def average_arpf_rm(self, data, cols, threshold, model):
 
     rmse = []
     mae = []
@@ -61,13 +61,13 @@ class evaluator:
       labels_pred = [1 if i>=threshold else 0 for i in y_pred]
       labels_true = [1 if i>=threshold else 0 for i in y_test]
 
-      acc.append(accuracy_score(labels_true,labels_pred))
-      rec.append(recall_score(labels_true,labels_pred))
-      pre.append(precision_score(labels_true,labels_pred))
-      f1.append(f1_score(labels_true,labels_pred))
+      acc.append(accuracy_score(labels_true, labels_pred))
+      rec.append(recall_score(labels_true, labels_pred))
+      pre.append(precision_score(labels_true, labels_pred))
+      f1.append(f1_score(labels_true, labels_pred))
 
-      rmse.append(mean_squared_error(y_test,y_pred)**(1/2))
-      mae.append(mean_absolute_error(y_test,y_pred))
+      rmse.append(mean_squared_error(y_test, y_pred)**(1/2))
+      mae.append(mean_absolute_error(y_test, y_pred))
 
 
 
@@ -89,32 +89,32 @@ class evaluator:
     # reset index
     df2 = df2.reset_index().drop(columns='index')
 
-    return df,df2
+    return df, df2
 
-  def nei_metric_df(self,user,neigh,df,threshold):
+  def nei_metric_df(self, user, neigh, df, threshold):
     # calculate matrics
-    rmse,mae,acc_,rec_,prec_,f1_ = self.calculate_metrics(df,threshold)
+    rmse, mae, acc_, rec_, prec_, f1_ = self.calculate_metrics(df, threshold)
     # create a dataframe with those metrics, scores and neighbors
     df = pd.DataFrame(columns=['user','metric','score','neighbors'])
     # append accuracy
-    df = df.append(pd.DataFrame(data=[[user,'accuracy',acc_,neigh]],columns=['user','metric','score','neighbors']))
+    df = df.append(pd.DataFrame(data=[[user,'accuracy',acc_, neigh]],columns=['user','metric','score','neighbors']))
     # append recall
-    df = df.append(pd.DataFrame(data=[[user,'recall',rec_,neigh]],columns=['user','metric','score','neighbors']))
+    df = df.append(pd.DataFrame(data=[[user,'recall',rec_, neigh]],columns=['user','metric','score','neighbors']))
     # append precision
-    df = df.append(pd.DataFrame(data=[[user,'precision',prec_,neigh]],columns=['user','metric','score','neighbors']))
+    df = df.append(pd.DataFrame(data=[[user,'precision',prec_, neigh]],columns=['user','metric','score','neighbors']))
     # append f1_score
-    df = df.append(pd.DataFrame(data=[[user,'f1_score',f1_,neigh]],columns=['user','metric','score','neighbors']))
+    df = df.append(pd.DataFrame(data=[[user,'f1_score',f1_, neigh]],columns=['user','metric','score','neighbors']))
     df2 = pd.DataFrame(columns=['user','metric','score','neighbors'])
     # append accuracy
-    df2 = df2.append(pd.DataFrame(data=[[user,'rmse',rmse,neigh]],columns=['user','metric','score','neighbors']))
+    df2 = df2.append(pd.DataFrame(data=[[user,'rmse',rmse, neigh]],columns=['user','metric','score','neighbors']))
     # append recall
-    df2 = df2.append(pd.DataFrame(data=[[user,'mae',mae,neigh]],columns=['user','metric','score','neighbors']))
+    df2 = df2.append(pd.DataFrame(data=[[user,'mae',mae, neigh]],columns=['user','metric','score','neighbors']))
 
-    return df,df2
+    return df, df2
 
-  def user_metric_df(self,user,df,threshold):
+  def user_metric_df(self, user, df, threshold):
     # calculate matrics
-    rmse,mae,acc_,rec_,prec_,f1_ = self.calculate_metrics(df,threshold)
+    rmse, mae, acc_, rec_, prec_, f1_ = self.calculate_metrics(df, threshold)
     # create a dataframe with those metrics and scores
     df = pd.DataFrame(columns=['user','metric','score'])
     # append accuracy
@@ -132,16 +132,16 @@ class evaluator:
     # append recall
     df2 = df2.append(pd.DataFrame(data=[[user,'mae',mae]],columns=['user','metric','score']))
 
-    return df,df2
+    return df, df2
 
-  def visualize_bars(self,df,axe_x,axe_y,hue,title,x_dist,hei_,asp_):
+  def visualize_bars(self, df, axe_x, axe_y, hue, title, x_dist, hei_, asp_):
     sns.color_palette("husl", 8)
     g = sns.catplot(
     data=df, kind="bar",
     x=axe_x, y=axe_y, hue=hue,
-    ci="sd", palette="dark", alpha=.6, height=hei_,legend_out = True,aspect=asp_
+    ci="sd", palette="dark", alpha=.6, height=hei_, legend_out = True, aspect=asp_
     )
-    ax = g.facet_axis(0,0)
+    ax = g.facet_axis(0, 0)
     for p in ax.patches:
         ax.text(p.get_x() + x_dist,
                 p.get_height() * 1.02,
@@ -152,13 +152,13 @@ class evaluator:
     g.legend.set_title(""+title)
 
 
-  def visualize_pie(self,df,df2):
+  def visualize_pie(self, df, df2):
 
     plt.style.use('seaborn')
-    fig, ax = plt.subplots(figsize=(20,10),nrows=1, ncols=2)
+    fig, ax = plt.subplots(figsize=(20, 10),nrows=1, ncols=2)
 
     colors = ['#3cd070','#fc4f30', '#57595D' , '#80F5FF']
-    explode = (0.1, 0.1, 0.1,0.1)
+    explode = (0.1, 0.1, 0.1, 0.1)
     explode2 = (0.2, 0)
     sizes = []
     sizes.append(df['recommended'].tolist()[0])
@@ -178,7 +178,7 @@ class evaluator:
     #plt.tight_layout()
     ax[0].pie(sizes, startangle=90, colors=colors ,labels=labels, autopct='%1.f%%', explode=explode, shadow=True)
     ax[0].set_title('Κάλυψη (Coverage)',fontsize=20, fontweight='bold')
-    df2.plot.barh(color=['#3cd070','#fc4f30'],stacked=True,ax=ax[1]);
+    df2.plot.barh(color=['#3cd070','#fc4f30'],stacked=True, ax=ax[1]);
     ax[1].set_title('Ποικιλια (Diversity)',fontsize=20, fontweight='bold')
     ax[1].legend(loc='upper center', bbox_to_anchor=(0.5, -0.05), shadow=True, ncol=2)
 

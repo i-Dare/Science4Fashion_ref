@@ -32,20 +32,20 @@ class data_handler:
        creates a user - item matrix given the user item dataframe
 
     """
-  def __init__(self,path,columns):
+  def __init__(self, path, columns):
     # make path global
     self.path = path
     # make cols global
     self.columns = columns
 
   def loadDataFrame(self):
-    # generate dataframe - user,item,rating
+    # generate dataframe - user, item, rating
     dataset = pd.read_pickle(self.path)
 
     # return data with declared columns
     return dataset[self.columns]
 
-  def deep_preprocessing(self,dataset):
+  def deep_preprocessing(self, dataset):
     # init encoder
     encoder = LabelEncoder()
     # create new data frame for deep learning model
@@ -65,10 +65,10 @@ class data_handler:
     # find min and max of ratings
     minmax = (min(df[columns[2]]),max(df[columns[2]]))
 
-    # return dataframe,total users, total items, and min-max of ratings
-    return df,t_users,t_items,minmax,itemencoder,encoder
+    # return dataframe, total users, total items, and min-max of ratings
+    return df, t_users, t_items, minmax, itemencoder, encoder
 
-  def split(self,df,input_user,test_size):
+  def split(self, df, input_user, test_size):
     # get ratings of input user
     input_user_data = df.loc[df[self.columns[0]] == input_user]
     # split ratings to test and train
@@ -83,14 +83,14 @@ class data_handler:
     train_X = tmp_dataset
 
     # return train and test data
-    return train_X,test_X
+    return train_X, test_X
 
-  def rec_split(self,df):
+  def rec_split(self, df):
     train_X, test_X, train_y, test_y = train_test_split(df, df.index.tolist(), test_size=0.01, random_state=1)
      # return train and test data
-    return train_X,test_X
+    return train_X, test_X
 
-  def create_matrix(dataset,columns,fill_unrated_with):
+  def create_matrix(dataset, columns, fill_unrated_with):
     # unique value of every user
     users = dataset[columns[0]].unique()
     # number of total users
@@ -101,10 +101,10 @@ class data_handler:
     # number of total items
     t_items = len(items)
     # initialize data with zeros
-    data = np.empty((t_users,t_items))
+    data = np.empty((t_users, t_items))
     data[:] = fill_unrated_with
     # create user - item matrix
-    matrix = pd.DataFrame(data= data,columns=items)
+    matrix = pd.DataFrame(data= data, columns=items)
 
     # fill user-item matrix with ratings
     for user in range(len(users)):

@@ -31,6 +31,7 @@ from sklearn.metrics import precision_score
 from sklearn.metrics import mean_squared_error
 from math import sqrt
 from sklearn.metrics import mean_absolute_error
+
 import helper_functions
 import core.config as config
 
@@ -171,8 +172,8 @@ def user_input_dataset():
 
 def frame_merger(dataset):
     merged_frame = pd.merge(prod_frame, fit_frame, on='index')
-    # merged_frame = pd.merge(merged_frame,length_frame,on='index')
-    # merged_frame = pd.merge(merged_frame,color_frame,on='index')
+    # merged_frame = pd.merge(merged_frame, length_frame, on='index')
+    # merged_frame = pd.merge(merged_frame, color_frame, on='index')
     merged_frame = pd.merge(merged_frame, neck_frame, on='index')
     merged_frame = pd.merge(merged_frame, sleeve_frame, on='index')
     merged_frame = pd.merge(merged_frame, search_word_Dataframe, on='index')
@@ -378,7 +379,7 @@ single_user_data = su.copy()
 unique_search_words = single_user_data['SearchWords'].unique()
 future_frame = []
 for i in single_user_data['ImageSource'].tolist():
-  z_array = np.zeros((1,len(unique_search_words)))
+  z_array = np.zeros((1, len(unique_search_words)))
   local_sw = su.loc[su['ImageSource'] == i]['SearchWords'].tolist()
   #print(local_sw)
   for j in range(len(unique_search_words)):
@@ -392,7 +393,7 @@ for i in single_user_data['ImageSource'].tolist():
 #%%
 
 future_frame = np.array(future_frame).squeeze()
-search_word_Dataframe = pd.DataFrame(data=future_frame,columns=unique_search_words)
+search_word_Dataframe = pd.DataFrame(data=future_frame, columns=unique_search_words)
 index = prod_frame.index.tolist()
 search_word_Dataframe['index'] = index
 search_word_Dataframe = search_word_Dataframe.set_index(keys='index')
@@ -412,10 +413,10 @@ len(search_word_Dataframe)
 
 #%%
 
-merged = pd.merge(prod_frame,length_frame,on='index')
-merged = pd.merge(merged,search_word_Dataframe,on='index')
-#merged = pd.merge(merged,fit_frame,on='index')
-merged = pd.merge(merged,neck_frame,on='index')
+merged = pd.merge(prod_frame, length_frame, on='index')
+merged = pd.merge(merged, search_word_Dataframe, on='index')
+#merged = pd.merge(merged, fit_frame, on='index')
+merged = pd.merge(merged, neck_frame, on='index')
 merged
 
 #%%

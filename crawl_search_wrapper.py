@@ -184,9 +184,9 @@ class WebCrawlers:
    # Step 4: Execute clothing based annotation
    # Step 5: Execute product clustering module
    def run(self,):
-      self.executeWebCrawler()
-      self.executeTextBasedAnnotation()
-      self.executeColorBasedAnnotation()
+      # self.executeWebCrawler()
+      # self.executeTextBasedAnnotation()
+      # self.executeColorBasedAnnotation()
       self.executeClothingBasedAnnotation()
       self.executeClustering(train=True)
 

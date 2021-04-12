@@ -13,7 +13,7 @@ from evaluator import evaluator
 
 class cb_rf():
 
-  def __init__(self,input_user,features, dataset, columns, wholedata):
+  def __init__(self, input_user, features, dataset, columns, wholedata):
     self.evdf = -1
 
     self.features = features
@@ -45,39 +45,51 @@ class cb_rf():
     all_items = set(wholedata[columns[1]].unique())
 
     # dataframe for recommendation
-    df = pd.DataFrame(columns=[columns[0],columns[1],'y_rec'])
+    df = pd.DataFrame(columns=[columns[0], columns[1],'y_rec'])
     for i in all_users:
+      # Get items graded by user
       u_data = dataset.loc[dataset[columns[0]] == i]
+      # Get the attributes of the products that the user graded
       train_X = features.loc[u_data[columns[1]].tolist()]
-
+      # Set as target, the products graded and clicked by the user
       train_y = u_data[columns[2]].tolist()
       self.t_x = train_X
       self.t_y = train_y
 
+      # Initialize optimizer
       study = optuna.create_study(direction='minimize')
       study.optimize(self.m_objective, n_trials=10)
       trial_m = study.best_trial
-      regr = RandomForestRegressor(n_estimators=trial_m.params['n_estimators'],max_depth=trial_m.params['max_depth'],criterion='mse', random_state=0)
-      regr.fit(train_X,train_y)
+      # Train RF estimator
+      regr = RandomForestRegressor(n_estimators=trial_m.params['n_estimators'], 
+                                   max_depth=trial_m.params['max_depth'], 
+                                   criterion='mse', 
+                                   random_state=0)
+      regr.fit(train_X, train_y)
 
+      # Get unrated products by the user
       rated = set(u_data[columns[1]].unique())
       unrated = list(all_items - rated)
       if len(unrated)>0:
         test_X = features.loc[unrated]
+        # Predict grades
         y_rec = regr.predict(test_X)
-        p_data = pd.DataFrame(columns=[columns[0],columns[1],'y_rec'])
+        p_data = pd.DataFrame(columns=[columns[0], columns[1],'y_rec'])
         p_data[columns[0]] = [int(i) for k in range(len(unrated))]
         p_data[columns[1]] = unrated
         p_data['y_rec'] = y_rec
-        df = df.append(pd.DataFrame(data=p_data.values,columns=[columns[0],columns[1],'y_rec']))
+        df = df.append(pd.DataFrame(data=p_data.values, columns=[columns[0], columns[1], 'y_rec']))
 
     df = df.reset_index().drop(columns='index')
 
     self.recdf = df
 
     return df
-
-  def m_objective(self,ttrial):
+  
+  def m_objective(self, ttrial):
+    '''
+    Sets the tuning parameters for the estimator of the recommendation model
+    '''
     t_x = self.t_x
     t_y = self.t_y
 
@@ -92,10 +104,10 @@ class cb_rf():
 
     error = sklearn.metrics.mean_squared_error(y_val, y_pred)
     return error
-    #return sklearn.model_selection.cross_val_score(clf, t_x.values,t_y,
+    #return sklearn.model_selection.cross_val_score(clf, t_x.values, t_y,
     #      n_jobs=-1, cv=3).mean()
 
-  def evaluate_system(self,all_train,all_test):
+  def evaluate_system(self, all_train, all_test):
     if type( self.evdf) == type(pd.DataFrame()):
       return  self.evdf
     # make local variables
@@ -105,7 +117,7 @@ class cb_rf():
 
     all_users = dataset[columns[0]].unique()
 
-    df = pd.DataFrame(columns=[columns[0],columns[1],'y_true','y_pred'])
+    df = pd.DataFrame(columns=[columns[0], columns[1],'y_true','y_pred'])
 
     for i in all_users:
 
@@ -125,11 +137,11 @@ class cb_rf():
       study = optuna.create_study(direction='minimize')
       study.optimize(self.m_objective, n_trials=10)
       trial_m = study.best_trial
-      regr = RandomForestRegressor(n_estimators=trial_m.params['n_estimators'],max_depth=trial_m.params['max_depth'],criterion='mse', random_state=0)
-      regr.fit(f_train,train_y)
+      regr = RandomForestRegressor(n_estimators=trial_m.params['n_estimators'], max_depth=trial_m.params['max_depth'], criterion='mse', random_state=0)
+      regr.fit(f_train, train_y)
       y_pred = regr.predict(f_test)
 
-      u_df = pd.DataFrame(columns=[columns[0],columns[1],'y_true','y_pred'])
+      u_df = pd.DataFrame(columns=[columns[0], columns[1],'y_true','y_pred'])
       u_df[columns[0]] = u_test[columns[0]].tolist()
       u_df[columns[1]] = u_test[columns[1]].tolist()
       u_df['y_true'] = u_test[columns[2]].tolist()
@@ -143,9 +155,9 @@ class cb_rf():
 
 
 
-  # def recommend(self,itemsTopredict):
+  # def recommend(self, itemsTopredict):
   #   # init regressor rf
-  #   regr = RandomForestRegressor(n_estimators=100,criterion='mse', random_state=1)
+  #   regr = RandomForestRegressor(n_estimators=100, criterion='mse', random_state=1)
   #   # train
   #   regr.fit(self.rated_clothes, self.ratings)
   #   # predict
@@ -161,12 +173,12 @@ class cb_rf():
   # def split_and_predict(self):
   #   from sklearn.ensemble import RandomForestClassifier
   #   # init regressor rf
-  #   regr = RandomForestRegressor(n_estimators=15,max_depth=5,criterion='mse', random_state=0)
-  #   #regr = RandomForestClassifier(n_estimators=15,max_depth=5, random_state=0)
+  #   regr = RandomForestRegressor(n_estimators=15, max_depth=5, criterion='mse', random_state=0)
+  #   #regr = RandomForestClassifier(n_estimators=15, max_depth=5, random_state=0)
   #   # split data
   #   train_X, test_X, train_y, test_y = train_test_split(self.rated_clothes, self.ratings, test_size=0.1, random_state=0)
   #   # train
-  #   regr.fit(train_X,train_y)
+  #   regr.fit(train_X, train_y)
   #   # predict
   #   y_pred = regr.predict(test_X)
   #
@@ -177,9 +189,9 @@ class cb_rf():
   #   df['y_pred'] = y_pred
   #
   #   return df
-  # def hyb_eval(self,train,test):
+  # def hyb_eval(self, train, test):
   #   # init regressor rf
-  #   regr = RandomForestRegressor(n_estimators=100,criterion='mse', random_state=1)
+  #   regr = RandomForestRegressor(n_estimators=100, criterion='mse', random_state=1)
   #   # train
   #   d_train = self.rated_clothes.copy()
   #   d_train['rating'] = self.ratings.copy()
@@ -192,7 +204,7 @@ class cb_rf():
   #   test_y = test_X['rating'].tolist()
   #   test_X = test_X.drop(columns='rating')
   #   # train
-  #   regr.fit(train_X,train_y)
+  #   regr.fit(train_X, train_y)
   #   # predict
   #   y_pred = regr.predict(test_X)
   #
@@ -204,7 +216,7 @@ class cb_rf():
   #
   #   return df
   #
-  # def coverage(self,threshold):
+  # def coverage(self, threshold):
   #
   #   if type(self.recdf) != type(pd.DataFrame()):
   #     pred_ratings = self.make_recommendation()
@@ -233,14 +245,14 @@ class cb_rf():
   #
   #
   #
-  # def novelty(self,cat_,threshold,translator_=False):
+  # def novelty(self, cat_, threshold, translator_=False):
   #
   #   if type(self.recdf) != type(pd.DataFrame()):
   #     pred_ratings = self.make_recommendation()
   #   else:
   #     pred_ratings = self.recdf
   #
-  #   pred_ratings = pred_ratings.merge(cat_,on=columns[1],how='inner')
+  #   pred_ratings = pred_ratings.merge(cat_, on=columns[1], how='inner')
   #
   #   categories = pred_ratings['category'].unique()
   #
@@ -248,8 +260,8 @@ class cb_rf():
   #   for i in range(len(categories)):
   #     ratings = []
   #     fr = pred_ratings.loc[pred_ratings['category'] == categories[i]]
-  #     ratings.append(round(len(fr.loc[fr['y_rec'] >=threshold])  / len(fr.loc[fr['y_rec'] >=0]),2) )
-  #     ratings.append(round(len(fr.loc[fr['y_rec'] <threshold])  / len(fr.loc[fr['y_rec'] >=0]) ,2))
+  #     ratings.append(round(len(fr.loc[fr['y_rec'] >=threshold])  / len(fr.loc[fr['y_rec'] >=0]), 2) )
+  #     ratings.append(round(len(fr.loc[fr['y_rec'] <threshold])  / len(fr.loc[fr['y_rec'] >=0]) , 2))
   #     c_ratings.append(ratings)
   #
   #   df = pd.DataFrame(data=c_ratings , columns=['προτείνεται','δεν προτείνεται'])
