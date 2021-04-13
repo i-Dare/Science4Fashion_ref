@@ -36,39 +36,39 @@ if __name__ == "__main__":
 
     params = {attr: 'NULL' for attr in config.ATTRIBUTE_COLUMNS}
     params['table'] = 'Product'
-    productDF = db_manager.runSelectQuery(params)
+    product_df = db_manager.runSelectQuery(params)
 
     # Each entry
-    logger.info("Executing product attribute annotation for %s unlabeled products" % len(productDF))
-    for index, row in productDF.iterrows():
+    logger.info("Executing product attribute annotation for %s unlabeled products" % len(product_df))
+    for index, row in product_df.iterrows():
         # check if there is a blob or to skip it
         if row['Image'] is not None:
             image = helper.convertBlobToImage(row['Image'])
             image = helper.convertCVtoPIL(image)
             # Neckline
             if row['NeckDesign'] == None:
-                productDF.loc[index, 'NeckDesign'] = helper.updateAttribute(config.DICTNECKLINE, image,
+                product_df.loc[index, 'NeckDesign'] = helper.updateAttribute(config.DICTNECKLINE, image,
                         necklineLearner)
             # Sleeve
             if row['Sleeve'] == None:
-                productDF.loc[index, 'Sleeve'] = helper.updateAttribute(config.DICTSLEEVE, image,
+                product_df.loc[index, 'Sleeve'] = helper.updateAttribute(config.DICTSLEEVE, image,
                         sleeveLearner)
             # Length
             if row['Length'] == None:
-                productDF.loc[index, 'Length'] = helper.updateAttribute(config.DICTLENGTH, image,
+                product_df.loc[index, 'Length'] = helper.updateAttribute(config.DICTLENGTH, image,
                         lengthLearner)
             # Collar
             if row['CollarDesign'] == None:
-                productDF.loc[index, 'CollarDesign'] = helper.updateAttribute(config.DICTCOLLAR, image,
+                product_df.loc[index, 'CollarDesign'] = helper.updateAttribute(config.DICTCOLLAR, image,
                         collarLearner)
             # FIT
             if row['Fit'] == None:
-                productDF.loc[index, 'Fit'] = helper.updateAttribute(config.DICTFIT, image,
+                product_df.loc[index, 'Fit'] = helper.updateAttribute(config.DICTFIT, image,
                         fitLearner)
             
             # Update Product table
             uniq_params = {'table': 'Product', 'Oid': row['Oid']}
-            params = {attr: productDF.loc[index, attr] for attr in config.ATTRIBUTE_COLUMNS}
+            params = {attr: product_df.loc[index, attr] for attr in config.ATTRIBUTE_COLUMNS}
             params['table'] = 'Product'
             _ = db_manager.runCriteriaUpdateQuery(uniq_params=uniq_params, params=params)
         else:
@@ -76,4 +76,4 @@ if __name__ == "__main__":
 
     # End Counting Time
     logger.info("--- %s seconds ---" % (time.time() - start_time))
-    logger.info("Updated %s records in %s seconds ---" % (len(productDF), round(time.time() - start_time, 2)))
+    logger.info("Updated %s records in %s seconds ---" % (len(product_df), round(time.time() - start_time, 2)))

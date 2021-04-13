@@ -128,10 +128,10 @@ if __name__ == '__main__':
                 LEFT JOIN %s.dbo.ProductColor AS PC
                 ON PR.Oid=PC.Product
                 WHERE PC.Oid IS NULL''' % (str(dbName), str(dbName))
-    productDF = db_manager.runSimpleQuery(query, get_identity=True)
+    product_df = db_manager.runSimpleQuery(query, get_identity=True)
 
     #Colors dataframe
-    for _, row in productDF.iterrows():
+    for _, row in product_df.iterrows():
         # Image source
         imgSrc = row['Photo']
         # try:

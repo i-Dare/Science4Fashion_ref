@@ -24,10 +24,10 @@ if __name__ == "__main__":
     dbName = config.DB_NAME
     query = ''' SELECT * FROM %s.dbo.Product ''' % dbName
     # query = '''SELECT * FROM "%s".public."Product"''' % dbName
-    productDF = pd.read_sql_query(query, engine)
+    product_df = pd.read_sql_query(query, engine)
     
-    labelsDF = productDF[config.CLUSTERING_PRODUCT_ATTRIBUTES].copy() #'Inspiration_Background'
-    labelsDF.fillna(0, inplace=True)
+    labels_df = product_df[config.CLUSTERING_PRODUCT_ATTRIBUTES].copy() #'Inspiration_Background'
+    labels_df.fillna(0, inplace=True)
     # Read all the tables of features from S4F DB to match id to genID
     attrDict = {}
     for attr in (config.PRODUCT_ATTRIBUTES):
@@ -37,18 +37,18 @@ if __name__ == "__main__":
         
     # Merging tables with product to create the product with values not id.
     for attr in (config.PRODUCT_ATTRIBUTES):
-        _tempDF = labelsDF.merge(attrDict[str(attr)+'DF'], how = 'left', left_on=str(attr), right_on='Oid')
-        labelsDF.loc[:,str(attr)] = _tempDF.loc[:,str(attr)]
+        _tempDF = labels_df.merge(attrDict[str(attr)+'DF'], how = 'left', left_on=str(attr), right_on='Oid')
+        labels_df.loc[:,str(attr)] = _tempDF.loc[:,str(attr)]
     
     ## Clustering process
     #
     # Prepare data for clustering (skip RetailPrice column)
-    X = labelsDF.to_numpy()[:,1:].astype('int')
+    X = labels_df.to_numpy()[:,1:].astype('int')
     N_CLUSTERS = 6
     kmodes = KModes(n_clusters=N_CLUSTERS, init=config.INITKMODES, verbose=2)
     clusters = kmodes.fit_predict(X)
     centroids = kmodes.cluster_centroids_
-    clustering_dict = {attr:centroids[:,i] for i,attr in enumerate(labelsDF.columns[1:])}
+    clustering_dict = {attr:centroids[:,i] for i,attr in enumerate(labels_df.columns[1:])}
     clustering_dict['Cluster'] = range(N_CLUSTERS)
     clustering_dict['RetailPrice'] = N_CLUSTERS * [None]
     clustering_dict['LifeStage'] = N_CLUSTERS * [None]
@@ -63,7 +63,7 @@ if __name__ == "__main__":
 
     ## Update Product table
     #
-    dataDF = pd.DataFrame({'Oid': productDF['Oid'], 'Cluster': clusters})
+    dataDF = pd.DataFrame({'Oid': product_df['Oid'], 'Cluster': clusters})
     # dataDF.to_sql("temp_table", schema='%s.dbo' % dbName, con=engine, if_exists='replace', index=False)
     dataDF.to_sql("temp_table", con = engine, if_exists = 'replace', index = False)
     with engine.begin() as conn:

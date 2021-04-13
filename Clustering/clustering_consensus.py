@@ -111,14 +111,14 @@ class ConsensusClustering:
       # Collect information from the Product, ProductColor and ColorRGB tables of S4F database
       #
       self.logger.info('Start preprocessing of product attributes...')
-      productDF, productColorDF, colorRGBDF = self._init_preprocessing()
-      self.productOID_dict = productDF['Oid'].to_dict()
+      product_df, productColorDF, colorRGBDF = self._init_preprocessing()
+      self.productOID_dict = product_df['Oid'].to_dict()
 
       # Merge color information from tables
       colorDF = productColorDF.merge(colorRGBDF, right_on='Oid', left_on='ColorRGB')      
 
       # Merge color and product info tables
-      mergeDF = colorDF.merge(productDF, right_on='Oid', left_on='Product')
+      mergeDF = colorDF.merge(product_df, right_on='Oid', left_on='Product')
 
       # Create color ranking columns in product tables
       for prno in mergeDF['Product'].unique():
@@ -126,12 +126,12 @@ class ConsensusClustering:
          for _ in mergeDF['Ranking'].unique():
             colors = mergeDF.loc[mergeDF['Product']==prno]['LabelDetailed'].values
             for i,color in enumerate(colors, start=1):
-                  productDF.loc[productDF['Oid']==prno, 'ColorRanking%s' % i] = color
+                  product_df.loc[product_df['Oid']==prno, 'ColorRanking%s' % i] = color
 
       ## Select desirable attributes of the merged table
       # Select product attributes used in clustering, color ranking information and product description
-      self.attributes += productDF.filter(like='ColorRanking').columns.tolist() + ['Description']
-      attributesDF = productDF[set(self.attributes)]
+      self.attributes += product_df.filter(like='ColorRanking').columns.tolist() + ['Description']
+      attributesDF = product_df[set(self.attributes)]
 
       for col in attributesDF:
          if attributesDF[col].nunique() == 1: # remove columns with identical elements
@@ -298,7 +298,7 @@ class ConsensusClustering:
       selected_attr = ','.join(['\"%s\"' % s for s in self.attributes + ['Oid', 'Description']])
       query = ''' SELECT %s FROM %s.dbo.Product ''' % (selected_attr, self.dbName)
       # query = '''SELECT * FROM "%s".public."Product"''' % self.dbName
-      productDF = pd.read_sql_query(query, self.engine)
+      product_df = pd.read_sql_query(query, self.engine)
 
       colorQuery = '''SELECT * FROM %s.dbo.ProductColor''' % self.dbName
       # colorQuery = '''SELECT * FROM public."ProductColor"''' 
@@ -308,7 +308,7 @@ class ConsensusClustering:
       # colorRGBQuery = '''SELECT * FROM public."ColorRGB"'''
       colorRGBDF = pd.read_sql_query(colorRGBQuery, self.engine)     
 
-      return productDF, productColorDF, colorRGBDF
+      return product_df, productColorDF, colorRGBDF
 
    # Clustering Algorithms executed with parameter tuning
    def kmeans_clustering(self, data, init=2):
