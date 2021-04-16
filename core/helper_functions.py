@@ -19,7 +19,10 @@ from nltk.corpus import wordnet as wn
 from nltk.stem.wordnet import WordNetLemmatizer
 from nltk.tokenize import TweetTokenizer
 from nltk import pos_tag
+from sklearn.feature_extraction.text import TfidfVectorizer
 import wordsegment
+
+from pathlib import Path
 import warnings
 
 import core.config as config
@@ -206,7 +209,76 @@ class Helper():
         # convert image to binary
         empPhoto = self.convertToBinaryData(imageFilePath)
         return empPhoto
+
+    def save_model(self, model, model_name, directory):
+        '''
+        Saves model locally in a pickle
+        '''
+        # Create model directory
+        if not os.path.exists(directory):      
+            os.makedirs(directory)
+        extension = '' if model_name.endswith('.pkl') else '.pkl'
+        model_name += extension
+        model_path = os.path.join(directory, model_name)
+        pickle.dump(model, open(model_path, 'wb'))
+        self.logger.info('Model %s saved at %s' % (model_name, model_path))
+
+    def get_model(self, model_name):
+        try:
+            model_list_paths = [str(p.joinpath()) for p in Path(config.MODELSDIR).rglob('*.pkl') 
+                    if model_name in str(p.joinpath())]
+
+            model_path = max(model_list_paths, key = os.path.getctime)
+            model = pickle.load(open(str(model_path).replace('\\', os.sep), 'rb'))
+            return model
+        except:
+            self.logger.warning('Model %s not found in directory %s.' % (model_name, config.MODELSDIR))
     
+
+# --------------------------------------------------------------------------                        
+#          Calculate descriptor vectors
+# -------------------------------------------------------------------------- 
+    def calculateTextDescriptors(self,):
+        '''
+        Calculates text features for recommendation 
+        '''
+        start = time.time()
+        self.logger.info('Calculating text descriptors')
+        # Get text attributes of all products 
+        params = {'table': 'Product'}
+        filters = ['Oid', 'Metadata', 'ProductTitle', 'Description']
+        product_df = self.db_manager.runSelectQuery(params=params, filters=filters)
+        print("DB fetching time: {:.2f} ms".format((time.time() - start) * 1000))
+
+
+        # Combine text fields
+        start = time.time()
+        product_df['combined_columns'] = product_df['Metadata'].astype(str) \
+                                        + product_df['ProductTitle'].astype(str) \
+                                        + product_df['Description'].astype(str)
+        product_df.loc[:, 'processed_combined'] = product_df.loc[:, 'combined_columns'].apply(self.preprocess_metadata)
+        print("Text preprocessing time: {:.2f} ms".format((time.time() - start) * 1000))
+
+        # TFIDF vectorizer setup
+        start = time.time()
+        vectorizer = TfidfVectorizer(analyzer='word', 
+                                    ngram_range=(1,2), 
+                                    min_df=3, 
+                                    max_df=.95,
+        #                              max_features=5000,
+                                    use_idf=True, 
+                                    stop_words=self.STOP_WORDS)
+        # saving TFIDF features
+        tfidf_vector = vectorizer.fit_transform(product_df['processed_combined'])
+        print("TFIDF feature extraction time: {:.2f} ms".format((time.time() - start) * 1000))
+
+        if not os.path.exists(config.DATADIR):
+            os.makedirs(config.DATADIR)
+        np.save(config.TFIDF_VECTOR, tfidf_vector)
+        # saving TFIDF vectorizer
+        self.save_model(vectorizer, config.MODEL_TEXT_DESCRIPTOR, config.TEXT_DESCRIPTOR_MODEL_DIR)
+        return product_df, tfidf_vector, vectorizer
+
 # --------------------------------------------------------------------------                        
 #          Database IO Functionality
 # -------------------------------------------------------------------------- 
@@ -363,7 +435,7 @@ class Helper():
         
 
 # --------------------------------------------------------------------------
-#          Natural Language Processing Functionality 
+#          Natural Language Processing (NLP) Functionality 
 # --------------------------------------------------------------------------    
 
     def get_fashion_attributes(self, ):
@@ -423,6 +495,18 @@ class Helper():
         tokens = [self.lemmatize(word, tag) for word,tag in pos_tag(tokens)]
         # Merge together
         return ' '.join(tokens)
+
+    def create_tfidf_features(self, vocabulary, doc):
+
+        # Setup TFIDF vectorizer
+        vectorizer = TfidfVectorizer(analyzer='word', 
+                                     ngram_range=(1,2), 
+                                     min_df=2, 
+                                     stop_words=self.STOP_WORDS)
+
+        vectorizer.fit_transform(vocabulary)
+        tfidf_vector = vectorizer.transform(doc)
+        return tfidf_vector
 
 # --------------------------------------------------------------------------                        
 #          Web crawler functionality, specific for each website
@@ -1065,76 +1149,3 @@ class Helper():
         params = {'ColorsDescription': color, 'Metadata': meta, 'ProductCategory': prodCatID, 
                 'ProductSubcategory': prodSubCatID, 'Gender': genderid}
         return params
-
-
-
-
-    #     # price
-    #     try:
-    #         price = soup.find('span', text=re.compile(
-    #             r'[0-9]+[\.,][0-9]')).text.replace(',', '.')
-    #         price = float(re.findall(r"[+-]?\d+\.\d+", price)[0])
-    #     except:
-    #         price = None
-    #         self.logger.info("Price not captured at %s" % url)
-
-    #     # head - Clothe's General Description
-    #     try:
-    #         head = soup.find('h1').text
-    #         head = re.sub(r'\s+', ' ', head).strip()
-    #     except:
-    #         head = ''
-    #         self.logger.info("Header not captured at %s" % url)
-            
-    #     # color, brand, sku, active information
-    #     sku = ''
-    #     color = ''   
-    #     brand = '' 
-    #     img = imgURL.split('?')[0]
-    #     try:
-    #         parseInfo = soup.find('script', attrs={'id': re.compile(r'z-vegas-pdp-props')}).text
-    #         jsonInfo = json.loads(parseInfo[parseInfo.find('{'):len(parseInfo)-parseInfo[::-1].find('}')])
-    #         items = jsonInfo['model']['articleInfo']['colors'] 
-    #     except Exception as e: 
-    #         self.logger.info(e)
-    #         self.logger.info("Failed to parse jsonInfo at  %s" % url)
-    #     try:    
-    #         for i, item in enumerate(items):
-    #             for imgColor in item['media']['images']:
-    #                 if img in imgColor['sources']['color']:
-    #                     color = items[i]['color']
-    #                     sku = items[i]['id']
-    #                     break
-    #         brand = jsonInfo['model']['articleInfo']['brand']['name']
-    #     except:
-    #         color = None
-    #         sku = None
-    #         self.logger.info("Color, brand, sku not captured at %s" % url)
-    #     # gender - Clothe's Gender
-    #     try:
-    #         jsonInfo = soup.find(text=re.compile(r'navigationTargetGroup'))
-    #         gender = json.loads(jsonInfo)[
-    #             'rootEntityData']['navigationTargetGroup']
-    #         genderid = self.getGender(gender)
-    #     except:
-    #         gender = ''
-    #         genderid = None
-    #         self.logger.info("Gender not captured at %s" % url)
-    #     # Other attributes
-    #     # For Description
-    #     meta = ''
-    #     try:
-    #         # parse metadata
-    #         parseInfo = soup.find(text=re.compile(r'heading_details'))
-    #         jsonInfo = parseInfo[parseInfo.find('{'):len(parseInfo)-parseInfo[::-1].find('}')]
-    #         attr_list = []
-    #         for field in json.loads(jsonInfo)['model']['productDetailsCluster']:
-    #             for data in field['data']:
-    #                 if 'values' in data.keys():
-    #                     attr_list.append(data['values'])
-    #         # keep only unique attributes
-    #         attr_list = list(set(attr_list))
-    #         meta = ' - '.join(attr_list)
-    #     except:
-    #         self.logger.info("Product Description not captured at %s" % url)
-    #     return head, brand, color, genderid, meta, sku, True, price

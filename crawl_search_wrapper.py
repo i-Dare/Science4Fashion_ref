@@ -49,7 +49,6 @@ class WebCrawlers:
             for your search query. The Adapter should be one of: %s''' % self.adapterDF['Description'].values, 
             type = lambda s: s.lower(), choices = self.allAdapters, required = True, nargs = '+')  
       self.parser.add_argument('-u', '--user', help = '''User's name''') 
-      self.parser.add_argument('--version', action = 'version', version = '%(prog)s  1.0')
       
       # Parse arguments
       self.args = self.parser.parse_args()
@@ -123,7 +122,7 @@ class WebCrawlers:
                                  stderr=subprocess.STDOUT)
          if proc.returncode != 0:   
             self.logger.warning('Issues in adapter %s' % str(adapter).capitalize())
-
+      
 
    # Execute text metadata based annotation  
    def executeTextBasedAnnotation(self,):
@@ -184,7 +183,7 @@ class WebCrawlers:
    # Step 4: Execute clothing based annotation
    # Step 5: Execute product clustering module
    def run(self,):
-      # self.executeWebCrawler()
+      self.executeWebCrawler()
       self.executeTextBasedAnnotation()
       self.executeColorBasedAnnotation()
       self.executeClothingBasedAnnotation()

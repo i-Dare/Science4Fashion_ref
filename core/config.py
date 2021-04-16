@@ -34,11 +34,13 @@ IMAGE_ANNOTATION = os.path.join(PROJECT_HOME, 'ImageAnnotation')
 RECOMMENDER = os.path.join(PROJECT_HOME, 'Recommender')
 WEB_CRAWLERS = os.path.join(PROJECT_HOME, 'WebCrawlers')
 RESOURCESDIR = os.path.join(PROJECT_HOME, config['resources']['resourcesDir'])
+DATADIR = os.path.join(PROJECT_HOME, RESOURCESDIR, config['resources']['data']['directory'])
 IMAGEDIR = os.path.join(PROJECT_HOME, config['resources']['resourcesDir'], 'images')
 MODELSDIR = os.path.join(PROJECT_HOME, RESOURCESDIR,config['resources']['models']['modelsDir'])
 COLOR_MODEL_DIR = os.path.join(PROJECT_HOME, RESOURCESDIR, MODELSDIR, config['resources']['models']['color_model']['directory'])
 CLUSTERING_MODEL_DIR = os.path.join(PROJECT_HOME, RESOURCESDIR, MODELSDIR, config['resources']['models']['clustering_models']['directory'])
 PRODUCT_ATTRIBUTE_MODEL_DIR = os.path.join(PROJECT_HOME, RESOURCESDIR, MODELSDIR, config['resources']['models']['product_attribute_model']['directory'])
+TEXT_DESCRIPTOR_MODEL_DIR = os.path.join(PROJECT_HOME, RESOURCESDIR, MODELSDIR, config['resources']['models']['text_descriptor_model']['directory'])
 
 #
 ########### Logging variables ###########
@@ -90,19 +92,19 @@ DEVICE = 'cpu'
 # -1 is the Strapless we don't know how to handle it yet
 #Neckline
 DICTNECKLINE = {0:2,1:7, 2:4, 3:6, 4:1, 5:3, 6:5}
-MODELNECKLINE = config['resources']['models']['product_attribute_model']['model']['neckline']
+MODEL_NECKLINE = config['resources']['models']['product_attribute_model']['model']['neckline']
 #Sleeve
 DICTSLEEVE = {0:8, 1:2, 2:6, 3:1, 4:4}
 MODELSLEEVE = config['resources']['models']['product_attribute_model']['model']['sleeve']
 #Length
 DICTLENGTH = {0:4, 1:2, 2:3, 3:1}
-MODELLENGTH = config['resources']['models']['product_attribute_model']['model']['length']
+MODEL_LENGTH = config['resources']['models']['product_attribute_model']['model']['length']
 #Collar
-DICTCOLLAR = {0:4, 1:-1, 2:1}
-MODELCOLLAR = config['resources']['models']['product_attribute_model']['model']['collar']
+DICTCOLLAR = {0:4, 1:2, 2:1}
+MODEL_COLLAR = config['resources']['models']['product_attribute_model']['model']['collar']
 #Fit
 DICTFIT = {0:2, 1:1, 2:3, 3:4}
-MODELFIT = config['resources']['models']['product_attribute_model']['model']['fit']
+MODEL_FIT = config['resources']['models']['product_attribute_model']['model']['fit']
 
 #
 ########### Clustering variables ###########
@@ -145,3 +147,13 @@ UPDATE_PRODUCT_CONSENSUS_CLUSTERS_QUERY = """
     WHERE Product.Oid = temp_table.Oid;
     DROP TABLE temp_table;
 """
+
+
+#
+########### Descriptor variables ###########
+#
+# Text descriptor model
+MODEL_TEXT_DESCRIPTOR = config['resources']['models']['text_descriptor_model']['model']
+
+# Saved data
+TFIDF_VECTOR = os.path.join(DATADIR, config['resources']['data']['tfidf_data'])
