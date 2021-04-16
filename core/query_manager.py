@@ -5,6 +5,19 @@ import re
 import core.config as config
 
 
+
+def returnDataFrame(df):
+    for col in df.columns:
+        # parse numeric
+        df[col] = pd.to_numeric(df[col], errors='ignore')
+    return df
+
+def filtering(filters):
+    selection = '*'
+    if filters and type(filters)==list:
+        selection = ','.join(['t.%s' % col for col in filters])
+    return selection
+
 # --------------------------------
 #          S4F QueryManager
 # --------------------------------
@@ -13,7 +26,6 @@ class QueryManager():
         self.user = user
         self.dbName = config.DB_NAME
         self.engine = config.ENGINE
-
 
     def runInsertQuery(self, params=dict, get_identity=False):
         """
@@ -98,7 +110,7 @@ class QueryManager():
                 return df
             
 
-    def runSelectQuery(self, params=dict):
+    def runSelectQuery(self, params=dict, filters=None):
         """
         Execute "SELECT" queries using a parameter dictionary.
         The 'params' dictionary should contain the table information as well as the fields
@@ -110,7 +122,7 @@ class QueryManager():
             raise ValueError('The "table" information is missing from "params" dictionary')
         else:
             table = params['table']
-            params = self.parseParams(params)            
+            params = self.parseParams(params)    
             if len(params.keys())>0:
                 # prepare criteria statement
                 where = ''
@@ -124,10 +136,11 @@ class QueryManager():
                             where += ' AND t.%s is NULL' % k
                         else:
                             where += ' AND t.%s = %s' % (k,v)
-                # where = ' AND '.join(['t.%s = %s' % (k,v) for k,v in params.items() if k!='table'])
-                query = "SELECT * FROM  %s.dbo.%s t WHERE %s" % (self.dbName, table, where)
+
+                query = "SELECT %s FROM  %s.dbo.%s t WHERE %s" % (filtering(filters), self.dbName, 
+                        table, where)
             else:
-                query = "SELECT * FROM  %s.dbo.%s t" % (self.dbName, table)
+                query = "SELECT %s FROM  %s.dbo.%s t" % (filtering(filters), self.dbName, table)
             return self.runSimpleQuery(query, get_identity=True)
 
     def parseParams(self, params, has_owner=False):
@@ -138,7 +151,10 @@ class QueryManager():
         for k,v in _params.items():
             # parse floats
             if 'float' in str(type(v)).lower():
-                params[k] = self.parseFloat(v)
+                if np.isnan(v):
+                    del params[k]
+                else:
+                    params[k] = self.parseFloat(v)
             # parse integers
             if 'int' in str(type(v)).lower():
                 params[k] = self.parseInt(v)
@@ -183,8 +199,7 @@ class QueryManager():
     def parseDecimal(self, i):
         return self.parseFloat(float(i))
 
-
-    def runSimpleQuery(self, query, args=None, get_identity=False):
+    def runSimpleQuery(self, query, args=None, get_identity=False, filters=None):
         """
         Execute input query. Set 'get_identity=True' to  return the results in a DataFrame , e.g.
 
@@ -202,7 +217,8 @@ class QueryManager():
                 # parse table name from query
                 table = re.findall(r'\b(FROM|INTO|UPDATE)\b\s(.+?)\s', query)[0][1]
                     
-                query = query + '\n SELECT * FROM %s t WHERE t.Oid = SCOPE_IDENTITY()' % table
+                query = query + '\n SELECT %s FROM %s t WHERE t.Oid = SCOPE_IDENTITY()' % \
+                        (filtering(filters), table)
                 if args:
                     try:
                         result = conn.execute(query, args)
@@ -221,20 +237,21 @@ class QueryManager():
                     df = pd.DataFrame(columns=records[0].keys(), data=rows)
                 else:
                     df = pd.DataFrame() 
-                return df
+                return returnDataFrame(df)
             else:
                 # Execute "silent" query
                 conn.execute(query)
 
     ## Returns the last record ID from the specified column and table
     #
-    def getLastRecordID(self, table, where=None):
+    def getLastRecordID(self, table, where=None, filters=None):
         if where:
-            query = "SELECT TOP 1 * FROM %s.dbo.%s t  %s  ORDER BY Oid DESC" % (config.DB_NAME, table, where)
+            query = "SELECT TOP 1 %s FROM %s.dbo.%s t  %s  ORDER BY Oid DESC" % (filtering(filters), 
+                    config.DB_NAME, table, where)
         else:
-            query = "SELECT TOP 1 * FROM %s.dbo.%s t ORDER BY Oid DESC" % (config.DB_NAME, table)
+            query = "SELECT TOP 1 %s FROM %s.dbo.%s t ORDER BY Oid DESC" % (filtering(filters), 
+                    config.DB_NAME, table)
         with self.engine.begin() as conn:    
             result = conn.execute(query)
             oid = result.fetchone()
-        return oid[0] if oid else None            
-
+        return oid[0] if oid else None      
