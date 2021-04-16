@@ -180,7 +180,7 @@ def save_ranked(helper, query_result, adapter, segmentation=False):
     query_tfidf = vectorizer.transform(dataDF['searchTerm'])
 
     ## Calculate cosine similarity of searchTerm tokens and metadata tokens
-    cosine_vector = cosine_similarity(query_tfidf[0], metadata_tfidf)
+    cosine_vector = cosine_similarity(metadata_tfidf, query_tfidf).sum(axis=1)
     dataDF['cosine_ranking_score'] = np.hstack(cosine_vector).tolist() * dataDF['factor']
 
     ## Calculate a factor based on the social media recommendation algorithm (order of appearence)

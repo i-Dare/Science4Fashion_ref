@@ -7,6 +7,8 @@ import os
 from datetime import datetime
 import warnings
 import argparse
+import warnings
+warnings.filterwarnings('ignore')
 
 from sklearn import metrics
 from sklearn import preprocessing
@@ -23,8 +25,10 @@ import prince
 from light_famd import FAMD
 
 import core.config as config
+from core.helper_functions import *
 from core.logger import S4F_Logger
 from core.query_manager import QueryManager
+
 
 class ConsensusClustering:
 
@@ -48,6 +52,10 @@ class ConsensusClustering:
       self.user = self.args.user
       self.logging = S4F_Logger('ClusteringLogger', user=self.user)
       self.logger = self.logging.logger
+      self.helper = Helper(self.logging)
+
+      # QueryManager setup
+      self.db_manager = QueryManager(user=self.user)
 
       self.training_mode = self.args.train
       
@@ -55,8 +63,7 @@ class ConsensusClustering:
          self.logger.info('Executing Consensus Clustering with training.')
       else:
          self.logger.info('Executing Consensus Clustering without training.')
-      self.linkage = self.args.linkage
-      
+      self.linkage = self.args.linkage      
       
       ## Get initial configuration from "config" package
       #      
@@ -75,7 +82,8 @@ class ConsensusClustering:
       # Dictionary used mapping products to IDs
       self.productOID_dict = {}
       # Dictionary used for clustering evaluation
-      self.clustering_dict = {}
+      self.clustering_dict = {}      
+
 
    def executeClustering(self):
       #
@@ -87,11 +95,11 @@ class ConsensusClustering:
       
       ## Preprocessing
       #   
-      attributesDF = self.clustering_preprocessing()
+      attributes_df = self.clustering_preprocessing()
 
       ## Factor Analysis of Mixed Data feature selection
       # 
-      famd_featsDF = self.famd_features(attributesDF)
+      famd_featsDF = self.famd_features(attributes_df)
 
       # Train consensus clustering model
       #
@@ -100,7 +108,8 @@ class ConsensusClustering:
       # Update clustering table
       self.update_clusters(labels)
 
-      self.logger.info('Number of final clusters: %s Final Silhouette Score: %s' % (n_clusters, score))
+      self.logger.info('''Number of final clusters: %s 
+                           Final Silhouette Score: %s''' % (n_clusters, score))
       # End Counting Time
       self.logger.info("--- %s seconds ---" % (time.time() - start_time))
 
@@ -131,50 +140,49 @@ class ConsensusClustering:
       ## Select desirable attributes of the merged table
       # Select product attributes used in clustering, color ranking information and product description
       self.attributes += product_df.filter(like='ColorRanking').columns.tolist() + ['Description']
-      attributesDF = product_df[set(self.attributes)]
+      attributes_df = product_df[set(self.attributes)]
 
-      for col in attributesDF:
-         if attributesDF[col].nunique() == 1: # remove columns with identical elements
-            del attributesDF[col]
+      for col in attributes_df:
+         if attributes_df[col].nunique() == 1: # remove columns with identical elements
+            del attributes_df[col]
 
-         elif attributesDF[col].isnull().all():  # remove all-null columns
-            del attributesDF[col]
+         elif attributes_df[col].isnull().all():  # remove all-null columns
+            del attributes_df[col]
 
-         elif attributesDF[col].is_unique: # remove columns with unique elements
-            del attributesDF[col]
+         elif attributes_df[col].is_unique: # remove columns with unique elements
+            del attributes_df[col]
       
       ## Fill NA and None values
-      attributesDF.fillna(np.nan, inplace=True)
+      attributes_df.fillna(np.nan, inplace=True)
       feat_columns = config.PRODUCT_ATTRIBUTES + ['Gender']
 
       # Read all the tables of features from S4F DB to match id to genID
       attrDFDict = {}
       for attr in (feat_columns):
          query = ''' SELECT * FROM %s.dbo.%s ''' % (self.dbName, attr)
-         # query = '''SELECT * FROM "%s".public."%s"''' % (self.dbName, attr)
          attrDFDict[str(attr)+'DF'] = pd.read_sql_query(query, self.engine)
 
       # Merging product attribute tables to form the product table with the actual attributes and not the attribute ids.
       for attr in (feat_columns):
-         if attr in attributesDF.columns: # chech in case column was removed during data cleaning
+         if attr in attributes_df.columns: # check in case column was removed during data cleaning
             attrDict = attrDFDict[str(attr)+'DF'][['Oid', 'Description']].set_index('Oid').to_dict()['Description']
-            attributesDF.loc[attributesDF.loc[:, attr].isnull(), attr] = np.nan
-            attributesDF.loc[:, attr] = attributesDF.loc[:, attr].map(int, na_action='ignore').map(attrDict, na_action='ignore').values.tolist()
+            attributes_df.loc[attributes_df.loc[:, attr].isnull(), attr] = np.nan
+            attributes_df.loc[:, attr] = attributes_df.loc[:, attr].map(int, na_action='ignore').map(attrDict, na_action='ignore').values.tolist()
 
       # rearrange columns so that numerical attributes are last    
-      num_columns = sorted(attributesDF._get_numeric_data().columns.tolist())
-      cat_columns = sorted(list(set(attributesDF.columns) - set(num_columns)))
-      attributesDF = attributesDF[cat_columns + num_columns]
+      num_columns = sorted(attributes_df._get_numeric_data().columns.tolist())
+      cat_columns = sorted(list(set(attributes_df.columns) - set(num_columns)))
+      attributes_df = attributes_df[cat_columns + num_columns]
       # replace NaN values with NOT_APPLIED
       for col in cat_columns:                                          
-         attributesDF[col].fillna('NOT_APPLIED', inplace=True)
+         attributes_df[col].fillna('NOT_APPLIED', inplace=True)
       # replace numerical NaN values with the mean of the column
       for col in num_columns:                                          
-         attributesDF[col].fillna(attributesDF[col].mean(), inplace=True)
+         attributes_df[col].fillna(attributes_df[col].mean(), inplace=True)
 
       # Normalize numeric values
-      attributesDF[num_columns] = MinMaxScaler().fit_transform(attributesDF[num_columns])
-      return attributesDF
+      attributes_df[num_columns] = MinMaxScaler().fit_transform(attributes_df[num_columns])
+      return attributes_df
 
    def famd_features(self, data):
       self.logger.info('Start FAMD feature endcoding...')
@@ -202,29 +210,11 @@ class ConsensusClustering:
       
       return labels, n_clusters, score
 
-   def save_model(self, model, model_name):
-      # Create model directory
-      if not os.path.exists(self.clustering_model_dir):      
-         os.makedirs(self.clustering_model_dir)
-      model_path = os.path.join(self.clustering_model_dir, '%s.pkl' % model_name)
-      pickle.dump(model, open(model_path, 'wb'))
-
-   def get_model(self, model_name):
-      try:
-         model_list_paths = [os.path.join(config.CLUSTERING_MODEL_DIR, mname) 
-                           for mname in os.listdir(config.CLUSTERING_MODEL_DIR) if model_name in mname]
-         model_path = max(model_list_paths, key = os.path.getctime)
-         model = pickle.load(open(str(model_path).replace('\\', os.sep), 'rb'))
-         return model
-      except:
-         warnings.warn('Model %s not found in directory %s. Make sure the models are previously \
-               trained, if the models have not been trained, execute class with argument \
-               "train=True"' % (model_name, config.CLUSTERING_MODEL_DIR))
       
    def update_clusters(self, labels):
       ## Update Cluster table
       # Delete all existing records from Cluster table
-      self.logger.info('Start updating S4F database...')
+      self.logger.info('Updating %s database...' % config.DB_NAME)
       with self.engine.begin() as conn:
          conn.execute('''ALTER TABLE %s.dbo.Product NOCHECK CONSTRAINT FK_Product_Cluster''' % (self.dbName))
          conn.execute('''DELETE FROM %s.dbo.Cluster''' % (self.dbName))
@@ -233,9 +223,7 @@ class ConsensusClustering:
       # Insert new cluster labels    
       for label in set(labels):
          params = {'table': 'Cluster', 'Description': label}
-         db_manager = QueryManager(user=self.user)
-         db_manager.runInsertQuery(params)
-
+         self.db_manager.runInsertQuery(params)
 
       #  ## Update Product table
       # Join cluster label and product ID information
@@ -297,15 +285,12 @@ class ConsensusClustering:
       ### Loading product and color information from database
       selected_attr = ','.join(['\"%s\"' % s for s in self.attributes + ['Oid', 'Description']])
       query = ''' SELECT %s FROM %s.dbo.Product ''' % (selected_attr, self.dbName)
-      # query = '''SELECT * FROM "%s".public."Product"''' % self.dbName
       product_df = pd.read_sql_query(query, self.engine)
 
       colorQuery = '''SELECT * FROM %s.dbo.ProductColor''' % self.dbName
-      # colorQuery = '''SELECT * FROM public."ProductColor"''' 
       productColorDF = pd.read_sql_query(colorQuery, self.engine)
 
       colorRGBQuery = '''SELECT * FROM %s.dbo.ColorRGB''' % self.dbName
-      # colorRGBQuery = '''SELECT * FROM public."ColorRGB"'''
       colorRGBDF = pd.read_sql_query(colorRGBQuery, self.engine)     
 
       return product_df, productColorDF, colorRGBDF
@@ -328,9 +313,9 @@ class ConsensusClustering:
          # Proposed clustering
          model_kmeans = KMeans(n_clusters=n_clusters, random_state=42, init='k-means++', n_jobs=-1).fit(data)
          # save model
-         self.save_model(model_kmeans, config.MODEL_KMEANS)
+         self.helper.save_model(model_kmeans, config.MODEL_KMEANS, config.CLUSTERING_MODEL_DIR)
       else:
-         model_kmeans = self.get_model(config.MODEL_KMEANS)
+         model_kmeans = self.helper.get_model(config.MODEL_KMEANS)
          model_kmeans.predict(data)
       self.clustering_dict[model_name] = model_kmeans.labels_
 
@@ -351,11 +336,11 @@ class ConsensusClustering:
          # Proposed clustering
          model_birch = Birch(n_clusters=int(n_clusters)).fit(data)         
       else:
-         model_birch = self.get_model(config.MODEL_BIRCH)
+         model_birch = self.helper.get_model(config.MODEL_BIRCH)
          model_birch.partial_fit(data)
          model_birch.predict(data)
       # save model
-      self.save_model(model_birch, config.MODEL_BIRCH)
+      self.helper.save_model(model_birch, config.MODEL_BIRCH, config.CLUSTERING_MODEL_DIR)
       self.clustering_dict[model_name] = model_birch.labels_
 
    def fuzzycmeans_clustering(self, data, init=2):
@@ -394,9 +379,9 @@ class ConsensusClustering:
          # Proposed clustering
          model_dbscan = DBSCAN(eps=1, min_samples=min_samples, n_jobs=-1).fit(data)
          # save model
-         self.save_model(model_dbscan, config.MODEL_DBSCAN)
+         self.helper.save_model(model_dbscan, config.MODEL_DBSCAN, config.CLUSTERING_MODEL_DIR)
       else:
-         model_dbscan = self.get_model(config.MODEL_DBSCAN)
+         model_dbscan = self.helper.get_model(config.MODEL_DBSCAN)
          model_dbscan.fit_predict(data)
       self.clustering_dict[model_name] = model_dbscan.labels_
 
@@ -420,9 +405,9 @@ class ConsensusClustering:
          # Proposed clustering
          model_optics = OPTICS(min_samples=min_samples, n_jobs=-1).fit(data)
          # save model
-         self.save_model(model_optics, config.MODEL_OPTICS)         
+         self.helper.save_model(model_optics, config.MODEL_OPTICS, config.CLUSTERING_MODEL_DIR)         
       else:
-         model_optics = self.get_model(config.MODEL_OPTICS)
+         model_optics = self.helper.get_model(config.MODEL_OPTICS)
          model_optics.fit_predict(data)
       self.clustering_dict[model_name] = model_optics.labels_
 
@@ -448,9 +433,9 @@ class ConsensusClustering:
                                                       covariance_type='full', 
                                                       random_state=42).fit(data)
          # save model
-         self.save_model(model_bgmm, config.MODEL_BGM)
+         self.helper.save_model(model_bgmm, config.MODEL_BGM, config.CLUSTERING_MODEL_DIR)
       else:
-         model_bgmm = self.get_model(config.MODEL_BGM)
+         model_bgmm = self.helper.get_model(config.MODEL_BGM)
 
       final_labels = model_bgmm.predict(data)
       self.clustering_dict[model_name] = final_labels
@@ -479,9 +464,9 @@ class ConsensusClustering:
                                          affinity='precomputed',
                                          distance_threshold=self.distance_threshold).fit(sim_matrix_df) 
          # Save model
-         self.save_model(model_consensus, config.MODEL_CONSENSUS)
+         self.helper.save_model(model_consensus, config.MODEL_CONSENSUS, config.CLUSTERING_MODEL_DIR)
       else:
-         model_consensus = self.get_model(config.MODEL_CONSENSUS)
+         model_consensus = self.helper.get_model(config.MODEL_CONSENSUS)
          model_consensus.fit_predict(sim_matrix_df)
       # Get labels
       labels = model_consensus.labels_
@@ -521,8 +506,8 @@ class ConsensusClustering:
       self.birch_clustering(data)
       self.fuzzycmeans_clustering(data)
       self.dbscan_clustering(data)
-      self.optics_clustering(data)
-      self.bayesian_gaussian_mixture_clustering(data)
+      # self.optics_clustering(data)
+      # self.bayesian_gaussian_mixture_clustering(data)
 
    ## Evaluation functions
    def eval_affinity_matrix(self, matrix):

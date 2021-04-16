@@ -28,11 +28,11 @@ if __name__ == "__main__":
         os.makedirs(config.PRODUCT_ATTRIBUTE_MODEL_DIR)
         
     # Initialize Learners (5/5)
-    necklineLearner = load_learner(config.PRODUCT_ATTRIBUTE_MODEL_DIR, config.MODELNECKLINE)
+    necklineLearner = load_learner(config.PRODUCT_ATTRIBUTE_MODEL_DIR, config.MODEL_NECKLINE)
     sleeveLearner = load_learner(config.PRODUCT_ATTRIBUTE_MODEL_DIR, config.MODELSLEEVE)
-    lengthLearner = load_learner(config.PRODUCT_ATTRIBUTE_MODEL_DIR, config.MODELLENGTH)
-    collarLearner = load_learner(config.PRODUCT_ATTRIBUTE_MODEL_DIR, config.MODELCOLLAR)
-    fitLearner = load_learner(config.PRODUCT_ATTRIBUTE_MODEL_DIR, config.MODELFIT)
+    lengthLearner = load_learner(config.PRODUCT_ATTRIBUTE_MODEL_DIR, config.MODEL_LENGTH)
+    collarLearner = load_learner(config.PRODUCT_ATTRIBUTE_MODEL_DIR, config.MODEL_COLLAR)
+    fitLearner = load_learner(config.PRODUCT_ATTRIBUTE_MODEL_DIR, config.MODEL_FIT)
 
     params = {attr: 'NULL' for attr in config.ATTRIBUTE_COLUMNS}
     params['table'] = 'Product'
@@ -67,6 +67,7 @@ if __name__ == "__main__":
                         fitLearner)
             
             # Update Product table
+            logger.info('Updating product %s and image %s' % (row['Oid'], row['ImageSource']))
             uniq_params = {'table': 'Product', 'Oid': row['Oid']}
             params = {attr: product_df.loc[index, attr] for attr in config.ATTRIBUTE_COLUMNS}
             params['table'] = 'Product'
@@ -75,5 +76,4 @@ if __name__ == "__main__":
             logger.warning('Failed to load image for Product with Oid %s' % row['Oid'])
 
     # End Counting Time
-    logger.info("--- %s seconds ---" % (time.time() - start_time))
     logger.info("Updated %s records in %s seconds ---" % (len(product_df), round(time.time() - start_time, 2)))
