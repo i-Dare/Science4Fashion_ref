@@ -236,50 +236,6 @@ class Helper():
     
 
 # --------------------------------------------------------------------------                        
-#          Calculate descriptor vectors
-# -------------------------------------------------------------------------- 
-    def calculateTextDescriptors(self,):
-        '''
-        Calculates text features for recommendation 
-        '''
-        start = time.time()
-        self.logger.info('Calculating text descriptors')
-        # Get text attributes of all products 
-        params = {'table': 'Product'}
-        filters = ['Oid', 'Metadata', 'ProductTitle', 'Description']
-        product_df = self.db_manager.runSelectQuery(params=params, filters=filters)
-        print("DB fetching time: {:.2f} ms".format((time.time() - start) * 1000))
-
-
-        # Combine text fields
-        start = time.time()
-        product_df['combined_columns'] = product_df['Metadata'].astype(str) \
-                                        + product_df['ProductTitle'].astype(str) \
-                                        + product_df['Description'].astype(str)
-        product_df.loc[:, 'processed_combined'] = product_df.loc[:, 'combined_columns'].apply(self.preprocess_metadata)
-        print("Text preprocessing time: {:.2f} ms".format((time.time() - start) * 1000))
-
-        # TFIDF vectorizer setup
-        start = time.time()
-        vectorizer = TfidfVectorizer(analyzer='word', 
-                                    ngram_range=(1,2), 
-                                    min_df=3, 
-                                    max_df=.95,
-        #                              max_features=5000,
-                                    use_idf=True, 
-                                    stop_words=self.STOP_WORDS)
-        # saving TFIDF features
-        tfidf_vector = vectorizer.fit_transform(product_df['processed_combined'])
-        print("TFIDF feature extraction time: {:.2f} ms".format((time.time() - start) * 1000))
-
-        if not os.path.exists(config.DATADIR):
-            os.makedirs(config.DATADIR)
-        np.save(config.TFIDF_VECTOR, tfidf_vector)
-        # saving TFIDF vectorizer
-        self.save_model(vectorizer, config.MODEL_TEXT_DESCRIPTOR, config.TEXT_DESCRIPTOR_MODEL_DIR)
-        return product_df, tfidf_vector, vectorizer
-
-# --------------------------------------------------------------------------                        
 #          Database IO Functionality
 # -------------------------------------------------------------------------- 
 
