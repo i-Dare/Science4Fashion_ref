@@ -27,6 +27,10 @@ class FashionRecommender:
         self.parser.add_argument('-n','--numberResults', type = int, help = '''Input the number of \
                 results you want to return''', default = 10, nargs = '?')
         self.parser.add_argument('-u', '--user', default=config.DEFAULT_USER, type = str, help = '''Input user''')
+        self.parser.add_argument('-r', '--recalc', help = '''Triggers the recalculation functionality \
+            of the FashionRecommender, where a new set of recommendations is generated after user's \
+            feedback''', 
+            action="store_true", default = False)
 
         # Parse arguments
         self.args, unknown = self.parser.parse_known_args()
@@ -34,6 +38,7 @@ class FashionRecommender:
         # Get arguments
         self.searchTerm = ' '.join(self.args.searchTerm)
         self.numberResults = self.args.numberResults
+        self.recalc = self.args.recalc
 
         # Logger setup
         self.user = self.args.user
@@ -43,7 +48,7 @@ class FashionRecommender:
 
         # QueryManager setup
         self.db_manager = QueryManager(user=self.user)
-
+        
     def gradeBasedScore(self, products_df):
         '''Calculates recommendation score based on the cosine similarity of the TFIDF embedings of
            the processed text attributes and the processed search term
@@ -197,9 +202,10 @@ class FashionRecommender:
 
         text_columns = config.PRODUCT_ATTRIBUTES + ['Metadata', 'ProductTitle', 'Description', 'Label', 'LabelDetailed']
         
+        # Group products by "Oid", flatten and convert lists to text
         products_df['combined_text'] = (_all_products_df.groupby('Oid')
                 .apply( lambda row:  [list(set(row[col])) for col in text_columns ] )
-                .apply(lambda row:  [r for r in (sum(row, []))  if r is not None])
+                .apply( lambda row:  [r for r in (sum(row, []))  if r is not None] )
                 .str.join(' ')).values
 
         products_df.loc[:, 'processed_combined_text'] = products_df.loc[:, 'combined_text'].apply(self.helper.preprocess_metadata)
@@ -241,7 +247,9 @@ class FashionRecommender:
         self.helper.save_model(vectorizer, config.MODEL_TEXT_DESCRIPTOR, config.TEXT_DESCRIPTOR_MODEL_DIR)
         return products_df, tfidf_vector, vectorizer
 
-
+# ----------------------------------------------
+#       Evaluation Functions
+# ----------------------------------------------
     def evalRecommendation(self, recommendation_df):
         where = ' OR '.join(['Oid=%s' % oid for oid in recommendation_df['Oid'].values])
         query = ''' 
@@ -258,7 +266,6 @@ class FashionRecommender:
             text = products_df.loc[products_df['Oid']==oid, 'combined_columns'].values[0]
             imgUrl = products_df.loc[products_df['Oid']==oid, 'ImageSource'].values[0].replace('\\','')
             print('%s: %s - %s\n%s' % (oid, score, text, imgUrl))
-
 
 
 

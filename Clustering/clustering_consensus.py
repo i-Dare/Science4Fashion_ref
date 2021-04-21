@@ -39,7 +39,7 @@ class ConsensusClustering:
       self.parser = argparse.ArgumentParser(description = 'A script for executing the Clustering \
             functionality', prog = 'ConsensusClustering')
       self.parser.add_argument('-train', help = '''Execute clustering by retraining the model, \
-            if not selected, the clustering will be executed with the exesting model''', 
+            if not selected, the clustering will be executed with the existing model''', 
             action="store_true", default = train)
       self.parser.add_argument('-l','--linkage', type = str, help = '''Input linkage type for the \
             Agglomerative clustering''', default = config.LINKAGE, choices=['ward', 'complete', 'average', 'sinlge'])
