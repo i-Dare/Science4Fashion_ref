@@ -71,7 +71,7 @@ if __name__ == "__main__":
         # Read possible labels
         expertAttributesDF = pd.read_excel(config.PRODUCT_ATTRIBUTES_PATH, sheet_name=config.SHEETNAME)
         
-        # Create Variables with same name as the Energiers column names, to store the labels. Create new columns at assos with Energiers column names 
+        # Create Variables with same name as the Energiers column names, to store the labels. 
         attrDict = {}
         for attr in config.PRODUCT_ATTRIBUTES:
             attrDict[str(attr)] = list(expertAttributesDF[attr].replace(' ', np.nan).dropna().unique())

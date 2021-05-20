@@ -32,6 +32,9 @@ Clustering/Clustering evaluation.ipynb
 Clustering/.ipynb_checkpoints/Full clustering evaluation-checkpoint.ipynb
 Clustering/.ipynb_checkpoints/Clustering-checkpoint.ipynb
 Clustering/.ipynb_checkpoints/Clustering evaluation-checkpoint.ipynb
+Clustering/*.png
+Clustering/*.xlsx
+Clustering/*.csv
 ImageAnnotation/Color/Color Calculation.ipynb
 Clustering/Cluster_Ensembles.h5
 ImageAnnotation/Prediction/pytorchPredictAttributes.py
@@ -62,9 +65,11 @@ Clustering/K-Modes Clustering-checkpoint.ipynb
 Clustering/Full clustering evaluation-checkpoint.ipynb
 Clustering/Consensus Clustering.ipynb
 Clustering/Consensus Clustering-checkpoint.ipynb
+Recommender/*.csv
 WebCrawlers/Pinterest.ipynb
 data/idare.issel@gmail.com
 *_model.pkl
 *.log
 *.pkl
 *.npy
+Clustering/SUMMER2019_v3_processed_rg.xlsx

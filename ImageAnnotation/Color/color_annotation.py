@@ -29,7 +29,7 @@ def get_color_name_detailed(rgb_triplet):
         gd = (g_c - rgb_triplet[1]) ** 2
         bd = (b_c - rgb_triplet[2]) ** 2
         min_colours[(rd + gd + bd)] = key
-    return min_colours[min(min_colours.keys())]
+    return min_colours[min(min_colours.keys())].lower()
 
 def get_color_name(rgb_triplet):
     min_colours = {}
@@ -45,13 +45,13 @@ def get_color_name(rgb_triplet):
         gd = (g_c - rgb_triplet[1]) ** 2
         bd = (b_c - rgb_triplet[2]) ** 2
         min_colours[(rd + gd + bd)] = key.split(':')[1]
-    return min_colours[min(min_colours.keys())]
+    return min_colours[min(min_colours.keys())].lower()
 
 def colorExtraction(image):
     if image is None:
-        logger.warning('Failed to load image for Product with Oid %s' % row['Oid'][0])
+        logger.warning('Failed to load image for Product with Oid %s' % row['Oid'])
         return -1
-    logger.info('Processing image of Product with Oid %s' % row['Oid'][0])
+    logger.info('Processing image of Product with Oid %s' % row['Oid'])
     # Initialize Cloth seperation module
     cloth = Cloth(imgSrc, imgBGR=image)
 
@@ -98,7 +98,7 @@ def colorExtraction(image):
 
         # Prepare insert query for captured color in 'ProductColor' table
         params = {'Ranking': ranking+1, 'Percentage': colorPercentage, 
-                  'ColorRGB': newEntryColorRGB_df.loc[0, 'Oid'], 'Product': row['Oid'][0],
+                  'ColorRGB': newEntryColorRGB_df.loc[0, 'Oid'], 'Product': row['Oid'],
                   'table': 'ProductColor'}
         db_manager.runInsertQuery(params)
 
@@ -123,7 +123,7 @@ if __name__ == '__main__':
     odapi = segmentation.DeepLabModel(tarball_path=modelPath, labels=labels)
 
     #Read data from database
-    query = '''SELECT *
+    query = '''SELECT PR.Oid, PR.Image, PR.ImageSource, PR.Photo 
                 FROM %s.dbo.Product AS PR
                 LEFT JOIN %s.dbo.ProductColor AS PC
                 ON PR.Oid=PC.Product
@@ -144,7 +144,7 @@ if __name__ == '__main__':
             # If image fails to load from binary, retrieve it from the image URL
             if image is None:
                 image = helper.getWebImage(row['ImageSource'])
-            imgSrc = 'Extracted image %s' % row['Oid'][0]
+            imgSrc = 'Extracted image %s' % row['Oid']
         _ = colorExtraction(image)
 
     # End Counting Time

@@ -187,7 +187,7 @@ class Helper():
         from urllib.request import urlopen
         resp = urlopen(imgURL)
         image = np.asarray(bytearray(resp.read()), dtype="uint8")
-        return cv2.imdecode(image, cv2.IMREAD_UNCHANGED)
+        return cv2.imdecode(image, cv2.IMREAD_COLOR)
 
 
     def saveImage(self, imgURL, imageFilePath):
@@ -231,6 +231,16 @@ class Helper():
             model_path = max(model_list_paths, key = os.path.getctime)
             model = pickle.load(open(str(model_path).replace('\\', os.sep), 'rb'))
             return model
+        except:
+            self.logger.warning('Model %s not found in directory %s.' % (model_name, config.MODELSDIR))
+
+    def remove_model(self, model_name):
+        try:
+            model_list_paths = [str(p.joinpath()) for p in Path(config.MODELSDIR).rglob('*.pkl') 
+                    if model_name in str(p.joinpath())]
+
+            model_path = max(model_list_paths, key = os.path.getctime)
+            os.remove(str(model_path).replace('\\', os.sep))
         except:
             self.logger.warning('Model %s not found in directory %s.' % (model_name, config.MODELSDIR))
     
@@ -432,7 +442,7 @@ class Helper():
         if segmentation:
             doc = ' '.join(wordsegment.segment(doc))
         # Remove punctuation
-        doc = re.sub('[' + re.escape(string.punctuation) + ']+', ' ', doc)
+        doc = re.sub('[' + re.escape(string.punctuation.replace('_', '')) + ']+', ' ', doc)
         # Remove two letter words
         doc = ' '.join([word for word in doc.split() if len(word)>2])
         # Remove numbers and words with number
@@ -700,8 +710,10 @@ class Helper():
                 'about-me')}).find('p').text.strip()]
             attr_list = description + about
             meta = ' - '.join(attr_list)
+            meta = self.preprocess_metadata(doc=meta)
+
         except Exception as e: 
-            meta = None
+            meta = ''
             self.logger.warn_and_trace(e)
             self.logger.warning("Product Description not captured at %s" % url)
         # Price
@@ -749,7 +761,10 @@ class Helper():
         # Initialize parameters
         start = 0  # starting point of lazy-loading
         step = 12  # lazy-lading step
-
+        
+        # Check for redirection
+        if 'search' not in  url:
+            self.logger.info('s.Oliver rediraction to %s' % url)
         # Prepare ajax request URL
         # Capture hidden parameters of ajax request for the image lazy-loading
         reqParams = json.loads(soup.find(
@@ -810,18 +825,27 @@ class Helper():
                 urlAjax = re.sub(r'start=[0-9]+&sz=[0-9]+', resultRange, urlAjax)
                 url, soupAjax = self.get_content(urlAjax)
                 articles = soupAjax.findAll('div', {'class': re.compile("productlist__product js-ovgrid-item")})
+                # Stop if exceed pagination
+                if len(articles)==0:
+                    break
                 products += articles
             products = products[:maxItems]
             for product in products:
                 productPage = product.find('a', {'class': re.compile(
                     "js-ovlistview-productdetaillink")}).get('href')
                 productPage = 'https://www.soliver.eu' + productPage
-                productImg = (json.loads(product.find('li', {'class': 'plproduct__color'})
-                        .get('data-ovlistview-color-config'))['images'][0]['absURL'])
-                color = (json.loads(product.find('li', {'class': 'plproduct__color'})
-                        .get('data-ovlistview-color-config'))['colorName'])
-                price = (float(product.find('div', {'class': 'ta_prodMiniWrapper'})
-                        .get('data-maxprice').split()[0].replace(',', '.')))
+                if 'plproduct__color' in str(product):
+                    productImg = (json.loads(product.find('li', {'class': 'plproduct__color'})
+                            .get('data-ovlistview-color-config'))['images'][0]['absURL'])
+                    color = (json.loads(product.find('li', {'class': 'plproduct__color'})
+                            .get('data-ovlistview-color-config'))['colorName'])
+                    price = (float(product.find('div', {'class': 'ta_prodMiniWrapper'})
+                            .get('data-maxprice').split()[0].replace(',', '.')))
+                else:
+                    productImg = (json.loads(product.find('div', {'class': 'ta_Img'})
+                            .get('data-picture'))['sources'][0]['srcset'].split('?')[0])
+                    color = None
+                    price = None
 
                 series = pd.Series()
                 series['URL'] = productPage.rsplit('?', 1)[0]
@@ -910,7 +934,7 @@ class Helper():
         # category - sub category
         try:
             info_json = soup.findAll('span', {'class': re.compile(
-                'jsPageContextData')})[-1].get('data-pagecontext')
+                    'jsPageContextData')})[-1].get('data-pagecontext')
             # Capture category information    
             prodCatStr = json.loads(info_json)['product']['categoryName']
             # NLP process category
@@ -941,12 +965,13 @@ class Helper():
                 for field in fields:
                     if i == 2 and 'MATERIAL & CARE INSTRUCTIONS:' not in attr_list:
                         attr_list.append('MATERIAL & CARE INSTRUCTIONS:')
-                        attr_list.append(field.text.replace('', ' ').strip())
+                        attr_list.append(field.text.replace('\n', '').strip())
                     else:
-                        attr_list.append(field.text.replace('', ' ').strip())
+                        attr_list.append(field.text.replace('\n', '').strip())
             meta = ' - '.join(attr_list)
+            meta = self.preprocess_metadata(doc=meta)
         except:
-            meta = None
+            meta = ''
             self.logger.info("Product Description not captured at %s" % url)
         return price, head, brand, color, genderid, meta, sku, prodCatID, prodSubCatID
 
@@ -1098,8 +1123,9 @@ class Helper():
             meta_values = [data['values'] for attr in attributes for data in attr['data'] 
                     if attr['category'] in ['heading_material', 'heading_details']]
             meta = '. '.join(meta_names + meta_values)
+            meta = self.preprocess_metadata(doc=meta)
         except Exception as e:
-            meta = None
+            meta = ''
             self.logger.info("Metadata not captured at %s" % url)
        
         params = {'ColorsDescription': color, 'Metadata': meta, 'ProductCategory': prodCatID, 

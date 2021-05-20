@@ -156,7 +156,7 @@ class InstagramCrawler():
         return query_result
 
     
-def save_ranked(helper, query_result, adapter, segmentation=False):
+def save_ranked(helper, query_result, adapter, segmentation=True):
     dataDF = pd.DataFrame(query_result)
     # Dropping duplicates
     dataDF = dataDF.loc[dataDF['imgURL'].drop_duplicates().index].reset_index()
@@ -200,9 +200,9 @@ def save_ranked(helper, query_result, adapter, segmentation=False):
         imageFilePath = row['imageFilePath']    
         url = row['URL']
         imgURL = row['imgURL']
-        empPhoto = helper.getImage(imgURL, imageFilePath)
+        empPhoto = helper.saveImage(imgURL, imageFilePath)
         head = row['title']
-        meta = row['description']
+        meta = row['processed_metadata']
         uniq_params = {'table': 'Product', 'URL': url}
         params = {'table': 'Product', 'Description': searchTerm, 'Active':  True, 'Ordering': 0, 
                  'ProductTitle': head, 'SiteHeadline': head, 'Metadata': meta, 'URL': url, 

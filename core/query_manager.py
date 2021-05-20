@@ -16,6 +16,8 @@ def filtering(filters):
     selection = '*'
     if filters and type(filters)==list:
         selection = ','.join(['t.%s' % col for col in filters])
+    if type(filters)==str and 'TOP'.lower() in filters.lower():
+        selection = filters
     return selection
 
 # --------------------------------
@@ -153,6 +155,7 @@ class QueryManager():
             if 'float' in str(type(v)).lower():
                 if np.isnan(v):
                     del params[k]
+                    continue
                 else:
                     params[k] = self.parseFloat(v)
             # parse integers
@@ -170,6 +173,7 @@ class QueryManager():
             # ignore None values and 'table' key
             if v is None or k == 'table':
                 del params[k]
+                continue
         
         # Add user information if owner is needed and is not already set beforehand as parameter
         if has_owner and 'CreatedBy' not in params.keys() and 'UpdatedBy' not in params.keys():
@@ -233,7 +237,7 @@ class QueryManager():
                 ## Create DataFrame from returned queries
                 # Set DataFrame rows
                 if records:
-                    rows = np.asarray([r.values() for r in records])
+                    rows = [r.values() for r in records]
                     df = pd.DataFrame(columns=records[0].keys(), data=rows)
                 else:
                     df = pd.DataFrame() 

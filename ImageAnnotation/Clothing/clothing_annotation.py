@@ -42,27 +42,30 @@ if __name__ == "__main__":
     logger.info("Executing product attribute annotation for %s unlabeled products" % len(product_df))
     for index, row in product_df.iterrows():
         # check if there is a blob or to skip it
-        if row['Image'] is not None:
+        if not pd.isna(row['Image']):
             image = helper.convertBlobToImage(row['Image'])
+        else:
+            image = helper.getWebImage(row['ImageSource'])
+        try:
             image = helper.convertCVtoPIL(image)
             # Neckline
-            if row['NeckDesign'] == None:
+            if pd.isna(row['NeckDesign']):
                 product_df.loc[index, 'NeckDesign'] = helper.updateAttribute(config.DICTNECKLINE, image,
                         necklineLearner)
             # Sleeve
-            if row['Sleeve'] == None:
+            if pd.isna(row['Sleeve']):
                 product_df.loc[index, 'Sleeve'] = helper.updateAttribute(config.DICTSLEEVE, image,
                         sleeveLearner)
             # Length
-            if row['Length'] == None:
+            if pd.isna(row['Length']):
                 product_df.loc[index, 'Length'] = helper.updateAttribute(config.DICTLENGTH, image,
                         lengthLearner)
             # Collar
-            if row['CollarDesign'] == None:
+            if pd.isna(row['CollarDesign']):
                 product_df.loc[index, 'CollarDesign'] = helper.updateAttribute(config.DICTCOLLAR, image,
                         collarLearner)
             # FIT
-            if row['Fit'] == None:
+            if pd.isna(row['Fit']):
                 product_df.loc[index, 'Fit'] = helper.updateAttribute(config.DICTFIT, image,
                         fitLearner)
             
@@ -72,7 +75,8 @@ if __name__ == "__main__":
             params = {attr: product_df.loc[index, attr] for attr in config.ATTRIBUTE_COLUMNS}
             params['table'] = 'Product'
             _ = db_manager.runCriteriaUpdateQuery(uniq_params=uniq_params, params=params)
-        else:
+        except Exception as e:
+            logger.warn_and_trace(e)
             logger.warning('Failed to load image for Product with Oid %s' % row['Oid'])
 
     # End Counting Time

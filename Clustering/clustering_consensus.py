@@ -10,6 +10,7 @@ import argparse
 import warnings
 warnings.filterwarnings('ignore')
 
+from scipy.stats import entropy
 from sklearn import metrics
 from sklearn import preprocessing
 from sklearn.preprocessing import MinMaxScaler
@@ -79,8 +80,6 @@ class ConsensusClustering:
       self.engine = config.ENGINE
       # Clustering model directory
       self.clustering_model_dir = config.CLUSTERING_MODEL_DIR
-      # Dictionary used mapping products to IDs
-      self.productOID_dict = {}
       # Dictionary used for clustering evaluation
       self.clustering_dict = {}      
 
@@ -93,20 +92,21 @@ class ConsensusClustering:
       # Begin Counting Time
       start_time = time.time()
       
-      ## Preprocessing
+      ## Preprocessing and attribute selection
       #   
       attributes_df = self.clustering_preprocessing()
+      selected_data = self.attribute_selection(attributes_df)
 
       ## Factor Analysis of Mixed Data feature selection
       # 
-      famd_featsDF = self.famd_features(attributes_df)
+      _, famd_featsDF = self.famd_features(selected_data)
 
       # Train consensus clustering model
       #
       labels, n_clusters, score = self.assignClusters(famd_featsDF)
 
       # Update clustering table
-      self.update_clusters(labels)
+      self.update_clusters(labels, attributes_df)
 
       self.logger.info('''Number of final clusters: %s 
                            Final Silhouette Score: %s''' % (n_clusters, score))
@@ -120,27 +120,30 @@ class ConsensusClustering:
       # Collect information from the Product, ProductColor and ColorRGB tables of S4F database
       #
       self.logger.info('Start preprocessing of product attributes...')
-      product_df, productColorDF, colorRGBDF = self._init_preprocessing()
-      self.productOID_dict = product_df['Oid'].to_dict()
-
-      # Merge color information from tables
-      colorDF = productColorDF.merge(colorRGBDF, right_on='Oid', left_on='ColorRGB')      
-
-      # Merge color and product info tables
-      mergeDF = colorDF.merge(product_df, right_on='Oid', left_on='Product')
-
-      # Create color ranking columns in product tables
-      for prno in mergeDF['Product'].unique():
-         colors = []
-         for _ in mergeDF['Ranking'].unique():
-            colors = mergeDF.loc[mergeDF['Product']==prno]['LabelDetailed'].values
-            for i,color in enumerate(colors, start=1):
-                  product_df.loc[product_df['Oid']==prno, 'ColorRanking%s' % i] = color
-
-      ## Select desirable attributes of the merged table
-      # Select product attributes used in clustering, color ranking information and product description
-      self.attributes += product_df.filter(like='ColorRanking').columns.tolist() + ['Description']
-      attributes_df = product_df[set(self.attributes)]
+      products_df = self._init_preprocessing()
+      
+      ## Merging results
+      # 
+      attributes_df = products_df.groupby('Oid').first()[config.PRODUCT_ATTRIBUTES + 
+            ['Gender', 'RetailPrice', 'Metadata', 'Description']]
+      # Color data merging
+      attributes_df.loc[:, ['ColorRanking%s' % n for n in range(1, 6)]] = (products_df.groupby('Oid')
+            .apply( lambda row:  list(row['Label'] ))
+            .str.join(',')
+            .str.split(',', expand=True)).values
+      # Text merging
+      text_columns = config.PRODUCT_ATTRIBUTES + ['Label', 'LabelDetailed', 'Gender']
+      attributes_df['extended_metadata'] = (products_df.groupby('Oid')
+            .apply( lambda row:  [list(set(row[col])) for col in text_columns ] )
+            .apply( lambda row:  [r.replace(' ', '_') for r in (sum(row, []))  if not pd.isna(r)] )
+            .str.join(' ')).values
+      # Text preprocessing
+      attributes_df.loc[:, 'processed_extended_metadata'] = (attributes_df.loc[:, 'extended_metadata']
+            .apply(self.helper.preprocess_metadata))
+      # Final merge to 'Metadata' columns
+      attributes_df['Metadata'] = (attributes_df['Metadata']
+            .str.cat(attributes_df['processed_extended_metadata']
+            .astype(str), sep=' '))
 
       for col in attributes_df:
          if attributes_df[col].nunique() == 1: # remove columns with identical elements
@@ -153,25 +156,19 @@ class ConsensusClustering:
             del attributes_df[col]
       
       ## Fill NA and None values
-      attributes_df.fillna(np.nan, inplace=True)
-      feat_columns = config.PRODUCT_ATTRIBUTES + ['Gender']
+      attributes_df[self.attributes].fillna(np.nan, inplace=True)
+      return attributes_df
 
-      # Read all the tables of features from S4F DB to match id to genID
-      attrDFDict = {}
-      for attr in (feat_columns):
-         query = ''' SELECT * FROM %s.dbo.%s ''' % (self.dbName, attr)
-         attrDFDict[str(attr)+'DF'] = pd.read_sql_query(query, self.engine)
-
-      # Merging product attribute tables to form the product table with the actual attributes and not the attribute ids.
-      for attr in (feat_columns):
-         if attr in attributes_df.columns: # check in case column was removed during data cleaning
-            attrDict = attrDFDict[str(attr)+'DF'][['Oid', 'Description']].set_index('Oid').to_dict()['Description']
-            attributes_df.loc[attributes_df.loc[:, attr].isnull(), attr] = np.nan
-            attributes_df.loc[:, attr] = attributes_df.loc[:, attr].map(int, na_action='ignore').map(attrDict, na_action='ignore').values.tolist()
+   def attribute_selection(self, data):
+      # Select product attributes used in clustering, color ranking information and product description
+      self.attributes += data.filter(like='ColorRanking').columns.tolist() + ['Description']
+      attributes_df = data[set(self.attributes)]
 
       # rearrange columns so that numerical attributes are last    
       num_columns = sorted(attributes_df._get_numeric_data().columns.tolist())
-      cat_columns = sorted(list(set(attributes_df.columns) - set(num_columns)))
+      cat_columns = sorted(list(set(attributes_df.columns) 
+            - set(num_columns) 
+            - set(['Metadata', 'extended_metadata', 'processed_extended_metadata'])))
       attributes_df = attributes_df[cat_columns + num_columns]
       # replace NaN values with NOT_APPLIED
       for col in cat_columns:                                          
@@ -186,14 +183,33 @@ class ConsensusClustering:
 
    def famd_features(self, data):
       self.logger.info('Start FAMD feature endcoding...')
-      try:
-         famd = prince.FAMD(check_input=True, n_components=self.n_components, random_state=42)
-         famd.fit(data)
-         famd_featsDF = famd.row_coordinates(data)
-      except:
-         famd_featsDF = self.famd_features(data)
+      inertia = []
+      for n in range(1, self.n_components):
+         try:
+            famd = prince.FAMD(check_input=True,n_iter = 3, n_components=n, random_state=42)
+            famd.fit(data)
+            # Calculate the 70th percentile for n number of components
+            q = np.percentile(famd.explained_inertia_, 70, interpolation='nearest')
+            where = np.where(famd.explained_inertia_ >= q)
+            # Capture the numer of components that explain the 70th percentile 
+            inertia.append((len(famd.explained_inertia_[where]), 
+                  sum(famd.explained_inertia_[where])/sum(famd.explained_inertia_)))       
+        
+         except:
+            pass
+      # Final number of FAMD components is the n for which the maximum explained inertia is captured 
+      sorted_inertia = np.argsort([x[1] for x in inertia])[::-1]
+      n_components, k_features = sorted_inertia[1] + 1, inertia[sorted_inertia[1]][0]
+      self.logger.info('Executing optimized FAMD transformation for n=%s and selecting k=%s features' \
+            % (n_components, k_features))
+      # Execute optimized FAMD transformation
+      famd = prince.FAMD(check_input=True, n_components=2, random_state=42)
+      famd.fit(data)
+      famd_featsDF = famd.row_coordinates(data)
+      # Final feature selection
+      famd_featsDF = famd_featsDF.loc[:, range(k_features)]
 
-      return famd_featsDF
+      return famd, famd_featsDF
 
    def assignClusters(self, data):
       #
@@ -209,9 +225,8 @@ class ConsensusClustering:
       labels, n_clusters, score = self.consensus_clustering()
       
       return labels, n_clusters, score
-
       
-   def update_clusters(self, labels):
+   def update_clusters(self, labels, data):
       ## Update Cluster table
       # Delete all existing records from Cluster table
       self.logger.info('Updating %s database...' % config.DB_NAME)
@@ -225,25 +240,28 @@ class ConsensusClustering:
          params = {'table': 'Cluster', 'Description': label}
          self.db_manager.runInsertQuery(params)
 
-      #  ## Update Product table
+      ### Update Product table
       # Join cluster label and product ID information
-      clusterSeries = pd.Series({i:k for i,k in enumerate(labels)})
-      productSeries = pd.Series(self.productOID_dict)
-      productClusterDF = pd.concat([clusterSeries, productSeries], axis=1)
+      data['Clusters'] = labels
+      productClusterDF = data[['Metadata', 'Clusters']]
       # Reload Cluster table to get updated Cluster.Oid values
       query = ''' SELECT * FROM %s.dbo.Cluster ''' % self.dbName
       clusterDF = pd.read_sql_query(query, self.engine)
       clusterDF.loc[:, 'Description'] = clusterDF['Description'].apply(pd.to_numeric)
       # Add column to productClusterDF with the Cluster Oid
-      productClusterDF['clusterID'] = productClusterDF[0].map(clusterDF.set_index('Description')['Oid'].to_dict())
+      productClusterDF['clusterID'] = (productClusterDF['Clusters']
+            .map(clusterDF
+            .set_index('Description')['Oid'].to_dict()))
       # Update Product table
-      for _, row in productClusterDF.iterrows():
-         label = row[0]
-         oid = row[1]
+      for oid, row in productClusterDF.iterrows():
+         label = row['Clusters']
          clusterID = row['clusterID']
-         query = ''' UPDATE %s.dbo.Product SET Cluster=%s WHERE %s.dbo.Product.Oid=%s''' % (self.dbName, clusterID, self.dbName, oid)
-         with self.engine.begin() as conn:
-               conn.execute(query)
+         meta = row['Metadata']
+
+         uniq_params = {'table': 'Product', 'Oid': oid}
+         params = {'table': 'Product', 'UpdatedBy': self.user, 'Metadata': meta, 'Cluster': clusterID}
+         self.db_manager.runCriteriaUpdateQuery(uniq_params=uniq_params, params=params, get_identity=True)
+
 
    def _build_similarity_matrix(self,):
       # Build the NxN consensus matrix from the clustering results
@@ -283,17 +301,29 @@ class ConsensusClustering:
    def _init_preprocessing(self,):
       #
       ### Loading product and color information from database
-      selected_attr = ','.join(['\"%s\"' % s for s in self.attributes + ['Oid', 'Description']])
-      query = ''' SELECT %s FROM %s.dbo.Product ''' % (selected_attr, self.dbName)
-      product_df = pd.read_sql_query(query, self.engine)
+      attJoin, attSelect = '', []
+      for i, attr in enumerate(config.PRODUCT_ATTRIBUTES):
+         attSelect += ['attr%s.Description AS %s' % (i, attr)]
+         attJoin += ' LEFT JOIN %s.dbo.%s AS attr%s\nON PRD.%s = attr%s.Oid ' \
+               % (config.DB_NAME, attr, i, attr, i) 
 
-      colorQuery = '''SELECT * FROM %s.dbo.ProductColor''' % self.dbName
-      productColorDF = pd.read_sql_query(colorQuery, self.engine)
-
-      colorRGBQuery = '''SELECT * FROM %s.dbo.ColorRGB''' % self.dbName
-      colorRGBDF = pd.read_sql_query(colorRGBQuery, self.engine)     
-
-      return product_df, productColorDF, colorRGBDF
+      query = '''SELECT PRD.Oid, PRD.RetailPrice, PRD.Description, PRD.Metadata,
+                  C.Label, C.LabelDetailed, C.Red, C.Blue, C.Green,
+                  PC.Ranking,
+                  G.Description as Gender,
+                  %s
+            FROM %s.dbo.Product AS PRD 
+               LEFT JOIN %s.dbo.ProductColor AS PC
+               ON PC.Product=PRD.Oid
+               LEFT JOIN %s.dbo.ColorRGB AS C
+               ON PC.ColorRGB = C.Oid
+               LEFT JOIN %s.dbo.Gender AS G
+               ON PRD.Gender=G.Oid
+               %s''' % (','.join(attSelect), config.DB_NAME, config.DB_NAME, config.DB_NAME, 
+               config.DB_NAME, attJoin)  
+      products_df = self.db_manager.runSimpleQuery(query, get_identity=True)
+      products_df.drop_duplicates(ignore_index=True, inplace=True)	
+      return products_df
 
    # Clustering Algorithms executed with parameter tuning
    def kmeans_clustering(self, data, init=2):
@@ -345,21 +375,19 @@ class ConsensusClustering:
 
    def fuzzycmeans_clustering(self, data, init=2):
       model_name = 'Fuzzy C-Means'
-      _sils, _davs, _cals = [], [], []
+      scaled_entropy_list = []
 
       for i in range(init, 31):
          _, labels, _, _, _, _, _ = skf.cmeans(data.T, i, 2, error=0.005, maxiter=1000, seed=42)
-         clusters = np.argmax(labels, axis=0)
-         
-         _sils.append(metrics.silhouette_score(data, clusters))
-         _davs.append(metrics.davies_bouldin_score(data, clusters))
-         _cals.append(metrics.calinski_harabasz_score(data, clusters))
-      # Collect and evaluate clustering
-      _sils, _davs, _cals = np.asarray(_sils), np.asarray(_davs), np.asarray(_cals)
-      n_clusters = self.clustering_approval(_sils, _davs, _cals, model_name)
+         scaled_entropy = entropy(labels, axis=1, base=2).sum()/np.log2(labels.shape[0])
+         scaled_entropy_list.append(scaled_entropy)
+
+      # Decide on the iptimal number of clusters according to Scaled Partition Entropy
+      n_clusters = np.argmin(scaled_entropy_list) + init
       # Proposed clustering
       _, final_labels, _, _, _, _, _ = skf.cmeans(data.T, n_clusters, 2, error=0.005, maxiter=1000, seed=42)
       final_clusters = np.argmax(final_labels, axis=0)
+
       self.clustering_dict[model_name] = final_clusters
 
    def dbscan_clustering(self, data, init=2):
@@ -475,6 +503,8 @@ class ConsensusClustering:
       # Return clustering labels, numper of clusters and Silhouette score
       return labels, n_clusters, score
 
+   # def fuzzy_clustering_approval()
+
    def clustering_approval(self, sils, davs, cals, model_name, init=2):
       scores_famd = np.hstack(np.dstack((sils, davs, cals)))
       norm_scores_famd = MinMaxScaler().fit_transform(scores_famd)
@@ -505,7 +535,7 @@ class ConsensusClustering:
       self.kmeans_clustering(data)
       self.birch_clustering(data)
       self.fuzzycmeans_clustering(data)
-      self.dbscan_clustering(data)
+      # self.dbscan_clustering(data)
       # self.optics_clustering(data)
       # self.bayesian_gaussian_mixture_clustering(data)
 
