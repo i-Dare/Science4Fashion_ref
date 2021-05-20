@@ -162,6 +162,7 @@ def save_ranked(helper, query_result, adapter, segmentation=True):
     dataDF = dataDF.loc[dataDF['imgURL'].drop_duplicates().index].reset_index()
     # Form metadata column
     dataDF['metadata'] = dataDF['title'].str.cat(dataDF['description'].astype(str), sep=' ')
+    dataDF.loc[dataDF['metadata'].isnull(), 'metadata'] = ''
     # Preprocess metadata
     dataDF['processed_metadata'] = dataDF['metadata'].apply(lambda row: helper.preprocess_metadata(row, segmentation))
     # Preprocess searchTerm
