@@ -140,6 +140,10 @@ class ConsensusClustering:
       # Text preprocessing
       attributes_df.loc[:, 'processed_extended_metadata'] = (attributes_df.loc[:, 'extended_metadata']
             .apply(self.helper.preprocess_metadata))
+      # Filter out tokens already in the Metadata column
+      attributes_df.loc[:, 'processed_extended_metadata'] = (attributes_df.loc[:, ['Metadata', 'processed_extended_metadata']]
+            .apply(lambda row: [r  for r in row['processed_extended_metadata'].split() if r not in row['Metadata']] , axis=1)
+            .str.join(' '))
       # Final merge to 'Metadata' columns
       attributes_df['Metadata'] = (attributes_df['Metadata']
             .str.cat(attributes_df['processed_extended_metadata']
