@@ -478,7 +478,7 @@ class Helper():
 #          Web crawler functionality, specific for each website
 # --------------------------------------------------------------------------
     ## Generic functionaloty
-    # Add/update product indormation
+    # Add/update product information
     def registerData(self, site, standardUrl, referenceOrder, trendOrder, cnt, uniq_params, params):                     
         # Check if product url exists to decide if addition of update is needed
         url = params['URL']
