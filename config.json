@@ -35,10 +35,14 @@
                                                                 "neckline": "neckline.pkl",
                                                                 "sleeve": "sleeve.pkl"}},
                           "text_descriptor_model": {"directory": "text_descriptor",
-                                                    "model": "tfidf_vectorizer.pkl"}
+                                                    "model": "tfidf_vectorizer.pkl"},
+                          "rating_model": {"directory": "incremental_learning_models",
+                                           "model": "rating_model.pkl"},
+                          "irrelevance_model": {"directory": "incremental_learning_models",
+                                              "model": "irrelevane_model.pkl"}
                           }
                 },
-  "clustering":{"famd_components": 4,
+  "clustering":{"famd_repeats": 20,
                 "linkage":"complete",
                 "distance_threshold": 0.35}
 }

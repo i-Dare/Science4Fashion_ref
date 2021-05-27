@@ -41,6 +41,7 @@ COLOR_MODEL_DIR = os.path.join(PROJECT_HOME, RESOURCESDIR, MODELSDIR, config['re
 CLUSTERING_MODEL_DIR = os.path.join(PROJECT_HOME, RESOURCESDIR, MODELSDIR, config['resources']['models']['clustering_models']['directory'])
 PRODUCT_ATTRIBUTE_MODEL_DIR = os.path.join(PROJECT_HOME, RESOURCESDIR, MODELSDIR, config['resources']['models']['product_attribute_model']['directory'])
 TEXT_DESCRIPTOR_MODEL_DIR = os.path.join(PROJECT_HOME, RESOURCESDIR, MODELSDIR, config['resources']['models']['text_descriptor_model']['directory'])
+INCREMENTAL_LEARNING_MODEL_DIR = os.path.join(PROJECT_HOME, RESOURCESDIR, MODELSDIR, config['resources']['models']['rating_model']['directory'])
 
 #
 ########### Logging variables ###########
@@ -137,7 +138,7 @@ UPDATE_PRODUCT_CLUSTERS_QUERY = """
 """
 
 # Consensus Clustering variables
-FAMD_COMPONENTS = config['clustering']['famd_components']
+FAMD_COMPONENTS = config['clustering']['famd_repeats']
 LINKAGE = config['clustering']['linkage']
 DISTANCE_THRESHOLD = config['clustering']['distance_threshold']
 UPDATE_PRODUCT_CONSENSUS_CLUSTERS_QUERY = """
@@ -148,8 +149,13 @@ UPDATE_PRODUCT_CONSENSUS_CLUSTERS_QUERY = """
     DROP TABLE temp_table;
 """
 
-
 #
+# Recommendation models
+#
+#
+RATING_MODEL = config['resources']['models']['rating_model']['model']
+IRRELEVANCE_MODEL = config['resources']['models']['irrelevance_model']['model']
+
 ########### Descriptor variables ###########
 #
 # Text descriptor model

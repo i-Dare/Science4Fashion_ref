@@ -6,9 +6,13 @@ import pickle
 import os
 from datetime import datetime
 
-from sklearn.metrics.pairwise import cosine_similarity 
+from sklearn.metrics.pairwise import cosine_similarity, linear_kernel
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model.stochastic_gradient import SGDClassifier
+from sklearn.linear_model import PassiveAggressiveClassifier, Perceptron
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.decomposition import TruncatedSVD
 
 import core.config as config
 from core.logger import S4F_Logger
@@ -16,45 +20,23 @@ from core.query_manager import QueryManager
 from core.helper_functions import *
 
 class FashionRecommender:
-    def __init__(self,):
-        #
-        # Initialize argument parser
-        #
-        self.parser = argparse.ArgumentParser(description = 'A script for executing the recommendation \
-            functionality', prog = 'FashionRecommender')
-        self.parser.add_argument('-s','--searchTerm', type = str, help = '''Input the search query term''', 
-                required = True, nargs = '+')
-        self.parser.add_argument('-n','--numberResults', type = int, help = '''Input the number of \
-                results you want to return''', default = 10, nargs = '?')
-        self.parser.add_argument('-u', '--user', default=config.DEFAULT_USER, type = str, help = '''Input user''')
-        self.parser.add_argument('-r', '--recalc', help = '''Triggers the recalculation functionality \
-            of the FashionRecommender, where a new set of recommendations is generated after user's \
-            feedback''', 
-            action="store_true", default = False)
-
-        # Parse arguments
-        self.args, unknown = self.parser.parse_known_args()
-
+    def __init__(self, searchTerm=None, recalc=False, user=config.DEFAULT_USER, threshold=1.):
+        
         # Get arguments
-        self.searchTerm = ' '.join(self.args.searchTerm)
-        self.numberResults = self.args.numberResults
-        self.recalc = self.args.recalc
+        self.threshold = threshold
+        self.searchTerm = searchTerm
+        self.recalc = recalc
+        self.user = user
+        self.numberResults = None
+        self.searchID = None
 
         # Logger setup
-        self.user = self.args.user
         self.logging = S4F_Logger('FashionRecommender', user=self.user)
         self.logger = self.logging.logger
         self.helper = Helper(self.logging)
 
         # QueryManager setup
         self.db_manager = QueryManager(user=self.user)
-        
-    def gradeBasedScore(self, products_df):
-        '''Calculates recommendation score based on the cosine similarity of the TFIDF embedings of
-           the processed text attributes and the processed search term
-        '''
-        self.logger.info('Calculating recommendation factor according to user\'s rating')
-        return products_df
 
     def textBasedScore(self, products_df):
         '''Calculates recommendation score based on the grades of the user
@@ -67,160 +49,166 @@ class FashionRecommender:
         preprocessed_searchTerm = self.helper.preprocess_metadata(self.searchTerm)
         query_vec = vectorizer.transform(preprocessed_searchTerm.split())
         # Calculate ordering score
-        products_df['text_score'] = cosine_similarity(tfidf_vector, query_vec).sum(axis=1)        
-        return products_df
+        products_df['text_score'] = cosine_similarity(tfidf_vector, query_vec).sum(axis=1)
+        # Return products with text score > 0
+        return products_df[products_df['text_score']>0]
 
     def orderingBasedScore(self, products_df, trend_mult=1, reference_mult=1):
         '''Calculates recommendation score based on the trending and reference order of the products
            as captured in the 'ProductHistory' table
         '''
         self.logger.info('Calculating recommendation factor according to ordering')
-        # Get trend/reference order
-        start = time.time()
-
-        print("Fetching ordering time: {:.2f} ms".format((time.time() - start) * 1000))
-
         # Normalize ordering values
         start = time.time()
-        scaler = MinMaxScaler((0.1, .5))
-        # Calculate ordering score
-        trend_factor = trend_mult * products_df['trend_factor']
-        reference_factor = reference_mult * products_df['reference_factor']
-        products_df['ordering_score'] = scaler.fit_transform((2*(trend_factor * reference_factor)/(trend_factor + reference_factor)).values.reshape(-1, 1))
-        print("Calculate ordering score time: {:.2f} ms".format((time.time() - start) * 1000))
+        scaler = MinMaxScaler((.1, .9))
+        ## Calculate ordering score
+        trend_factor =  (-trend_mult) * np.log(scaler.fit_transform(products_df['trend_factor'].values.reshape(-1, 1)))
+        reference_factor = (-reference_mult) * np.log(scaler.fit_transform(products_df['reference_factor'].values.reshape(-1, 1)))
+        products_df['ordering_score'] = trend_factor + reference_factor
+        self.logger.info("Calculate ordering score time: {:.2f} ms".format((time.time() - start) * 1000))
         return products_df
+
+
+    def feedbackBasedScore(self, products_df):
+        # check for system's state
+        if self.recalc:
+            # split data
+            seen_rating_ids, irrelevant_ids, unseen_ids = self.split_ids(products_df)
+            if unseen_ids.shape[0] == products_df.shape[0]:
+                self.logger.warn('No feedback provided.')
+                return products_df
+            # Predict ratings
+            products_df = self.make_prediction(products_df, seen_rating_ids, unseen_ids, action='rating')
+            # Predict irrelevance
+            products_df = self.make_prediction(products_df, irrelevant_ids, unseen_ids, action='irrelevance')
+            # Calculate feedback based score
+            # (1-irrelevance) * rating/max(rating)
+            products_df['feedback_score'] = (1-products_df['irrelevance']) * (products_df['rating']/products_df['rating'].max())
+        else:
+            # Remove 'rating' and 'irrelevance' model since this is a new session
+            self.helper.remove_model(config.RATING_MODEL)
+            self.helper.remove_model(config.IRRELEVANCE_MODEL)
+        return products_df   
+
 
     def recommendationScore(self, products_df, grading_mult=1, text_mult=1, ordering_mult=1, 
                             color_mult=1, clothing_mult=1):
-        '''Calculate recommendation scoring
+        '''Calculate recommendation scoring factoring in the relevance of the searchTerms and the 
+            relevance/trending ordering
         '''
-        scoring_measures = ['grading_score', 'text_score', 'ordering_score', 'color_score', 
-                'clothing_score']
+        scoring_measures = ['text_score', 'feedback_score']
+        scoring_factors = [text_mult, grading_mult]
+        if not self.recalc:
+            scoring_measures = scoring_measures[:2]
+            scoring_factors = scoring_factors[:2]
 
         # Calculated final score
-        final_score = np.sum( [mult * products_df[score] for score,mult in zip(scoring_measures, 
-                [grading_mult, text_mult, ordering_mult, color_mult, clothing_mult]) 
+        final_score = np.sum( [mult * products_df[score] for score,mult in zip(scoring_measures, scoring_factors) 
                 if score in products_df.columns], axis=0)
         
         products_df['final_score'] = final_score
 
         # Return items sorted according to final score
         products_df.sort_values('final_score', ascending=False, inplace=True)
-        return products_df.iloc[:self.numberResults]
+        return products_df
 
 
     def executeRecommendation(self, ):
+        # Get search information
+        self.searchID, self.searchTerm, self.numberResults = self.get_search_details()
         # Get all product ranking attributes
-        self.all_products_df = self.getAttributes()
+        products_df = self.getAttributes()
 
         # Preprocess ranking attributes
         products_df = self.attributePreprocessing()
+
+        #
+        # Score calculation
+        #
         # Calculate recommendation score according to text
         products_df = self.textBasedScore(products_df)
         # Calculate recommendation score according to ordering
         products_df = self.orderingBasedScore(products_df)
-
-        #
+        # Calculate recommendation score according to user's feedback
+        products_df = self.feedbackBasedScore(products_df)
         # Calculate final recommendation score
+        products_df = self.recommendationScore(products_df, text_mult=1, ordering_mult=.5)
         #
-        products_df = self.recommendationScore(products_df)
-        
+        # Register recommendation to the "Result" table if system's state!=recalc, otherwise update 
+        # existing recommendation
+        self.registerRecommendation(products_df)
+
         self.evalRecommendation(products_df)
 
 # ----------------------------------------------
 #       Utility Functions
 # ----------------------------------------------
+    def get_search_details(self,):
+        # Get search informationn according to the provided search ID
+        params = {'table': 'Search', 'Criteria': self.searchTerm, 'CreatedBy': self.user}
+        search_df = self.db_manager.runSelectQuery(params)
+        search_df.sort_values('Oid', ascending=False, inplace=True)
+        searchID = search_df['Oid'].values[0]
+        searchTerm = search_df['Criteria'].values[0]
+        numberResult = search_df['NumberOfProductsToReturn'].values[0]
+        return searchID, searchTerm, numberResult
+
     def getAttributes(self, ):
         start = time.time()
-        attJoin, attSelect = '', []
-        for i, attr in enumerate(config.PRODUCT_ATTRIBUTES):
-            attSelect += ['attr%s.Description AS %s' % (i, attr)]
-            attJoin += ' LEFT JOIN %s.dbo.%s AS attr%s\nON PRD.%s = attr%s.Oid ' \
-                     % (config.DB_NAME, attr, i, attr, i)
-
-        query = '''
-                    SELECT PRD.Oid, PRD.ImageSource, PRD.Description, PRD.Metadata, PRD.ProductTitle,
-                           PH.ReferenceOrder, PH.TrendingOrder,
-                           PC.Ranking,                   
-                           C.Label, C.LabelDetailed, C.Red, C.Blue, C.Green,
-                           RSLT.Clicked, RSLT.IsFavorite, RSLT.GradeBySystem, RSLT.GradeByUser, RSLT.CreatedBy,
-                           %s
-                    FROM %s.dbo.ProductColor AS PC
-                        LEFT JOIN %s.dbo.ColorRGB AS C
-                        ON PC.ColorRGB = C.Oid
-                        LEFT JOIN %s.dbo.Product AS PRD
-                        ON PC.Product=PRD.Oid
-                        LEFT JOIN %s.dbo.ProductHistory AS PH
-                        ON PRD.Oid = PH.Product
-                        LEFT JOIN %s.dbo.RESULT AS RSLT
-                        ON PRD.oid = RSLT.Product 
-                        %s
-                    WHERE RSLT.CreatedBy= \'%s\'      
-                ''' % (','.join(attSelect), config.DB_NAME, config.DB_NAME, config.DB_NAME, 
-                config.DB_NAME, config.DB_NAME, attJoin, self.user)
-
-        products_df = self.db_manager.runSimpleQuery(query, get_identity=True)                                        
-
-        # No items are rated (cold start) perform text based retrieval on all items
-        if products_df.empty:
+        # Trigger recalculation
+        if self.recalc:
+            num_columns = ['ReferenceOrder', 'TrendingOrder', 'Clicked', 'IsFavorite', 'GradeBySystem', 
+                'GradeByUser', 'IsIrrelevant']
+            # Fetch searchIDs for search term
+            params = {'table': 'Search', 'Criteria': self.searchTerm}
+            search_df = self.db_manager.runSelectQuery(params)
+            searchIDs = search_df['Oid'].tolist()
+            # Prepare final query
+            where = 'WHERE ' + ' OR '.join([ 'RSLT.Search = %s' % oid for oid in searchIDs])
+            query = '''
+                SELECT PRD.Oid, PRD.ImageSource, PRD.Description, PRD.Metadata, PRD.ProductTitle,
+                        PH.ReferenceOrder, PH.TrendingOrder,
+                        RSLT.Search, RSLT.Clicked, RSLT.IsFavorite, RSLT.GradeBySystem, RSLT.GradeByUser, RSLT.IsIrrelevant, RSLT.CreatedBy
+                FROM %s.dbo.Product AS PRD 
+                    LEFT JOIN %s.dbo.ProductHistory AS PH
+                    ON PRD.Oid = PH.Product
+                    LEFT JOIN %s.dbo.RESULT AS RSLT
+                    ON PRD.oid = RSLT.Product 
+                    %s
+            ''' % ( config.DB_NAME, config.DB_NAME, config.DB_NAME, where)
+        else:
+            num_columns = ['ReferenceOrder', 'TrendingOrder']
             query = '''
                         SELECT PRD.Oid, PRD.ImageSource, PRD.Description, PRD.Metadata, PRD.ProductTitle,
-                               PH.ReferenceOrder, PH.TrendingOrder,
-                               PC.Ranking,                   
-                               C.Label, C.LabelDetailed, C.Red, C.Blue, C.Green,
-                               %s
-                        FROM %s.dbo.ProductColor AS PC
-                            LEFT JOIN %s.dbo.ColorRGB AS C
-                            ON PC.ColorRGB = C.Oid
-                            LEFT JOIN %s.dbo.Product AS PRD
-                            ON PC.Product=PRD.Oid
+                                PH.ReferenceOrder, PH.TrendingOrder
+                        FROM %s.dbo.Product AS PRD                          
                             LEFT JOIN %s.dbo.ProductHistory AS PH
                             ON PRD.Oid = PH.Product
-                            %s
-                    ''' % (','.join(attSelect), config.DB_NAME, config.DB_NAME, config.DB_NAME, 
-                    config.DB_NAME, attJoin)
-            products_df = self.db_manager.runSimpleQuery(query, get_identity=True)
+                    ''' % (config.DB_NAME, config.DB_NAME)
+        products_df = self.db_manager.runSimpleQuery(query, get_identity=True)
+        # Remove duplicates
+        products_df.drop_duplicates(ignore_index=True, inplace=True)
+        # Max aggregate results per product Oid        
+        cat_columns = list(set(products_df.columns) - set(products_df._get_numeric_data().columns.tolist()))
+        _products_df = products_df.groupby('Oid').first()[cat_columns]
+        _products_df.loc[:, num_columns] = products_df.groupby('Oid').max()[num_columns]
 
-        print("Attribute retrieval time: {:.2f} ms".format((time.time() - start) * 1000))
-        return products_df
+        self.logger.info("Attribute retrieval time: {:.2f} ms".format((time.time() - start) * 1000))
+        return _products_df.reset_index()
 
-    def attributePreprocessing(self,):
-        # Group by products
-        products_df = self.all_products_df.groupby('Oid').mean().reset_index()
-        # Text preprocessing
-        products_df = self.textPreprocessing(products_df)
+    def attributePreprocessing(self, products_df):
+        '''Sequential attribute preprocessing in stages'''
         # Ordering preprocessing
         products_df = self.orderingPreprocessing(products_df)
-        return products_df
-
-    def textPreprocessing(self, products_df):
-        # Combine text fields
-        _all_products_df = self.all_products_df.copy()
-        start = time.time()
-        for attr in config.PRODUCT_ATTRIBUTES:
-            _all_products_df[attr] = _all_products_df[attr].str.replace(' ', '_')
-
-        text_columns = config.PRODUCT_ATTRIBUTES + ['Metadata', 'ProductTitle', 'Description', 'Label', 'LabelDetailed']
-        
-        # Group products by "Oid", flatten and convert lists to text
-        products_df['combined_text'] = (_all_products_df.groupby('Oid')
-                .apply( lambda row:  [list(set(row[col])) for col in text_columns ] )
-                .apply( lambda row:  [r for r in (sum(row, []))  if r is not None] )
-                .str.join(' ')).values
-
-        products_df.loc[:, 'processed_combined_text'] = products_df.loc[:, 'combined_text'].apply(self.helper.preprocess_metadata)
-        print("Text preprocessing time: {:.2f} ms".format((time.time() - start) * 1000))
         return products_df
 
     def orderingPreprocessing(self, products_df):
         # Select ordering columns
         columns = products_df.filter(like='Order').columns
-        for col in columns:
-            products_df.loc[:, col] = products_df[col].fillna(value=99999)
+        products_df.loc[:, columns] = products_df.loc[:, columns].fillna(value=99999)
 
-        scaler = MinMaxScaler((0.1, 1.))
-        products_df['trend_factor'] = 1/scaler.fit_transform(products_df['TrendingOrder'].values.reshape(-1,1))
-        products_df['reference_factor'] = 1/scaler.fit_transform(products_df['ReferenceOrder'].values.reshape(-1,1))
+        products_df['trend_factor'] = products_df['TrendingOrder']/(products_df['TrendingOrder'] + products_df['ReferenceOrder'])
+        products_df['reference_factor'] = products_df['ReferenceOrder']/(products_df['TrendingOrder'] + products_df['ReferenceOrder'])
         return products_df
 
     def calculateTextDescriptors(self, products_df):
@@ -229,23 +217,117 @@ class FashionRecommender:
         '''
         # TFIDF vectorizer setup
         start = time.time()
-        vectorizer = TfidfVectorizer(analyzer='word', 
-                                    ngram_range=(1,2), 
-                                    min_df=3, 
-                                    max_df=.95,
-        #                              max_features=5000,
-                                    use_idf=True, 
-                                    stop_words=self.helper.STOP_WORDS)
-        # saving TFIDF features
-        tfidf_vector = vectorizer.fit_transform(products_df['processed_combined_text'])
-        print("TFIDF feature extraction time: {:.2f} ms".format((time.time() - start) * 1000))
-
-        if not os.path.exists(config.DATADIR):
-            os.makedirs(config.DATADIR)
-        np.save(config.TFIDF_VECTOR, tfidf_vector)
-        # saving TFIDF vectorizer
-        self.helper.save_model(vectorizer, config.MODEL_TEXT_DESCRIPTOR, config.TEXT_DESCRIPTOR_MODEL_DIR)
+        # If 'recalc' load vectorizer
+        if self.recalc:
+            vectorizer = self.helper.get_model(config.MODEL_TEXT_DESCRIPTOR)
+            tfidf_vector = vectorizer.transform(products_df['Metadata'])
+        else:
+            vectorizer = TfidfVectorizer(analyzer='word', 
+                                        ngram_range=(1,2), 
+                                        min_df=3, 
+                                        max_df=.95,
+            #                              max_features=5000,
+                                        use_idf=True, 
+                                        stop_words=self.helper.STOP_WORDS)
+            tfidf_vector = vectorizer.fit_transform(products_df['Metadata'])
+            # saving TFIDF vectorizer
+            self.helper.save_model(vectorizer, config.MODEL_TEXT_DESCRIPTOR, config.TEXT_DESCRIPTOR_MODEL_DIR)
+        
+            # Save TF-IDF vectors
+            if not os.path.exists(config.DATADIR):
+                os.makedirs(config.DATADIR)
+            np.save(config.TFIDF_VECTOR, tfidf_vector.toarray())
+        self.logger.info("TFIDF feature extraction time: {:.2f} ms".format((time.time() - start) * 1000))
         return products_df, tfidf_vector, vectorizer
+
+    def split_ids(self, products_df):
+        '''Splits data to seen (rated) and useen (unrated)'''
+        seen_rating_ids = products_df.loc[(products_df['GradeByUser']>=0) | (products_df['IsIrrelevant']), 'Oid']
+        irrelevant_ids = products_df.loc[(products_df['IsIrrelevant']) | (products_df['GradeByUser']>=0), 'Oid']
+        
+        unseen_ids = products_df.loc[(products_df['GradeByUser']<0) & (~products_df['IsIrrelevant']), 'Oid']
+        return seen_rating_ids, irrelevant_ids, unseen_ids
+    
+    def make_prediction(self, data, train_ids, test_ids, action):
+        # Argument assertion
+        assert (action in ['rating', 'irrelevance']), 'Action is \"rating\" or \"irrelevance\"'
+        
+        online_classifiers = {
+            'SGD': SGDClassifier(random_state = 42),
+            'Perceptron': Perceptron(random_state = 42),
+            'NB Multinomial': MultinomialNB(alpha=0.005),
+            'Passive-Aggressive': PassiveAggressiveClassifier(C = 0.05, random_state = 42),
+            'SVD': MultinomialNB(alpha=0.005)
+        }
+        
+        train_data = data[data['Oid'].isin(train_ids)]
+        test_data = data[data['Oid'].isin(test_ids)]
+        _, train_x, _ = self.calculateTextDescriptors(train_data)
+        _, test_x, _ = self.calculateTextDescriptors(test_data)
+        
+        if action=='rating':
+            # set unratted and irrelevant data to 0
+            train_data.loc[train_data['GradeByUser']<0, 'GradeByUser'] = 0
+            # set target
+            train_y = train_data['GradeByUser'].values
+            model_name = config.RATING_MODEL        
+            classes = list(range(6))
+            # Load or set model
+            model = self.helper.get_model(model_name)
+            if not model:
+                model = online_classifiers['NB Multinomial']
+        if action=='irrelevance':
+            # set target
+            train_y = train_data['IsIrrelevant'].values
+            model_name = config.IRRELEVANCE_MODEL
+            classes = [True, False]
+            # Load or set model
+            model = self.helper.get_model(model_name)
+            if not model:
+                model = online_classifiers['Passive-Aggressive']
+        #
+        # Train incremental (online) learning model
+        #
+        # partial training
+        model.partial_fit(train_x, train_y, classes=classes)
+        # saving model
+        self.helper.save_model(model, model_name, config.INCREMENTAL_LEARNING_MODEL_DIR)
+        # predition
+        prediction = model.predict(test_x)
+        # Save prediction to products dataframe
+        if action=='rating':
+            data.loc[data['Oid'].isin(train_ids), 'rating'] = train_y.tolist()
+            data.loc[data['Oid'].isin(test_ids), 'rating'] = prediction.tolist()
+        if action=='irrelevance':
+            data.loc[data['Oid'].isin(train_ids), 'irrelevance'] = train_y.tolist()
+            data.loc[data['Oid'].isin(test_ids), 'irrelevance'] = prediction.tolist()
+        return data
+
+    def registerRecommendation(self, products_df):
+        '''Stores the recommendation as a new record in Results table'''
+        # During recalculation (state!=0) remove previous results according to Search Oid
+        if self.recalc:
+            for i, row in products_df.iterrows():
+                uniq_params = {'table': 'Result', 
+                        'Product': row['Oid'],
+                        'Search': self.searchID}
+                params = {'table': 'Result', 
+                        'Search': self.searchID,
+                        'Product': row['Oid'],
+                        'IsIrrelevant': row['IsIrrelevant'],     
+                        'GradeByUser': row['GradeByUser'],                    
+                        'GradeBySystem': row['final_score']}
+                self.db_manager.runCriteriaUpdateQuery(uniq_params=uniq_params, params=params)
+
+            # query = "DELETE FROM %s.dbo.Result  WHERE Search=%s" % (config.DB_NAME, self.searchID)
+            # self.db_manager.runSimpleQuery(query)
+        else:
+            for i, row in products_df.iterrows():               
+                params = {'table': 'Result', 
+                'Search': self.searchID,
+                'Product': row['Oid'],
+                'GradeBySystem': row['final_score']}
+                self.db_manager.runInsertQuery(params, get_identity=True)
 
 # ----------------------------------------------
 #       Evaluation Functions
@@ -253,7 +335,7 @@ class FashionRecommender:
     def evalRecommendation(self, recommendation_df):
         where = ' OR '.join(['Oid=%s' % oid for oid in recommendation_df['Oid'].values])
         query = ''' 
-                SELECT Oid, Metadata, ProductTitle, Description, ImageSource  FROM %s.dbo.Product
+                SELECT Oid, Metadata, ProductTitle, Description, ImageSource, Image  FROM %s.dbo.Product
                 WHERE %s
                 ''' % (config.DB_NAME, where)
         products_df = self.db_manager.runSimpleQuery(query, get_identity=True)
@@ -265,10 +347,32 @@ class FashionRecommender:
             score = row['text_score']
             text = products_df.loc[products_df['Oid']==oid, 'combined_columns'].values[0]
             imgUrl = products_df.loc[products_df['Oid']==oid, 'ImageSource'].values[0].replace('\\','')
-            print('%s: %s - %s\n%s' % (oid, score, text, imgUrl))
+            self.logger.info('%s: %s - %s\n%s' % (oid, score, text, imgUrl))
 
 
 
 if __name__ == "__main__":
-   recommender = FashionRecommender()
-   recommender.executeRecommendation()        
+    #
+    # Initialize argument parser
+    #
+    parser = argparse.ArgumentParser(description = 'A script for executing the recommendation \
+            functionality', prog = 'FashionRecommender')
+    parser.add_argument('-s','--searchTerm', type = str, help = '''Input the Oid of the Search table''', 
+            required = True, nargs = '?')
+    parser.add_argument('-u', '--user', default=config.DEFAULT_USER, type = str, help = '''Input user''')
+    parser.add_argument('-r', '--recalc', help = '''Triggers the recalculation functionality \
+            of the FashionRecommender, where a new set of recommendations is generated after user's \
+            feedback''', action="store_true", default = False)
+
+    # Parse arguments
+    args, unknown = parser.parse_known_args()
+
+    # Get arguments
+    searchTerm = args.searchTerm
+    recalc = args.recalc
+    user = args.user
+
+    recommender = FashionRecommender(searchTerm=searchTerm, 
+                                     recalc=recalc, 
+                                     user=user)
+    recommender.executeRecommendation()     
