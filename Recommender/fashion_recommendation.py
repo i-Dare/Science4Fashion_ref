@@ -357,7 +357,7 @@ if __name__ == "__main__":
     #
     parser = argparse.ArgumentParser(description = 'A script for executing the recommendation \
             functionality', prog = 'FashionRecommender')
-    parser.add_argument('-s','--searchTerm', type = str, help = '''Input the Oid of the Search table''', 
+    parser.add_argument('-s','--searchTerm', type = str, help = '''Input the search terms of the query''', 
             required = True, nargs = '?')
     parser.add_argument('-u', '--user', default=config.DEFAULT_USER, type = str, help = '''Input user''')
     parser.add_argument('-r', '--recalc', help = '''Triggers the recalculation functionality \

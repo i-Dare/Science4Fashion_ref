@@ -195,7 +195,7 @@ class ConsensusClustering:
             # Calculate the 70th percentile for n number of components
             q = np.percentile(famd.explained_inertia_, 70, interpolation='nearest')
             where = np.where(famd.explained_inertia_ >= q)
-            # Capture the numer of components that explain the 70th percentile 
+            # Capture the number of components that explain the 70th percentile 
             inertia.append((len(famd.explained_inertia_[where]), 
                   sum(famd.explained_inertia_[where])/sum(famd.explained_inertia_)))       
         
