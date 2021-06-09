@@ -679,6 +679,13 @@ class Helper():
             sku = None
             self.logger.warn_and_trace(e)
             self.logger.warning("SKU ID not captured at %s" % url) 
+        # Image
+        try:
+            imgURL = jsonInfo['images'][0]['url']
+        except Exception as e: 
+            imgURL = None
+            self.logger.warn_and_trace(e)
+            self.logger.warning("Image url not captured at %s" % url) 
         # Gender
         try:
             gender = jsonInfo['gender']
@@ -721,14 +728,14 @@ class Helper():
             productID = jsonInfo['id']
             priceApiURL = 'https://www.asos.com/api/product/catalogue/v3/stockprice?productIds=%s&store=ROE&currency=EUR' % productID
             time.sleep(3)  # suspend execution for 5 secs
-            url, priceSoup = self.get_content(priceApiURL, retry=3)
+            _, priceSoup = self.get_content(priceApiURL, retry=3)
             price = json.loads(str(priceSoup))[0]['productPrice']['current']['value']
         except:
             price = None
             self.logger.warning("Product price not captured at %s" % url)   
     
 
-        return head, brand, color, genderid, meta, sku, price
+        return head, brand, color, genderid, meta, sku, price, url, imgURL
 
 
     ## sOliver specific functionality 

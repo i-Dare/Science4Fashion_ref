@@ -46,16 +46,12 @@ def performScraping(urlReceived, searchTerm, breakPointNumber):
     #   parse according to reference and trending order
     if 'Search' not in str(soup.title) :
         logger.warning('Redirected to product page')
-        jsonUnparsed = soup.find('script', {'id': re.compile(r'split-structured-data')})
-        product = json.loads(re.findall(r'({\".+})', str(jsonUnparsed))[0].replace('\\', ''))
         breakPointNumber = 1
-        url = product['url']        
-        imgURL = product['image']
         #  Download product image
         trendOrder = referenceOrder = 0
 
         # Register product information
-        head, brand, color, genderid, meta, sku, price = helper.parseAsosFields(soup, url)
+        head, brand, color, genderid, meta, sku, price, url, imgURL = helper.parseAsosFields(soup, url)
         uniq_params = {'table': 'Product', 'URL': url}
         params = {'table': 'Product', 'Description': searchTerm, 'Active':  True, 'Gender': genderid,
                 'ColorsDescription': color, 'Ordering': 0, 'ProductCode': sku, 'ProductTitle': head, 
@@ -81,7 +77,7 @@ def performScraping(urlReceived, searchTerm, breakPointNumber):
                 referenceOrder = 0
             # Register product information
             urlReceived, soup = helper.get_content(url, retry=3)
-            head, brand, color, genderid, meta, sku, price = helper.parseAsosFields(soup, url)
+            head, brand, color, genderid, meta, sku, price, url, imgURL = helper.parseAsosFields(soup, url)
             uniq_params = {'table': 'Product', 'URL': url}
             params = {'table': 'Product', 'Description': searchTerm, 'Active':  True, 'Gender': genderid,
                     'ColorsDescription': color, 'Ordering': 0, 'ProductCode': sku, 'ProductTitle': head, 
