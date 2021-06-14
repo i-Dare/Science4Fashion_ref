@@ -169,36 +169,72 @@ class InstagramCrawler():
         return username
 
     def search_query(self, searchTerm, threshold=10):
-        # Create hashtag from searchTerm term
-        hashtag = Hashtag.from_name(self.instagram.context, searchTerm.replace(' ',''))
+        # Override due to unsolved #874: https://github.com/instaloader/instaloader/issues/874
+        hashtag = searchTerm.replace(' ','')
+        jsonData = self.instagram.context.get_json(path="explore/tags/" + hashtag + "/", params={"__a": 1})
         query_result = []
         n_exists = 0
-        for index, result in enumerate(hashtag.get_posts(), start=1):
-            post_url = self.base_url + str(result.shortcode) + "/"
-            imgSource = result.url
-            isVideo = result.is_video
-            imageFilePath = self.helper.setImageFilePath(post_url, searchTerm.replace(' ',''), index)
-            filter_df = self.db_manager.runSelectQuery({'table': 'Product', 'URL': post_url})
-            if type(filter_df)==pd.DataFrame:
-                if filter_df.empty and not isVideo:
-                    post_info = " ".join(re.findall("[a-zA-Z]+", result.caption))
-                    post_title = ' '.join(result.caption_hashtags)
-                    # post_hashtags = result.caption_hashtags
-                    # post_likes = result.likes
-                    post_date = result.date
-                    query_result.append(({'searchTerm': searchTerm,
-                                'timestamp': post_date,
-                                'URL': post_url,
-                                'imgURL': imgSource,
-                                'imageFilePath':imageFilePath,
-                                'title': post_title,
-                                'description': post_info}))
-                else:
-                    self.logger.info('Product already exists')
-                    n_exists += 1
+        hasNextPage = True
+        pageNumber = 1
 
-            if index - n_exists> threshold:
-                break
+        while hasNextPage:
+            sections = jsonData['data']['recent']['sections']
+            for section in sections:
+                for index, post in enumerate(section['layout_content']['medias']):
+                    if post['media']['media_type'] != 1:
+                        continue
+                    post_url = self.base_url + post['media']['code']
+                    imgSource = post['media']['image_versions2']['candidates'][0]['url']
+                    meta = post['media']['caption']['text']
+                    post_info = " ".join(re.findall("[a-zA-Z]+",meta))
+                    imageFilePath = self.helper.setImageFilePath(post_url, searchTerm.replace(' ',''), index)
+                    post_title = searchTerm
+                    timestamp = datetime.fromtimestamp(post['media']['taken_at']).date()
+                    filter_df = self.db_manager.runSelectQuery({'table': 'Product', 'URL': post_url})
+                    if type(filter_df)==pd.DataFrame:
+                        if filter_df.empty:
+                            query_result.append(({'searchTerm': searchTerm,
+                                        'timestamp': timestamp,
+                                        'URL': post_url,
+                                        'imgURL': imgSource,
+                                        'imageFilePath':imageFilePath,
+                                        'title': post_title,
+                                        'description': post_info}))
+                        else:
+                            self.logger.info('Product already exists')
+                            n_exists += 1
+                    if len(query_result) == threshold:
+                        return query_result
+        # # Create hashtag from searchTerm term
+        # hashtag = Hashtag.from_name(self.instagram.context, searchTerm.replace(' ',''))
+        # query_result = []
+        # n_exists = 0
+        # for index, result in enumerate(hashtag.get_posts(), start=1):
+        #     post_url = self.base_url + str(result.shortcode) + "/"
+        #     imgSource = result.url
+        #     isVideo = result.is_video
+        #     imageFilePath = self.helper.setImageFilePath(post_url, searchTerm.replace(' ',''), index)
+        #     filter_df = self.db_manager.runSelectQuery({'table': 'Product', 'URL': post_url})
+        #     if type(filter_df)==pd.DataFrame:
+        #         if filter_df.empty and not isVideo:
+        #             post_info = " ".join(re.findall("[a-zA-Z]+", result.caption))
+        #             post_title = ' '.join(result.caption_hashtags)
+        #             # post_hashtags = result.caption_hashtags
+        #             # post_likes = result.likes
+        #             post_date = result.date
+        #             query_result.append(({'searchTerm': searchTerm,
+        #                         'timestamp': post_date,
+        #                         'URL': post_url,
+        #                         'imgURL': imgSource,
+        #                         'imageFilePath':imageFilePath,
+        #                         'title': post_title,
+        #                         'description': post_info}))
+        #         else:
+        #             self.logger.info('Product already exists')
+        #             n_exists += 1
+
+        #     if index - n_exists> threshold:
+        #         break
         return query_result
 
     
