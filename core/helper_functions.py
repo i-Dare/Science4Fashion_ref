@@ -56,7 +56,7 @@ class Helper():
 
     ## This function will create a soup and returns which is the parsed html format for extracting 
     # html tags of the webpage 
-    def get_content(self, url, suffix='', retry=2):
+    def get_content(self, url, suffix='', retry=3):
         for i in range(1, retry):
             user_agent_list = [
                 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_5) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.1.1 Safari/605.1.15',
@@ -841,7 +841,7 @@ class Helper():
                 productPage = product.find('a', {'class': re.compile(
                     "js-ovlistview-productdetaillink")}).get('href')
                 productPage = 'https://www.soliver.eu' + productPage
-                if 'plproduct__color' in str(product):
+                if product.find('li', {'class': 'plproduct__color'}):
                     productImg = (json.loads(product.find('li', {'class': 'plproduct__color'})
                             .get('data-ovlistview-color-config'))['images'][0]['absURL'])
                     color = (json.loads(product.find('li', {'class': 'plproduct__color'})
@@ -898,34 +898,38 @@ class Helper():
         try:
             jsonInfo = json.loads(soupTemp.text)['product']['variantInfo']
         except:
-            self.logger.warn_and_trace("JSON information for product at %s not found" % url)
+            self.logger.warn("JSON information for product at %s not found" % url)
         # color - Clothe's Color
         try:
             color = jsonInfo['variationAttrData']['color']['displayValue']
-        except:
+        except Exception as e:
             color = None
-            self.logger.warn_and_trace("Color not captured at %s" % url)
+            self.logger.warn_and_trace(e)
+            self.logger.warn("Color not captured at %s" % url)
 
         # price
         try:
             price = jsonInfo['priceData']['salePrice']['value']
-        except:
+        except Exception as e:
             price = None
-            self.logger.warn_and_trace("Price not captured at %s" % url)
+            self.logger.warn_and_trace(e)
+            self.logger.warn("Price not captured at %s" % url)
 
         # head - Clothe's General Description
         try:
             head = jsonInfo['microdata']['description']
-        except:
+        except Exception as e:
             head = None
-            self.logger.warn_and_trace("Header not captured at %s" % url)
+            self.logger.warn_and_trace(e)
+            self.logger.warn("Header not captured at %s" % url)
 
         # brand - Clothe's Brand
         try:
             brand = jsonInfo['microdata']['brand']
-        except:
+        except Exception as e:
             brand = None
-            self.logger.warn_and_trace("Brand not captured at %s" % url)    
+            self.logger.warn_and_trace(e)
+            self.logger.warn("Brand not captured at %s" % url)    
             
         # gender
         try:

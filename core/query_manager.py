@@ -194,7 +194,7 @@ class QueryManager():
     def parseStr(self, i):
         if i == 'NULL':
             return i
-        if 'http' in i:
+        if i.startswith('http'):
             return "'%s'" % i
         else:
             return "STRING_ESCAPE('%s', \'json\')" % i.replace("'", "''").replace('%', '%%')
