@@ -86,6 +86,7 @@ Apart from the color information, the rest of the product's attributes regarding
 	* **PYTHONPATH:** `C:\Users\User\anaconda3;%PROJECT_HOME%`
 	
 5. Install python packages:
+
 	* ```$ pip install kmodes==0.10.2```
 	* ```$ pip install scikit-fuzzy==0.4.2```
 	* ```$ pip install textblob==0.15.3```
@@ -94,14 +95,20 @@ Apart from the color information, the rest of the product's attributes regarding
 	* ```$ pip install prince==0.7.1```
 	* ```$ pip install webcolors==1.11.1```
 	* ```$ pip install light-famd```
-	* ```$ conda install -c pytorch torchvision```
+	* ```$ conda install -c pytorch pytorch=1.7.1 torchvision=0.8.2```
 	* ```$ pip install pymssql```
-	* ```$ pip install opencv-python==4.0.1```
+	* ```$ pip install opencv-python==4.5.1.48```
 	* ```$ pip install tensorflow==2.4.1```
-	* ```$ pip install fastai```
+	* ```$ pip install fastai==1.0.61```
 	* ```$ pip install wordsegment```
-	* ```$ pip install py3-pinterest```
-	* ```$ pip install light-famd```
+	* ```$ pip install py3-pinterest==1.2.2```
+
+
+---
+
+**NOTE:** In case your [CPU does not support AVX or AVX2](https://en.wikipedia.org/wiki/Advanced_Vector_Extensions), install `tensorflow` without AVX support by building it directly [from source](https://www.tensorflow.org/install/source_windows) or using prebuilt binaries for Windows from [tensorflow-windows-wheel](https://github.com/fo40225/tensorflow-windows-wheel) github repository.
+
+---
 
 	
 6. Download NLTK content by executing the following commands in a cmd console:
@@ -113,12 +120,12 @@ Apart from the color information, the rest of the product's attributes regarding
 	
 7. Transfer AI models that reside in [Google Drive](https://drive.google.com/drive/folders/1OK_DCErAY8jta532aJRSX8ljZ8XnVqAJ?usp=sharing) to target system
 	* Download latest models
-	* Place models in %PROJECT_HOME%/resources/models (create directory if needed)
+	* Place models in %PROJECT_HOME%/resources/models/product_attributes (create directory if needed)
 	
 8. Edit DB connection details in %PROJECT_HOME%/config.json
 	* Execute the following to make sure the database connection is responsive
 
-	```$ python -c "import pandas as pd;import core.config as config;pd.read_sql_query('''SELECT * FROM %s.dbo.Product''' % config.DB_NAME, config.ENGINE)"```
+	```$ python -c "import pandas as pd;import core.config as config;pd.read_sql_query('''SELECT Oid FROM %s.dbo.Product''' % config.DB_NAME, config.ENGINE)"```
 	
 
 
