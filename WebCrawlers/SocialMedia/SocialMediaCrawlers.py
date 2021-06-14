@@ -129,7 +129,7 @@ class InstagramCrawler():
             self.instagram.login(self.username, self.password)
         except ConnectionException as ex:
             self.logger.warn_and_trace(ex)
-            self.logger.warn('Login failes, attempting to login with Firefox session.')
+            self.logger.warn('Login failed, attempting to login with Firefox session.')
             cookiefile = self.get_cookiefile()
             session_path = os.path.join(config.RESOURCESDIR, 'data', 'instagram_session')
             username = self.import_session(cookiefile, session_path)
