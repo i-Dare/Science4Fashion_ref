@@ -13,6 +13,12 @@ from datetime import datetime
 
 from py3pin.Pinterest import Pinterest
 from instaloader import Instaloader, Hashtag
+from instaloader.exceptions import ConnectionException
+
+from sqlite3 import OperationalError, connect
+from glob import glob
+from os.path import expanduser
+from platform import system
 
 import core.config as config
 from core.helper_functions import *
@@ -119,8 +125,48 @@ class InstagramCrawler():
         self.fashion_att = self.helper.get_fashion_attributes()
 
     def login(self,):
-        self.instagram.login(self.username, self.password)
-        self.logger.info('Connected to Instagram')
+        try:
+            self.instagram.login(self.username, self.password)
+        except ConnectionException as ex:
+            self.logger.warn_and_trace(ex)
+            self.logger.warn('Login failes, attempting to login with Firefox session.')
+            cookiefile = self.get_cookiefile()
+            session_path = os.path.join(config.RESOURCESDIR, 'data', 'instagram_session')
+            username = self.import_session(cookiefile, session_path)
+            self.instagram.load_session_from_file(username, session_path)
+        if self.instagram.context.is_logged_in:
+            self.logger.info('Connected to Instagram')
+
+    def get_cookiefile(self):
+        default_cookiefile = {
+            "Windows": "~/AppData/Roaming/Mozilla/Firefox/Profiles/*/cookies.sqlite",
+            "Darwin": "~/Library/Application Support/Firefox/Profiles/*/cookies.sqlite",
+        }.get(system(), "~/.mozilla/firefox/*/cookies.sqlite")
+        cookiefiles = glob(expanduser(default_cookiefile))
+        if not cookiefiles:
+            raise SystemExit("No Firefox cookies.sqlite file found. Use -c COOKIEFILE.")
+        return cookiefiles[0]
+
+    def import_session(self, cookiefile, session_path):
+        print("Using cookies from {}.".format(cookiefile))
+        conn = connect(f"file:{cookiefile}?immutable=1", uri=True)
+        try:
+            cookie_data = conn.execute(
+                "SELECT name, value FROM moz_cookies WHERE baseDomain='instagram.com'"
+            )
+        except OperationalError:
+            cookie_data = conn.execute(
+                "SELECT name, value FROM moz_cookies WHERE host LIKE '%instagram.com'"
+            )
+        _instagram = Instaloader(max_connection_attempts=3)
+        _instagram.context._session.cookies.update(cookie_data)
+        username = _instagram.test_login()
+        if not username:
+            raise SystemExit("Not logged in. Are you logged in successfully in Firefox?")
+        print("Imported session cookie for {}.".format(username))        
+        _instagram.context.username = username
+        _instagram.save_session_to_file(session_path)
+        return username
 
     def search_query(self, searchTerm, threshold=10):
         # Create hashtag from searchTerm term
