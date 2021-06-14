@@ -48,6 +48,12 @@ Same as first example, uses full argument names
 
 Executes the query for multiple adapters
 
+---
+
+**NOTE:** Since Instagram uses two factor authentication, if the system attempts to access the service through the default credentials - user `idare.issel@gmail.com` - there is a high possibility that Instagram will refuse the connection. To bypass restriction, the user has to first log in through Firefox using these credentials, accept all cookies and then close the window without exiting Instagram. This way the crawler will fallback to logging in the service using an active session instead of creating a new one.
+
+---
+
 
 
 ## [2. Image Annotation](#image_annotation)
@@ -90,7 +96,7 @@ Apart from the color information, the rest of the product's attributes regarding
 	* ```$ pip install kmodes==0.10.2```
 	* ```$ pip install scikit-fuzzy==0.4.2```
 	* ```$ pip install textblob==0.15.3```
-	* ```$ pip install instaloader==4.5.5```
+	* ```$ pip install instaloader==4.7.2```
 	* ```$ pip install plotly==4.14.3```
 	* ```$ pip install prince==0.7.1```
 	* ```$ pip install webcolors==1.11.1```
