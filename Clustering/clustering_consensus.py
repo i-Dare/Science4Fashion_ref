@@ -233,7 +233,7 @@ class ConsensusClustering:
    def update_clusters(self, labels, data):
       ## Update Cluster table
       # Delete all existing records from Cluster table
-      self.logger.info('Updating %s database...' % config.DB_NAME)
+      self.logger.info('Updating %s.Cluster table...' % config.DB_NAME)
       with self.engine.begin() as conn:
          conn.execute('''ALTER TABLE %s.dbo.Product NOCHECK CONSTRAINT FK_Product_Cluster''' % (self.dbName))
          conn.execute('''DELETE FROM %s.dbo.Cluster''' % (self.dbName))
@@ -257,6 +257,7 @@ class ConsensusClustering:
             .map(clusterDF
             .set_index('Description')['Oid'].to_dict()))
       # Update Product table
+      self.logger.info('Updating %s.Product table...' % config.DB_NAME)
       for oid, row in productClusterDF.iterrows():
          label = row['Clusters']
          clusterID = row['clusterID']
