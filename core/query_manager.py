@@ -105,7 +105,7 @@ class QueryManager():
             
                 # prepare query statement
                 values = ', '.join(['%s = %s' % (k,v) for k,v in params.items() if k!='table'])
-                values += ', UpdatedOn = GETDATE()'
+                values += ', UpdatedOn = GETUTCDATE()'
                 where = " Oid=%s" % df.loc[0, 'Oid']
                 query = "UPDATE %s.dbo.%s SET %s WHERE %s" % (self.dbName, table, values, where)
                 self.runSimpleQuery(query, get_identity=get_identity)
