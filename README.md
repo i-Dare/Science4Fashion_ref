@@ -118,6 +118,8 @@ Apart from the color information, the rest of the product's attributes regarding
 
 	
 6. Download NLTK content by executing the following commands in a cmd console:
+	* for wordnet data:
+	```$ python -c "import nltk;nltk.download('wordnet')"```
 	* for stopwords:
 	```$ python -c "import nltk;nltk.download('stopwords')"```
 	* for part-of-speech tagger:
