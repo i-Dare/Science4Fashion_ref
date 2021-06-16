@@ -108,7 +108,7 @@ class WebCrawlers:
          self.logger.info('Search for %s on %s' % (self.searchTerm, str(adapter).capitalize()))
 
          # Upadate CrawlSearch table
-         self.updateCrawlSearchTable(self.searchTerm, adapter, self.numberResults)
+         # self.updateCrawlSearchTable(self.searchTerm, adapter, self.numberResults)
 
          #                                                           
          # Execute Adapter    
