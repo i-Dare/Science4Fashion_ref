@@ -15,6 +15,7 @@ if __name__ == "__main__":
     # Begin Counting Time
     start_time = time.time() 
     user = sys.argv[1]
+    oids = sys.argv[2:]
     logging = S4F_Logger('ClothingAnnotationLogger', user=user)
     logger = logging.logger
     helper = Helper(logging)
@@ -34,9 +35,19 @@ if __name__ == "__main__":
     collarLearner = load_learner(config.PRODUCT_ATTRIBUTE_MODEL_DIR, config.MODEL_COLLAR)
     fitLearner = load_learner(config.PRODUCT_ATTRIBUTE_MODEL_DIR, config.MODEL_FIT)
 
-    params = {attr: 'NULL' for attr in config.ATTRIBUTE_COLUMNS}
-    params['table'] = 'Product'
-    product_df = db_manager.runSelectQuery(params)
+    # Select Products to execute the text based annotation
+    filters = config.PRODUCT_ATTRIBUTES + ['Oid', 'ImageSource', 'Image']
+    table = 'Product'
+
+    if len(oids) > 0:
+        where = ' OR '.join(['Oid=%s' % i for i in  oids])
+        filters = '%s' % ', '.join(filters)
+        query = 'SELECT %s FROM %s.dbo.%s WHERE %s' % (filters, config.DB_NAME, table, where)
+        product_df = db_manager.runSimpleQuery(query, get_identity=True)
+    else:
+        params = {attr: 'NULL' for attr in config.ATTRIBUTE_COLUMNS}
+        params['table'] = table
+        product_df = db_manager.runSelectQuery(params, filters=filters)
 
     # Each entry
     logger.info("Executing product attribute annotation for %s unlabeled products" % len(product_df))
@@ -73,7 +84,7 @@ if __name__ == "__main__":
             logger.info('Updating product %s and image %s' % (row['Oid'], row['ImageSource']))
             uniq_params = {'table': 'Product', 'Oid': row['Oid']}
             params = {attr: product_df.loc[index, attr] for attr in config.ATTRIBUTE_COLUMNS}
-            params['table'] = 'Product'
+            params['table'] = table
             _ = db_manager.runCriteriaUpdateQuery(uniq_params=uniq_params, params=params)
         except Exception as e:
             logger.warn_and_trace(e)

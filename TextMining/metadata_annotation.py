@@ -44,6 +44,7 @@ if __name__ == "__main__":
     # Begin Counting Time
     start_time = time.time() 
     user = sys.argv[1]
+    oids = sys.argv[2:]
     logging = S4F_Logger('TextAnnotationLogger', user=user)
     logger = logging.logger
     helper = Helper(logging)
@@ -55,12 +56,21 @@ if __name__ == "__main__":
         #Connect to database with sqlalchemy
         currendDir = config.TEXT_MINING
 
-        # Filter the old elements with the new one, Keep only the non-updated elements to improve 
-        # efficiency, reset index due to slice
-        params = {attr: 'NULL' for attr in config.PRODUCT_ATTRIBUTES}
-        params['table'] = 'Product'
-        product_df = db_manager.runSelectQuery(params)
-        product_df = product_df.reset_index(drop=True)
+        # Select Products to execute the text based annotation
+        filters = config.PRODUCT_ATTRIBUTES + ['Oid', 'Metadata', 'Description']
+        table = 'Product'
+        if len(oids) > 0:
+            where = ' OR '.join(['Oid=%s' % i for i in  oids])
+            filters = '%s' % ', '.join(filters)
+            query = 'SELECT %s FROM %s.dbo.%s WHERE %s' % (filters, config.DB_NAME, table, where)
+            product_df = db_manager.runSimpleQuery(query, get_identity=True)
+        else:
+            # Filter the old elements with the new one, Keep only the non-updated elements to improve 
+            # efficiency, reset index due to slice
+            params = {attr: 'NULL' for attr in config.PRODUCT_ATTRIBUTES}
+            params['table'] = 'Product'
+            product_df = db_manager.runSelectQuery(params, filters=filters)
+            product_df = product_df.reset_index(drop=True)
         if not product_df.empty:
             labels_df = pd.DataFrame()
             labels_df['Oid'] = product_df['Oid'].copy()

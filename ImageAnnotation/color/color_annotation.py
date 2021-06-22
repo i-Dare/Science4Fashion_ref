@@ -106,6 +106,7 @@ if __name__ == '__main__':
     # Begin Counting Time
     start_time = time.time() 
     user = sys.argv[1]
+    oids = sys.argv[2:]
     logging = S4F_Logger('ColorAnnotationLogger', user=user)
     logger = logging.logger
     helper = Helper(logging)
@@ -121,13 +122,22 @@ if __name__ == '__main__':
     #Segmentation Background & Person
     labels = np.asarray(config.CLASSES)
     odapi = segmentation.DeepLabModel(tarball_path=modelPath, labels=labels)
+    # Prepare query
+    if len(oids) > 0:
+        where = ' OR '.join(['PR.Oid=%s' % i for i in  oids])
+        query = '''SELECT PR.Oid, PR.Image, PR.ImageSource, PR.Photo 
+                    FROM %s.dbo.Product AS PR
+                    LEFT JOIN %s.dbo.ProductColor AS PC
+                    ON PR.Oid=PC.Product
+                    WHERE %s''' % (str(dbName), str(dbName), where)
 
-    #Read data from database
-    query = '''SELECT PR.Oid, PR.Image, PR.ImageSource, PR.Photo 
-                FROM %s.dbo.Product AS PR
-                LEFT JOIN %s.dbo.ProductColor AS PC
-                ON PR.Oid=PC.Product
-                WHERE PC.Oid IS NULL''' % (str(dbName), str(dbName))
+    else:        
+        query = '''SELECT PR.Oid, PR.Image, PR.ImageSource, PR.Photo 
+                    FROM %s.dbo.Product AS PR
+                    LEFT JOIN %s.dbo.ProductColor AS PC
+                    ON PR.Oid=PC.Product
+                    WHERE PC.Oid IS NULL''' % (str(dbName), str(dbName))
+    # Read data from database
     product_df = db_manager.runSimpleQuery(query, get_identity=True)
 
     #Colors dataframe
