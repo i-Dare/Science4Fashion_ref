@@ -32,7 +32,7 @@ class DataAnnotator:
 
 
    # Init function
-   def initAnnotaion(self,):
+   def initAnnotation(self,):
        # Init logger
       if not self.user:
          self.user = config.DEFAULT_USER        
@@ -104,10 +104,10 @@ class DataAnnotator:
    # Step 3: Execute clothing based annotation
    # Step 4: Execute product clustering module
    def run(self,):
-      self.initAnnotaion()
-      self.executeTextBasedAnnotation()
+      self.initAnnotation()      
       self.executeColorBasedAnnotation()
       self.executeClothingBasedAnnotation()
+      self.executeTextBasedAnnotation()
       self.executeClustering(train=True)
 
 

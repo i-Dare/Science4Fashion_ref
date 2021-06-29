@@ -481,6 +481,7 @@ class Helper():
     # Add/update product information
     def registerData(self, site, standardUrl, referenceOrder, trendOrder, cnt, uniq_params, params):
         from ImageAnnotation.color import ColorAnnotation
+        from ImageAnnotation.clothing import ClothingAnnotation
 
         # Check if product url exists to decide if addition of update is needed
         url = params['URL']
@@ -510,11 +511,15 @@ class Helper():
                 cnt += 1
                 # Create new entry in ProductHistory table
                 productHist_df = self.addNewProductHistory(product_df, referenceOrder, trendOrder)
-
-                # Perform color annotation
+                # Product IDs to perform annotation
                 oids = product_df.loc[:, 'Oid'].tolist()
+                # Color annotation                
                 color_annotator = ColorAnnotation.ColorAnnotator(self.user, *oids)
                 color_annotator.execute_annotation()
+                # Clothing annotation                
+                clothing_annotator = ClothingAnnotation.ClothingAnnotator(self.user, *oids)
+                clothing_annotator.execute_annotation()
+
             except Exception as e:
                 self.logger.warn_and_trace(e)       
                 self.logger.warning('Information for product at %s not added' % \
