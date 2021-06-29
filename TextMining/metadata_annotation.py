@@ -85,8 +85,11 @@ if __name__ == "__main__":
             # Create Variables with same name as the Energiers column names, to store the labels. 
             attrDict = {}
             for attr in config.PRODUCT_ATTRIBUTES:
-                attrDict[str(attr)] = list(expertAttributesDF[attr].replace(' ', np.nan).dropna().unique())
-                attrDict[str(attr)] = [la.upper() for la in attrDict[str(attr)]]
+                attrDict[str(attr)] = (expertAttributesDF[attr].replace(' ', np.nan)
+                        .dropna()
+                        .str.upper()
+                        .unique()
+                        .tolist())
                 labels_df[attr] = np.empty((len(product_df), 0)).tolist()
             
             # Preprocessing 
