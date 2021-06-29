@@ -75,7 +75,7 @@ class DataAnnotator:
 
    # Execute color based annotation 
    def executeColorBasedAnnotation(self,):
-      scriptPath = os.path.join(config.IMAGE_ANNOTATION, 'Color', 'color_annotation.py')
+      scriptPath = os.path.join(config.IMAGE_ANNOTATION, 'Color', 'ColorAnnotation.py')
       self.runProcess(scriptPath, 'text based annotation')
       
 

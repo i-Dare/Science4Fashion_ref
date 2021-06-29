@@ -185,7 +185,7 @@ class WebCrawlers:
    def run(self,):
       self.executeWebCrawler()
       self.executeTextBasedAnnotation()
-      self.executeColorBasedAnnotation()
+      # self.executeColorBasedAnnotation()
       self.executeClothingBasedAnnotation()
       self.executeClustering(train=True)
 

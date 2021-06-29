@@ -479,7 +479,9 @@ class Helper():
 # --------------------------------------------------------------------------
     ## Generic functionaloty
     # Add/update product information
-    def registerData(self, site, standardUrl, referenceOrder, trendOrder, cnt, uniq_params, params):                     
+    def registerData(self, site, standardUrl, referenceOrder, trendOrder, cnt, uniq_params, params):
+        from ImageAnnotation.color import ColorAnnotation
+
         # Check if product url exists to decide if addition of update is needed
         url = params['URL']
         _params = {'table': 'Product', 'URL': url}
@@ -504,11 +506,15 @@ class Helper():
             try:
                 # Create new entry in PRODUCT table
                 product_df = self.addNewProduct(site, uniq_params=uniq_params, params=params)
-                if type(product_df) != type(pd.DataFrame()):
-                    self.logger.warn_and_trace(e)
+
                 cnt += 1
                 # Create new entry in ProductHistory table
                 productHist_df = self.addNewProductHistory(product_df, referenceOrder, trendOrder)
+
+                # Perform color annotation
+                oids = product_df.loc[:, 'Oid'].tolist()
+                color_annotator = ColorAnnotation.ColorAnnotator(self.user, *oids)
+                color_annotator.execute_annotation()
             except Exception as e:
                 self.logger.warn_and_trace(e)       
                 self.logger.warning('Information for product at %s not added' % \
