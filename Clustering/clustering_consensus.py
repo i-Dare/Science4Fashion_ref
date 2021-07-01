@@ -111,7 +111,8 @@ class ConsensusClustering:
       self.logger.info('''Number of final clusters: %s 
                            Final Silhouette Score: %s''' % (n_clusters, score))
       # End Counting Time
-      self.logger.info("--- %s seconds ---" % (time.time() - start_time))
+      self.logger.info("--- Finished clustering %s records in %s seconds ---" % (len(attributes_df), 
+            round(time.time() - start_time, 2)))
 
    def clustering_preprocessing(self,):
       #
@@ -125,29 +126,13 @@ class ConsensusClustering:
       ## Merging results
       # 
       attributes_df = products_df.groupby('Oid').first()[config.PRODUCT_ATTRIBUTES + 
-            ['Gender', 'RetailPrice', 'Metadata', 'Description']]
+            ['Gender', 'RetailPrice', 'Description']]
       # Color data merging
-      attributes_df.loc[:, ['ColorRanking%s' % n for n in range(1, 6)]] = (products_df.groupby('Oid')
-            .apply( lambda row:  list(row['Label'] ))
-            .str.join(',')
-            .str.split(',', expand=True)).values
-      # Text merging
-      text_columns = config.PRODUCT_ATTRIBUTES + ['Label', 'LabelDetailed', 'Gender']
-      attributes_df['extended_metadata'] = (products_df.groupby('Oid')
-            .apply( lambda row:  [list(set(row[col])) for col in text_columns ] )
-            .apply( lambda row:  [r.replace(' ', '_') for r in (sum(row, []))  if not pd.isna(r)] )
-            .str.join(' ')).values
-      # Text preprocessing
-      attributes_df.loc[:, 'processed_extended_metadata'] = (attributes_df.loc[:, 'extended_metadata']
-            .apply(self.helper.preprocess_metadata))
-      # # Filter out tokens already in the Metadata column
-      # attributes_df.loc[:, 'processed_extended_metadata'] = (attributes_df.loc[:, ['Metadata', 'processed_extended_metadata']]
-      #       .apply(lambda row: [r  for r in row['processed_extended_metadata'].split() if r not in row['Metadata']] , axis=1)
-      #       .str.join(' '))
-      # Final merge to 'Metadata' columns
-      attributes_df['Metadata'] = (attributes_df['Metadata']
-            .str.cat(attributes_df['processed_extended_metadata']
-            .astype(str), sep=' '))
+      grouped_products_df = (products_df.groupby('Oid')
+                .apply( lambda row:  list(row['Label'] ))
+                .str.join(',')
+                .str.split(',', expand=True))
+      attributes_df.loc[:, ['ColorRanking%s' % n for n in grouped_products_df.columns]] = grouped_products_df.values
 
       for col in attributes_df:
          if attributes_df[col].nunique() == 1: # remove columns with identical elements
@@ -168,11 +153,9 @@ class ConsensusClustering:
       self.attributes += data.filter(like='ColorRanking').columns.tolist() + ['Description']
       attributes_df = data[set(self.attributes)]
 
-      # rearrange columns so that numerical attributes are last    
+      # Rearrange columns so that numerical attributes are last    
       num_columns = sorted(attributes_df._get_numeric_data().columns.tolist())
-      cat_columns = sorted(list(set(attributes_df.columns) 
-            - set(num_columns) 
-            - set(['Metadata', 'extended_metadata', 'processed_extended_metadata'])))
+      cat_columns = sorted(list(set(attributes_df.columns) - set(num_columns) ))
       attributes_df = attributes_df[cat_columns + num_columns]
       # replace NaN values with NOT_APPLIED
       for col in cat_columns:                                          
@@ -223,11 +206,12 @@ class ConsensusClustering:
       # Execute clustering
       #
       self.logger.info('Start clustering...')
+      start_time = time.time() 
       self.run_clustering(data)
       #
       # Execute consensus clustering
       labels, n_clusters, score = self.consensus_clustering()
-      
+      self.logger.info('Finished clustering in %s seconds' % (round(time.time() - start_time, 2)))
       return labels, n_clusters, score
       
    def update_clusters(self, labels, data):
@@ -247,26 +231,31 @@ class ConsensusClustering:
       ### Update Product table
       # Join cluster label and product ID information
       data['Clusters'] = labels
-      productClusterDF = data[['Metadata', 'Clusters']]
       # Reload Cluster table to get updated Cluster.Oid values
       query = ''' SELECT * FROM %s.dbo.Cluster ''' % self.dbName
       clusterDF = pd.read_sql_query(query, self.engine)
       clusterDF.loc[:, 'Description'] = clusterDF['Description'].apply(pd.to_numeric)
-      # Add column to productClusterDF with the Cluster Oid
-      productClusterDF['clusterID'] = (productClusterDF['Clusters']
-            .map(clusterDF
-            .set_index('Description')['Oid'].to_dict()))
+      # Add column to "data" with the Cluster Oid
+      data['clusterID'] = data['Clusters'].map(clusterDF.set_index('Description')['Oid'].to_dict())
       # Update Product table
       self.logger.info('Updating %s.Product table...' % config.DB_NAME)
-      for oid, row in productClusterDF.iterrows():
-         label = row['Clusters']
-         clusterID = row['clusterID']
-         meta = row['Metadata']
+      # Batch update Product table
+      start_time = time.time() 
+      table = 'Product'
+      step = config.BATCH_STEP
+      data.reset_index(inplace=True)
+      for i in data.index[::step]:   
+         chunk = data.loc[data.index[i:i+step], ['Oid', 'clusterID']]
+         when = ' \n '.join(['WHEN %s THEN %s' % (row['Oid'],row['clusterID']) for i, row in chunk.iterrows()])
+         where = ', '.join(map(str, chunk['Oid'].values.tolist()))
+         query = """UPDATE %s.dbo.%s 
+                        SET Cluster = CASE Oid
+                        %s
+                        END
+                     WHERE Oid IN (%s)""" % (self.dbName, table, when, where)
+         self.db_manager.runSimpleQuery(query)
 
-         uniq_params = {'table': 'Product', 'Oid': oid}
-         params = {'table': 'Product', 'UpdatedBy': self.user, 'Metadata': meta, 'Cluster': clusterID}
-         self.db_manager.runCriteriaUpdateQuery(uniq_params=uniq_params, params=params, get_identity=True)
-
+      self.logger.info("Updated %s records in %s seconds" % (len(data), round(time.time() - start_time, 2)))
 
    def _build_similarity_matrix(self,):
       # Build the NxN consensus matrix from the clustering results
@@ -312,7 +301,7 @@ class ConsensusClustering:
          attJoin += ' LEFT JOIN %s.dbo.%s AS attr%s\nON PRD.%s = attr%s.Oid ' \
                % (config.DB_NAME, attr, i, attr, i) 
 
-      query = '''SELECT PRD.Oid, PRD.RetailPrice, PRD.Description, PRD.Metadata,
+      query = '''SELECT PRD.Oid, PRD.RetailPrice, PRD.Description,
                   C.Label, C.LabelDetailed, C.Red, C.Blue, C.Green,
                   PC.Ranking,
                   G.Description as Gender,

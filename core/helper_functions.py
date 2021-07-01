@@ -732,7 +732,6 @@ class Helper():
                 'about-me')}).find('p').text.strip()]
             attr_list = description + about
             meta = ' - '.join(attr_list)
-            meta = self.preprocess_metadata(doc=meta)
 
         except Exception as e: 
             meta = ''
@@ -995,7 +994,6 @@ class Helper():
                     else:
                         attr_list.append(field.text.replace('\n', '').strip())
             meta = ' - '.join(attr_list)
-            meta = self.preprocess_metadata(doc=meta)
         except:
             meta = ''
             self.logger.info("Product Description not captured at %s" % url)
@@ -1149,7 +1147,6 @@ class Helper():
             meta_values = [data['values'] for attr in attributes for data in attr['data'] 
                     if attr['category'] in ['heading_material', 'heading_details']]
             meta = '. '.join(meta_names + meta_values)
-            meta = self.preprocess_metadata(doc=meta)
         except Exception as e:
             meta = ''
             self.logger.info("Metadata not captured at %s" % url)

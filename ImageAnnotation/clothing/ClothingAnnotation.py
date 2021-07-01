@@ -83,20 +83,30 @@ class ClothingAnnotator():
                 # FIT
                 if pd.isna(row['Fit']):
                     self.product_df.loc[index, 'Fit'] = self.helper.updateAttribute(config.DICTFIT, image,
-                            self.fitLearner)
+                            self.fitLearner)                
                 
-                # Update Product table
-                self.logger.info('Updating product %s and image %s' % (row['Oid'], row['ImageSource']))
-                uniq_params = {'table': 'Product', 'Oid': row['Oid']}
-                params = {attr: self.product_df.loc[index, attr] for attr in config.ATTRIBUTE_COLUMNS}
-                params['table'] = table
-                _ = self.db_manager.runCriteriaUpdateQuery(uniq_params=uniq_params, params=params)
             except Exception as e:
                 self.logger.warn_and_trace(e)
                 self.logger.warning('Failed to load image for Product with Oid %s' % row['Oid'])
+         # Update Product table
+        self.logger.info('Updating Product table')
+        table = 'Product'
+        step = config.BATCH_STEP
+        for i in self.product_df.index[::step]:
+            for col in config.PRODUCT_ATTRIBUTES:
+                chunk = self.product_df.loc[self.product_df.index[i:i+step], ['Oid', col]]
+                when = ' \n '.join(['WHEN %s THEN %s' % (row['Oid'],row[col]) for i, row in chunk.iterrows()])
+                where = ', '.join(map(str, chunk['Oid'].values.tolist()))
+                query = """UPDATE %s.dbo.%s 
+                                SET %s = CASE Oid
+                                %s
+                                END
+                            WHERE Oid IN (%s)""" % (config.DB_NAME, table, col, when, where)
+                self.db_manager.runSimpleQuery(query)
 
         # End Counting Time
-        self.logger.info("Updated %s records in %s seconds ---" % (len(self.product_df), round(time.time() - start_time, 2)))
+        self.logger.info("--- Finished image annotation of %s records in %s seconds ---" % (len(self.product_df), 
+                round(time.time() - start_time, 2)))
 
 if __name__ == "__main__":
     # Begin Counting Time

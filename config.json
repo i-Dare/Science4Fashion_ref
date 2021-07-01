@@ -6,6 +6,7 @@
   "db_username": "sa",
   "db_pass": "SYSADM",
   "crawler_timeout": 15,
+  "batch_step": 200,
   "social_media":{"pinterest_username": "idare.issel@gmail.com",
                   "pinterest_password": "science4f",
                   "instagram_username": "fashion_idare",

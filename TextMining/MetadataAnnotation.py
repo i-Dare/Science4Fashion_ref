@@ -110,7 +110,7 @@ class MetadataAnnotator():
         attributes_df['Metadata'] = (attributes_df['Metadata']
                 .str.cat(attributes_df['processed_extended_metadata']
                 .astype(str), sep=' '))
-        self.logger.info("Processed %s records in %s seconds ---" % (len(attributes_df), round(time.time() - start_time, 2)))
+        self.logger.info('Processed %s records in %s seconds' % (len(attributes_df), round(time.time() - start_time, 2)))
         return attributes_df.loc[:, config.PRODUCT_ATTRIBUTES+['Description', 'Metadata']].reset_index()
 
     def execute_annotation(self,):        
@@ -231,12 +231,24 @@ class MetadataAnnotator():
                             params = {'table': 'Product', attr: row['Oid_y']}
                             self.db_manager.runCriteriaUpdateQuery(uniq_params=uniq_params, params=params)
                 self.logger.info('Update product metadata')
-                for i, row in self.products_df.iterrows():
-                    uniq_params = {'table': 'Product', 'Oid': row['Oid']}
-                    params = {'table': 'Product', 'Metadata':row['Metadata']}
-                    self.db_manager.runCriteriaUpdateQuery(uniq_params=uniq_params, params=params)
+                # Batch update Product Metadata
+                table = 'Product'
+                step = config.BATCH_STEP
+                for i in self.products_df.index[::step]:
+                    chunk = self.products_df.loc[self.products_df.index[i:i+step], ['Oid', 'Metadata']]
+                    when = ' \n '.join(['WHEN %s THEN %s' % 
+                            (row['Oid'],   self.db_manager.parseStr(row['Metadata'])) 
+                            for i, row in chunk.iterrows()])
+                    where = ', '.join(map(str, chunk['Oid'].values.tolist()))
+                    query = """UPDATE %s.dbo.%s 
+                                    SET Metadata = CASE Oid
+                                    %s
+                                    END
+                                WHERE Oid IN (%s)""" % (config.DB_NAME, table, when, where)
+                    self.db_manager.runSimpleQuery(query)
                 
-            self.logger.info("--- %s seconds ---" % (time.time() - start_time))
+            self.logger.info("--- Finished text annotation of %s records in %s seconds ---" % (len(self.products_df), 
+                    round(time.time() - start_time, 2)))
         except Exception as ex:
             self.logger.warn_and_exit(ex)
 

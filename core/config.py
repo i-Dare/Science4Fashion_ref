@@ -15,6 +15,7 @@ with open(PROJECT_CONFIG) as f:
 DB_CONNECTION = config['db_connection']
 DB_NAME = config['db_name']
 ENGINE = sqlalchemy.create_engine(DB_CONNECTION + DB_NAME)
+BATCH_STEP = config['batch_step']
 
 UPDATESQLQUERY = """
     UPDATE Product
