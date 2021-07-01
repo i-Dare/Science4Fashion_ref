@@ -178,13 +178,9 @@ class WebCrawlers:
 
    ## Sequencially executes the data collection and annotation process
    # Step 1: Execute query for a selected website crawlers
-   # Step 2: Execute text metadata based annotation 
-   # Step 3: Execute color based annotation 
-   # Step 4: Execute clothing based annotation
-   # Step 5: Execute product clustering module
+   # Step 2: Execute product clustering module
    def run(self,):
       self.executeWebCrawler()
-      self.executeTextBasedAnnotation()
       self.executeClustering(train=True)
 
 if __name__ == "__main__":

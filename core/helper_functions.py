@@ -482,6 +482,7 @@ class Helper():
     def registerData(self, site, standardUrl, referenceOrder, trendOrder, cnt, uniq_params, params):
         from ImageAnnotation.color import ColorAnnotation
         from ImageAnnotation.clothing import ClothingAnnotation
+        from TextMining import MetadataAnnotation
 
         # Check if product url exists to decide if addition of update is needed
         url = params['URL']
@@ -519,6 +520,9 @@ class Helper():
                 # Clothing annotation                
                 clothing_annotator = ClothingAnnotation.ClothingAnnotator(self.user, *oids)
                 clothing_annotator.execute_annotation()
+                # Metatada annotation                
+                metadata_annotator = MetadataAnnotation.MetadataAnnotator(self.user, *oids)
+                metadata_annotator.execute_annotation()
 
             except Exception as e:
                 self.logger.warn_and_trace(e)       

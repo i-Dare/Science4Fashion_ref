@@ -69,19 +69,19 @@ class DataAnnotator:
 # ------------------------------------------------------------
      # Execute text metadata based annotation  
    def executeTextBasedAnnotation(self,):
-      scriptPath = os.path.join(config.TEXT_MINING, 'metadata_annotation.py')
+      scriptPath = os.path.join(config.TEXT_MINING, 'MetadataAnnotation.py')
       self.runProcess(scriptPath, 'text based annotation')
    
 
    # Execute color based annotation 
    def executeColorBasedAnnotation(self,):
-      scriptPath = os.path.join(config.IMAGE_ANNOTATION, 'Color', 'ColorAnnotation.py')
+      scriptPath = os.path.join(config.IMAGE_ANNOTATION, 'color', 'ColorAnnotation.py')
       self.runProcess(scriptPath, 'text based annotation')
       
 
    # Execute clothing based annotation
    def executeClothingBasedAnnotation(self,):
-      scriptPath = os.path.join(config.IMAGE_ANNOTATION, 'Clothing', 'clothing_annotation.py')
+      scriptPath = os.path.join(config.IMAGE_ANNOTATION, 'clothing', 'ClothingAnnotation.py')
       self.runProcess(scriptPath, 'text based annotation')
       
 
