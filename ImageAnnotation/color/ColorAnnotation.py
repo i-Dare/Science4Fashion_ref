@@ -80,7 +80,8 @@ class ColorAnnotator():
             _ = self.colorExtraction(image, imgSrc, row)
 
         # End Counting Time
-        self.logger.info("--- %s seconds ---" % (time.time() - start_time))
+        self.logger.info("--- Finished color annotation of %s records in %s seconds ---" % (len(self.product_df), 
+                round(time.time() - start_time, 2)))
 
     def colorExtraction(self, image, imgSrc, row):
         if image is None:
