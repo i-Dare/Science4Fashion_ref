@@ -110,6 +110,34 @@ class QueryManager():
                 query = "UPDATE %s.dbo.%s SET %s WHERE %s" % (self.dbName, table, values, where)
                 self.runSimpleQuery(query, get_identity=get_identity)
                 return df
+
+    def runBatchUpdate(self, table, df, criteria_col, step=config.BATCH_STEP):
+        """
+        Execute "UPDATE table... SET column1 = CASE column2... WHERE ...." queries using the argument 
+        "criteria_col" to drive the case by case update.
+        The "df" argument must be a DataFrame containing the "Oid" column as an identifier of the 
+        record to update and the columns for update, e.g
+        
+        df = pd.DataFrame({'Oid': [1, 2, 3], 'Brand': ['Adidas', 'Nike', 'ALTRA']})
+        criteria_col = 'Oid'
+        table = 'Product'
+        """
+        df = df.reset_index().drop(columns=['index'])
+        for i in df.index[::step]:
+            for col in set(df.columns) - set([criteria_col]):
+                chunk = df.loc[df.index[i:i+step], [criteria_col, col]]
+                when = ['WHEN %s THEN %s' % 
+                        (row[criteria_col], self.parseItem(row[col])) for _, row in chunk.iterrows() 
+                        if self.parseItem(row[col])!='NULL']
+                where = ', '.join(map(str, chunk[criteria_col].values.tolist()))
+                if len(when)>0:
+                    query = """UPDATE %s.dbo.%s 
+                            SET %s = CASE %s
+                            %s
+                            END
+                            WHERE %s IN (%s)""" % (config.DB_NAME, table, col, criteria_col, 
+                                                   ' \n '.join(when), criteria_col, where)
+                    self.runSimpleQuery(query)        
             
 
     def runSelectQuery(self, params=dict, filters=None):
@@ -144,6 +172,33 @@ class QueryManager():
             else:
                 query = "SELECT %s FROM  %s.dbo.%s t" % (filtering(filters), self.dbName, table)
             return self.runSimpleQuery(query, get_identity=True)
+
+    def parseItem(self, item):
+        """
+        Parses query parameters and adds 'user' information if 'has_owner' is True
+    """
+        # parse floats
+        if 'float' in str(type(item)).lower():
+            if np.isnan(item):
+                return 'NULL'
+            else:
+                return self.parseFloat(item)
+        # parse integers
+        if 'int' in str(type(item)).lower():
+            return self.parseInt(item)
+        # parse strings
+        if type(item) == str:
+            return self.parseStr(item)
+        # parse booleans
+        if type(item) == bool:
+            return self.parseBool(item)
+        # parser decimal
+        if 'decimal' in str(type(item)):
+            return self.parseDecimal(item)
+        # ignore None values and 'table' key
+        if item is None:
+            return 'NULL'
+                
 
     def parseParams(self, params, has_owner=False):
         """

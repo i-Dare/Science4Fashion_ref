@@ -88,21 +88,11 @@ class ClothingAnnotator():
             except Exception as e:
                 self.logger.warn_and_trace(e)
                 self.logger.warning('Failed to load image for Product with Oid %s' % row['Oid'])
-         # Update Product table
+        # Batch update Product table
         self.logger.info('Updating Product table')
         table = 'Product'
-        step = config.BATCH_STEP
-        for i in self.product_df.index[::step]:
-            for col in config.PRODUCT_ATTRIBUTES:
-                chunk = self.product_df.loc[self.product_df.index[i:i+step], ['Oid', col]]
-                when = ' \n '.join(['WHEN %s THEN %s' % (row['Oid'],row[col]) for i, row in chunk.iterrows()])
-                where = ', '.join(map(str, chunk['Oid'].values.tolist()))
-                query = """UPDATE %s.dbo.%s 
-                                SET %s = CASE Oid
-                                %s
-                                END
-                            WHERE Oid IN (%s)""" % (config.DB_NAME, table, col, when, where)
-                self.db_manager.runSimpleQuery(query)
+        columns = ['Oid'] + config.PRODUCT_ATTRIBUTES
+        self.db_manager.runBatchUpdate(table, self.product_df[columns], 'Oid')
 
         # End Counting Time
         self.logger.info("--- Finished image annotation of %s records in %s seconds ---" % (len(self.product_df), 

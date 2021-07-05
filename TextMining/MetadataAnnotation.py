@@ -230,23 +230,12 @@ class MetadataAnnotator():
                             uniq_params = {'table': 'Product', 'Oid': row['Oid_x']}
                             params = {'table': 'Product', attr: row['Oid_y']}
                             self.db_manager.runCriteriaUpdateQuery(uniq_params=uniq_params, params=params)
-                self.logger.info('Update product metadata')
                 # Batch update Product Metadata
+                self.logger.info('Update product metadata')
                 table = 'Product'
-                step = config.BATCH_STEP
-                for i in self.products_df.index[::step]:
-                    chunk = self.products_df.loc[self.products_df.index[i:i+step], ['Oid', 'Metadata']]
-                    when = ' \n '.join(['WHEN %s THEN %s' % 
-                            (row['Oid'],   self.db_manager.parseStr(row['Metadata'])) 
-                            for i, row in chunk.iterrows()])
-                    where = ', '.join(map(str, chunk['Oid'].values.tolist()))
-                    query = """UPDATE %s.dbo.%s 
-                                    SET Metadata = CASE Oid
-                                    %s
-                                    END
-                                WHERE Oid IN (%s)""" % (config.DB_NAME, table, when, where)
-                    self.db_manager.runSimpleQuery(query)
-                
+                columns = ['Oid', 'Metadata']
+                self.db_manager.runBatchUpdate(table, self.products_df[columns], 'Oid')
+               
             self.logger.info("--- Finished text annotation of %s records in %s seconds ---" % (len(self.products_df), 
                     round(time.time() - start_time, 2)))
         except Exception as ex:

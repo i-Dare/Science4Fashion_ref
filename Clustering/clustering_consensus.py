@@ -236,25 +236,13 @@ class ConsensusClustering:
       clusterDF = pd.read_sql_query(query, self.engine)
       clusterDF.loc[:, 'Description'] = clusterDF['Description'].apply(pd.to_numeric)
       # Add column to "data" with the Cluster Oid
-      data['clusterID'] = data['Clusters'].map(clusterDF.set_index('Description')['Oid'].to_dict())
-      # Update Product table
-      self.logger.info('Updating %s.Product table...' % config.DB_NAME)
-      # Batch update Product table
+      data['Cluster'] = data['Clusters'].map(clusterDF.set_index('Description')['Oid'].to_dict())
       start_time = time.time() 
+      # Batch update Product table
+      self.logger.info('Update Product Cluster')
       table = 'Product'
-      step = config.BATCH_STEP
-      data.reset_index(inplace=True)
-      for i in data.index[::step]:   
-         chunk = data.loc[data.index[i:i+step], ['Oid', 'clusterID']]
-         when = ' \n '.join(['WHEN %s THEN %s' % (row['Oid'],row['clusterID']) for i, row in chunk.iterrows()])
-         where = ', '.join(map(str, chunk['Oid'].values.tolist()))
-         query = """UPDATE %s.dbo.%s 
-                        SET Cluster = CASE Oid
-                        %s
-                        END
-                     WHERE Oid IN (%s)""" % (self.dbName, table, when, where)
-         self.db_manager.runSimpleQuery(query)
-
+      columns = ['Oid', 'Cluster']
+      self.db_manager.runBatchUpdate(table, data.reset_index()[columns], 'Oid')
       self.logger.info("Updated %s records in %s seconds" % (len(data), round(time.time() - start_time, 2)))
 
    def _build_similarity_matrix(self,):
