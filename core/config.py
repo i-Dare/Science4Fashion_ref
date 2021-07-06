@@ -142,13 +142,7 @@ UPDATE_PRODUCT_CLUSTERS_QUERY = """
 FAMD_COMPONENTS = config['clustering']['famd_repeats']
 LINKAGE = config['clustering']['linkage']
 DISTANCE_THRESHOLD = config['clustering']['distance_threshold']
-UPDATE_PRODUCT_CONSENSUS_CLUSTERS_QUERY = """
-    UPDATE Product
-    SET Product.ConsensusCluster = temp_table.ConsensusCluster
-    FROM temp_table
-    WHERE Product.Oid = temp_table.Oid;
-    DROP TABLE temp_table;
-"""
+SIMILARITY_MATRIX = os.path.join(DATADIR, config['resources']['data']['similarity_matrix'])
 
 #
 # Recommendation models

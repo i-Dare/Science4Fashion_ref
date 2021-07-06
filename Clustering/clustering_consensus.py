@@ -33,24 +33,11 @@ from core.query_manager import QueryManager
 
 class ConsensusClustering:
 
-   def __init__(self, linkage='', train=False):
-      #
-      # Initialize argument parser
-      #
-      self.parser = argparse.ArgumentParser(description = 'A script for executing the Clustering \
-            functionality', prog = 'ConsensusClustering')
-      self.parser.add_argument('-train', help = '''Execute clustering by retraining the model, \
-            if not selected, the clustering will be executed with the existing model''', 
-            action="store_true", default = train)
-      self.parser.add_argument('-l','--linkage', type = str, help = '''Input linkage type for the \
-            Agglomerative clustering''', default = config.LINKAGE, choices=['ward', 'complete', 'average', 'sinlge'])
-      self.parser.add_argument('-u', '--user', default=config.DEFAULT_USER, type = str, help = '''Input user''')
+   def __init__(self, user=config.DEFAULT_USER, linkage=config.LINKAGE, train=False):
+      self.user = user
+      self.linkage = linkage
+      self.training_mode = train
 
-      # Parse arguments
-      self.args, unknown = self.parser.parse_known_args()
-
-      # Logger setup
-      self.user = self.args.user
       self.logging = S4F_Logger('ClusteringLogger', user=self.user)
       self.logger = self.logging.logger
       self.helper = Helper(self.logging)
@@ -58,13 +45,11 @@ class ConsensusClustering:
       # QueryManager setup
       self.db_manager = QueryManager(user=self.user)
 
-      self.training_mode = self.args.train
       
       if self.training_mode:
          self.logger.info('Executing Consensus Clustering with training.')
       else:
          self.logger.info('Executing Consensus Clustering without training.')
-      self.linkage = self.args.linkage      
       
       ## Get initial configuration from "config" package
       #      
@@ -99,11 +84,11 @@ class ConsensusClustering:
 
       ## Factor Analysis of Mixed Data feature selection
       # 
-      _, famd_featsDF = self.famd_features(selected_data)
+      _, famd_feats_df = self.famd_features(selected_data)
 
       # Train consensus clustering model
       #
-      labels, n_clusters, score = self.assignClusters(famd_featsDF)
+      labels, n_clusters, score = self.assignClusters(famd_feats_df)
 
       # Update clustering table
       self.update_clusters(labels, attributes_df)
@@ -192,11 +177,11 @@ class ConsensusClustering:
       # Execute optimized FAMD transformation
       famd = prince.FAMD(check_input=True, n_components=2, random_state=42)
       famd.fit(data)
-      famd_featsDF = famd.row_coordinates(data)
+      famd_feats_df = famd.row_coordinates(data)
       # Final feature selection
-      famd_featsDF = famd_featsDF.loc[:, range(k_features)]
+      famd_feats_df = famd_feats_df.loc[:, range(k_features)]
 
-      return famd, famd_featsDF
+      return famd, famd_feats_df
 
    def assignClusters(self, data):
       #
@@ -210,7 +195,7 @@ class ConsensusClustering:
       self.run_clustering(data)
       #
       # Execute consensus clustering
-      labels, n_clusters, score = self.consensus_clustering()
+      labels, n_clusters, score = self.consensus_clustering(data)
       self.logger.info('Finished clustering in %s seconds' % (round(time.time() - start_time, 2)))
       return labels, n_clusters, score
       
@@ -245,18 +230,23 @@ class ConsensusClustering:
       self.db_manager.runBatchUpdate(table, data.reset_index()[columns], 'Oid')
       self.logger.info("Updated %s records in %s seconds" % (len(data), round(time.time() - start_time, 2)))
 
-   def _build_similarity_matrix(self,):
+   def _build_similarity_matrix(self, data):
       # Build the NxN consensus matrix from the clustering results
-      _, consensus_matrix_df = self._build_consensus_matrix()
+      _, consensus_matrix_df = self._build_consensus_matrix(data)      
 
       # Create the Distance Matrix using the RBF kernel that measures the pairwise distance between items
       delta = .2
       sim_matrix_df = np.exp(-consensus_matrix_df ** 2 / (2. * delta ** 2))
+      # Save similarity matrix
+      if not os.path.exists(config.DATADIR):
+            os.makedirs(config.DATADIR)
+      sim_matrix_df.to_csv('%s.csv' % config.SIMILARITY_MATRIX)
       return sim_matrix_df
 
-   def _build_consensus_matrix(self,):
+   def _build_consensus_matrix(self, data):
       # Clustering DataFrame with the results of all the clustering algorithms
       clustering_df = pd.DataFrame.from_dict(self.clustering_dict)
+      clustering_df.index = data.index
       # Start the clustering on the same basis from label 0 to N
       for col in clustering_df.columns:
          cluster_map = {c:i for i,c in zip(range(len(clustering_df[col].unique())), clustering_df[col].unique())}
@@ -265,8 +255,8 @@ class ConsensusClustering:
       # Construct NxN Consensus Matrix
       consensus_matrix = np.zeros((len(clustering_df), len(clustering_df)))
       consensus_matrix_df = pd.DataFrame(consensus_matrix, 
-                                       columns=range(len(consensus_matrix)), 
-                                       index=range(len(consensus_matrix)))
+                                       columns=clustering_df.index, 
+                                       index=clustering_df.index)
 
       # iterate all clustering algorithms
       for algorithm in clustering_df.columns:
@@ -450,7 +440,7 @@ class ConsensusClustering:
       final_labels = model_bgmm.predict(data)
       self.clustering_dict[model_name] = final_labels
 
-   def consensus_clustering(self, ):
+   def consensus_clustering(self, data):
       ## Consensus (Aggregated) Clustering
       #
       #    Create a distance matrix based on the aggregated information of the different clustering 
@@ -464,7 +454,7 @@ class ConsensusClustering:
       ##
 
       ## Calculate the similarity matrix
-      sim_matrix_df = self._build_similarity_matrix()
+      sim_matrix_df = self._build_similarity_matrix(data)
 
       # Execute Agglomerative Clustering with ward linkage and the maximum of the minimum
       # 
@@ -517,9 +507,9 @@ class ConsensusClustering:
       self.kmeans_clustering(data)
       self.birch_clustering(data)
       self.fuzzycmeans_clustering(data)
-      # self.dbscan_clustering(data)
+      self.dbscan_clustering(data)
       # self.optics_clustering(data)
-      # self.bayesian_gaussian_mixture_clustering(data)
+      self.bayesian_gaussian_mixture_clustering(data)
 
    ## Evaluation functions
    def eval_affinity_matrix(self, matrix):
@@ -544,5 +534,24 @@ class ConsensusClustering:
 
 
 if __name__ == "__main__":
-   clustering = ConsensusClustering()
+   #
+   # Initialize argument parser
+   #
+   parser = argparse.ArgumentParser(description = 'A script for executing the Clustering \
+      functionality', prog = 'ConsensusClustering')
+   parser.add_argument('-train', help = '''Execute clustering by retraining the model, \
+      if not selected, the clustering will be executed with the existing model''', 
+      action="store_true", default = False)
+   parser.add_argument('-l','--linkage', type = str, help = '''Input linkage type for the \
+      Agglomerative clustering''', default = config.LINKAGE, choices=['ward', 'complete', 'average', 'sinlge'])
+   parser.add_argument('-u', '--user', default=config.DEFAULT_USER, type = str, help = '''Input user''')
+
+   # Parse arguments
+   args, unknown = parser.parse_known_args()
+
+   # Logger setup
+   clustering = ConsensusClustering(
+                                    user=args.user,
+                                    linkage=args.linkage,
+                                    train=args.train)
    clustering.executeClustering()
