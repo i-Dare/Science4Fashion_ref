@@ -48,7 +48,7 @@ class FashionRecommender:
         # Calculate search term cosine similarity
         preprocessed_searchTerm = self.helper.preprocess_metadata(self.searchTerm)
         query_vec = vectorizer.transform(preprocessed_searchTerm.split())
-        # Calculate ordering score
+        # Calculate scemantic score
         products_df['text_score'] = cosine_similarity(tfidf_vector, query_vec).sum(axis=1)
         # Return products with text score > 0
         return products_df[products_df['text_score']>0]
@@ -69,6 +69,7 @@ class FashionRecommender:
         return products_df
 
 
+        np.load('%s.npy' % config.SIMILARITY_MATRIX)
     def feedbackBasedScore(self, products_df):
         # check for system's state
         if self.recalc:
@@ -120,7 +121,7 @@ class FashionRecommender:
         products_df = self.getAttributes()
 
         # Preprocess ranking attributes
-        products_df = self.attributePreprocessing()
+        products_df = self.attributePreprocessing(products_df)
 
         #
         # Score calculation
@@ -188,6 +189,7 @@ class FashionRecommender:
         products_df = self.db_manager.runSimpleQuery(query, get_identity=True)
         # Remove duplicates
         products_df.drop_duplicates(ignore_index=True, inplace=True)
+        products_df['Metadata'].fillna('', inplace=True)
         # Max aggregate results per product Oid        
         cat_columns = list(set(products_df.columns) - set(products_df._get_numeric_data().columns.tolist()))
         _products_df = products_df.groupby('Oid').first()[cat_columns]
