@@ -68,8 +68,6 @@ class FashionRecommender:
         self.logger.info("Calculate ordering score time: {:.2f} ms".format((time.time() - start) * 1000))
         return products_df
 
-
-        np.load('%s.npy' % config.SIMILARITY_MATRIX)
     def feedbackBasedScore(self, products_df):
         # check for system's state
         if self.recalc:
