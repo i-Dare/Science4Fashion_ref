@@ -89,12 +89,12 @@ class ConsensusClustering:
       # Train consensus clustering model
       #
       labels, n_clusters, score = self.assignClusters(famd_feats_df)
+      self.logger.info('''Number of final clusters: %s 
+                           Final Silhouette Score: %s''' % (n_clusters, score))
 
       # Update clustering table
       self.update_clusters(labels, attributes_df)
 
-      self.logger.info('''Number of final clusters: %s 
-                           Final Silhouette Score: %s''' % (n_clusters, score))
       # End Counting Time
       self.logger.info("--- Finished clustering %s records in %s seconds ---" % (len(attributes_df), 
             round(time.time() - start_time, 2)))
@@ -106,7 +106,7 @@ class ConsensusClustering:
       # Collect information from the Product, ProductColor and ColorRGB tables of S4F database
       #
       self.logger.info('Start preprocessing of product attributes...')
-      products_df = self._init_preprocessing()
+      products_df = self.getAttributes()
       
       ## Merging results
       # 
@@ -270,7 +270,7 @@ class ConsensusClustering:
       consensus_matrix_df = round(consensus_matrix_df/len(clustering_df.columns), 3)
       return clustering_df, consensus_matrix_df
 
-   def _init_preprocessing(self,):
+   def getAttributes(self,):
       #
       ### Loading product and color information from database
       attJoin, attSelect = '', []
