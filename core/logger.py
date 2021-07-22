@@ -32,7 +32,7 @@ class S4F_Logger():
 
     def initLogger(self, name, user=None):
         os.environ['PYTHONUNBUFFERED'] = "1"
-        logging.setLoggerClass(MyLogger)
+        logging.setLoggerClass(CustomLogger)
         # Setup formatter
         if user:
             self.user = user
@@ -65,9 +65,9 @@ class S4F_Logger():
 
 
 # --------------------------------
-#       Logging Formatter
+#       Main Logger
 # --------------------------------
-class MyLogger(logging.Logger):
+class CustomLogger(logging.Logger):
 
     def warn_and_exit(self, ex: Exception, *args, **kwargs):
         """
@@ -155,7 +155,13 @@ class MyLogger(logging.Logger):
         """
         if self.isEnabledFor(_COMPLETE):
             self._log(_COMPLETE, msg, args, **kwargs)
-
+    
+    def close(self,):
+        handlers = self.handlers.copy()
+        for l in handlers:
+            self.removeHandler(l)
+            l.flush()
+            l.close()
 
 # --------------------------------
 #       Logging Formatter

@@ -107,9 +107,9 @@ if __name__ == '__main__':
     standardUrl = 'https://www.asos.com/uk/search/?q='
     site = str((standardUrl.split('.')[1]).capitalize())
 
-    query = standardUrl + '%20'.join(searchTerm.split())
-    logger.info('Parsing: ' + str(query))
+    query_url = standardUrl + '%20'.join(searchTerm.split())
+    logger.info('Parsing: ' + str(query_url))
 
     folderName = helper.getFolderName(searchTerm)
-    performScraping(query, searchTerm, breakPointNumber=threshold)
+    performScraping(query_url, searchTerm, breakPointNumber=threshold)
     logger.info("Time to scrape ALL queries is %s seconds ---" % round(time.time() - start_time_all, 2))

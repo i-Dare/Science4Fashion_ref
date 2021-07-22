@@ -17,21 +17,12 @@ DB_NAME = config['db_name']
 ENGINE = sqlalchemy.create_engine(DB_CONNECTION + DB_NAME)
 BATCH_STEP = config['batch_step']
 
-UPDATESQLQUERY = """
-    UPDATE Product
-    SET Product.ProductCategory = temp_table.ProductCategory, Product.ProductSubcategory = temp_table.ProductSubcategory, Product.Length = temp_table.Length, Product.Sleeve = temp_table.Sleeve, Product.CollarDesign = temp_table.CollarDesign, Product.NeckDesign = temp_table.NeckDesign, Product.Fit = temp_table.Fit
-    FROM temp_table
-    WHERE Product.Oid = temp_table.Oid;
-    DROP TABLE temp_table;
-"""
-
 #
 ########### Modules paths ###########
 #
 # Setup paths for the various modules
-TEXT_MINING = os.path.join(PROJECT_HOME, 'TextMining')
+AUTOANNOTATION = os.path.join(PROJECT_HOME, 'AutoAnnotation')
 CLUSTERING = os.path.join(PROJECT_HOME, 'Clustering')
-IMAGE_ANNOTATION = os.path.join(PROJECT_HOME, 'ImageAnnotation')
 RECOMMENDER = os.path.join(PROJECT_HOME, 'Recommender')
 WEB_CRAWLERS = os.path.join(PROJECT_HOME, 'WebCrawlers')
 RESOURCESDIR = os.path.join(PROJECT_HOME, config['resources']['resourcesDir'])
@@ -76,7 +67,7 @@ FASHION_WORDS = os.path.join(RESOURCESDIR, config['resources']['fashion_words'])
 PRODUCT_ATTRIBUTES = ['ProductCategory', 'ProductSubcategory', 'Length', 'Sleeve', 'CollarDesign', 'NeckDesign', 'Fit']
 
 #
-########### ImageAnnotation variables ###########
+########### AutoAnnotation variables ###########
 #
 # calcColor variables
 COLOR_MODELPATH = os.path.join(COLOR_MODEL_DIR, config['resources']['models']['color_model']['model'])
@@ -122,21 +113,6 @@ MODEL_DBSCAN = config['resources']['models']['clustering_models']['dbscan']
 MODEL_OPTICS = config['resources']['models']['clustering_models']['optics']
 MODEL_BGM = config['resources']['models']['clustering_models']['bayesian_gaussian_mixture']
 INITKMODES = 'Cao'
-UPDATE_CLUSTERS_QUERY = """
-    UPDATE Cluster
-    SET Cluster.Cluster = temp_table.Cluster, Cluster.ProductCategory = temp_table.ProductCategory, Cluster.ProductSubcategory = temp_table.ProductSubcategory, Cluster.Gender = temp_table.Gender,
-        Cluster.LifeStage = temp_table.LifeStage, Cluster.Length = temp_table.Length, Cluster.Sleeve = temp_table.Sleeve, Cluster.CollarDesign = temp_table.CollarDesign, Cluster.NeckDesign = temp_table.NeckDesign, Cluster.Fit = temp_table.Fit
-    FROM Cluster
-    WHERE Cluster.Cluster = temp_table.Cluster
-"""
-
-UPDATE_PRODUCT_CLUSTERS_QUERY = """
-    UPDATE Product
-    SET Product.Cluster = temp_table.Cluster
-    FROM temp_table
-    WHERE Product.Oid = temp_table.Oid;
-    DROP TABLE temp_table;
-"""
 
 # Consensus Clustering variables
 FAMD_COMPONENTS = config['clustering']['famd_repeats']

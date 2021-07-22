@@ -175,8 +175,8 @@ class QueryManager():
 
     def parseItem(self, item):
         """
-        Parses query parameters and adds 'user' information if 'has_owner' is True
-    """
+        Parses single object, used in batch commit processes
+        """
         # parse floats
         if 'float' in str(type(item)).lower():
             if np.isnan(item):
