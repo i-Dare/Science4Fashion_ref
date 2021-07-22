@@ -480,9 +480,9 @@ class Helper():
     ## Generic functionaloty
     # Add/update product information
     def registerData(self, site, standardUrl, referenceOrder, trendOrder, cnt, uniq_params, params):
-        from ImageAnnotation.color import ColorAnnotation
-        from ImageAnnotation.clothing import ClothingAnnotation
-        from TextMining import MetadataAnnotation
+        from AutoAnnotation.color import ColorAnnotation
+        from AutoAnnotation.clothing import ClothingAnnotation
+        from AutoAnnotation.text import MetadataAnnotation
 
         # Check if product url exists to decide if addition of update is needed
         url = params['URL']
