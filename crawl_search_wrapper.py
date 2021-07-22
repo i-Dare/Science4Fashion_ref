@@ -121,47 +121,7 @@ class WebCrawlers:
                                  ],
                                  stderr=subprocess.STDOUT)
          if proc.returncode != 0:   
-            self.logger.warning('Issues in adapter %s' % str(adapter).capitalize())
-      
-
-   # Execute text metadata based annotation  
-   def executeTextBasedAnnotation(self,):
-      self.logger.info('Executing: text based annotation')
-      scriptPath = os.path.join(config.TEXT_MINING, 'metadata_annotation.py')      
-      proc = subprocess.run(['python',
-                              scriptPath, 
-                              str(self.user),
-                              ],
-                              stderr=subprocess.STDOUT)
-      if proc.returncode != 0:
-         self.logger.warning('Issues in text based annotation')
-   
-
-   # Execute color based annotation 
-   def executeColorBasedAnnotation(self,):
-      self.logger.info('Executing: color based annotation')
-      scriptPath = os.path.join(config.IMAGE_ANNOTATION, 'Color', 'color_annotation.py')
-      proc = subprocess.run(['python',
-                              scriptPath, 
-                              str(self.user),
-                              ],
-                              stderr=subprocess.STDOUT)
-      if proc.returncode != 0:
-         self.logger.warning('Issues in color based annotation')
-      
-
-   # Execute clothing based annotation
-   def executeClothingBasedAnnotation(self,):
-      self.logger.info('Executing: clothing based annotation')
-      scriptPath = os.path.join(config.IMAGE_ANNOTATION, 'Clothing', 'clothing_annotation.py')
-      proc = subprocess.run(['python',
-                              scriptPath, 
-                              str(self.user),
-                              ],
-                              stderr=subprocess.STDOUT)
-      if proc.returncode != 0:
-         self.logger.warning('Issues in clothing based annotation')
-      
+            self.logger.warning('Issues in adapter %s' % str(adapter).capitalize()) 
 
    # Execute product clustering module
    def executeClustering(self, train=False):
