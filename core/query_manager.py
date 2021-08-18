@@ -222,9 +222,12 @@ class QueryManager():
             # parse booleans
             if type(v) == bool:
                 params[k] = self.parseBool(v)
-            # parser decimal
-            if 'decimal' in str(type(params[k])):
+            # parse decimal
+            if 'decimal' in str(type(v)):
                 params[k] = self.parseDecimal(v)
+            # parse timestamps
+            if 'timestamp' in str(type(v)).lower():
+                params[k] = self.parseStr(str(v))
             # ignore None values and 'table' key
             if v is None or k == 'table':
                 del params[k]
