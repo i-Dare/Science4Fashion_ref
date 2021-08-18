@@ -25,8 +25,9 @@ logging.addLevelName(_SKIPPED, "SKIPPED")
 # --------------------------------
 class S4F_Logger():
     def __init__(self, name, level=1, user=config.DEFAULT_USER):
+
         self.level = level
-        self.name = name    
+        self.name = name
         self.user = user
         self.logger = self.initLogger(name, user)
 
@@ -41,7 +42,7 @@ class S4F_Logger():
                 (%(name)s)', user=self.user)
         
         # Get or create a logger
-        logger = logging.getLogger(name)  
+        logger = logging.getLogger(name)
         
         # Set level
         logger.setLevel(self.level)
@@ -81,7 +82,7 @@ class CustomLogger(logging.Logger):
         if self.isEnabledFor(logging.WARNING):
             msg = ''.join(tb.format_exception(None, ex, ex.__traceback__))
             self._log(logging.WARNING, msg, args, **kwargs)
-            sys.exit(1)        
+            sys.exit(1)
 
     def warn_and_trace(self, ex: Exception, *args, **kwargs):
         """
@@ -209,8 +210,9 @@ class SqlHandler(logging.Handler):
             logType = record.levelno
             note = "%s:%s" % (name, level)
             details = record.msg
+            args = dict(record.args)
             
-            params = {'table': 'Log', 'LogType': logType, 'Note': note, 'Details': str(details)}
+            params = {'table': 'Log', 'LogType': logType, 'Note': note, 'Details': str(details), **args}
             db_manager = QueryManager(user=user)
             db_manager.runInsertQuery(params)
             # flush
