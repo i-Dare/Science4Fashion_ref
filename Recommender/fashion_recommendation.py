@@ -20,15 +20,21 @@ from core.query_manager import QueryManager
 from core.helper_functions import *
 
 class FashionRecommender:
-    def __init__(self, searchTerm=None, recalc=False, user=config.DEFAULT_USER, threshold=1.):
-        
+    def __init__(self, searchID=None, recalc=False, user=config.DEFAULT_USER, threshold=1.):
+                
         # Get arguments
+        self.searchID = searchID
         self.threshold = threshold
-        self.searchTerm = searchTerm
         self.recalc = recalc
-        self.user = user
         self.numberResults = None
-        self.searchID = None
+        
+        # Fetch search information from CrawlSearch table
+        _db_manager = QueryManager()
+        search_df = _db_manager.runSelectQuery(params={'table': 'RecommenderSearch', 'Oid': self.searchID})
+
+        # Assign query parameters to the parameters "searchTerm", "NumberOfProductsToReturn", "user"
+        self.searchTerm = search_df.iloc[0]['SearchTerm']
+        self.user = search_df.iloc[0]['UpdatedBy']
 
         # Logger setup
         self.logging = S4F_Logger('FashionRecommender', user=self.user)
@@ -41,7 +47,8 @@ class FashionRecommender:
     def textBasedScore(self, products_df):
         '''Calculates recommendation score based on the grades of the user
         '''
-        self.logger.info('Calculating recommendation factor according to text similarity')
+        self.logger.info('Calculating recommendation factor according to text similarity', 
+                {'RecommenderSearch': self.searchID})
         # Calculate text features for recommendation 
         products_df, tfidf_vector, vectorizer = self.calculateTextDescriptors(products_df)
         
@@ -57,7 +64,8 @@ class FashionRecommender:
         '''Calculates recommendation score based on the trending and reference order of the products
            as captured in the 'ProductHistory' table
         '''
-        self.logger.info('Calculating recommendation factor according to ordering')
+        self.logger.info('Calculating recommendation factor according to ordering', 
+                {'RecommenderSearch': self.searchID})
         # Normalize ordering values
         start = time.time()
         scaler = MinMaxScaler((.1, .9))
@@ -65,7 +73,8 @@ class FashionRecommender:
         trend_factor =  (-trend_mult) * np.log(scaler.fit_transform(products_df['trend_factor'].values.reshape(-1, 1)))
         reference_factor = (-reference_mult) * np.log(scaler.fit_transform(products_df['reference_factor'].values.reshape(-1, 1)))
         products_df['ordering_score'] = trend_factor + reference_factor
-        self.logger.info("Calculate ordering score time: {:.2f} ms".format((time.time() - start) * 1000))
+        self.logger.info("Calculate ordering score time: {:.2f} ms".format((time.time() - start) * 1000), 
+                {'RecommenderSearch': self.searchID})
         return products_df
 
     def feedbackBasedScore(self, products_df):
@@ -74,7 +83,7 @@ class FashionRecommender:
             # split data
             seen_rating_ids, irrelevant_ids, unseen_ids = self.split_ids(products_df)
             if unseen_ids.shape[0] == products_df.shape[0]:
-                self.logger.warn('No feedback provided.')
+                self.logger.warn('No feedback provided.', {'RecommenderSearch': self.searchID})
                 return products_df
             # Predict ratings
             products_df = self.make_prediction(products_df, seen_rating_ids, unseen_ids, action='rating')
@@ -144,11 +153,11 @@ class FashionRecommender:
 # ----------------------------------------------
     def get_search_details(self,):
         # Get search informationn according to the provided search ID
-        params = {'table': 'Search', 'Criteria': self.searchTerm, 'CreatedBy': self.user}
+        params = {'table': 'RecommenderSearch', 'SearchTerm': self.searchTerm, 'CreatedBy': self.user}
         search_df = self.db_manager.runSelectQuery(params)
         search_df.sort_values('Oid', ascending=False, inplace=True)
         searchID = search_df['Oid'].values[0]
-        searchTerm = search_df['Criteria'].values[0]
+        searchTerm = search_df['SearchTerm'].values[0]
         numberResult = search_df['NumberOfProductsToReturn'].values[0]
         return searchID, searchTerm, numberResult
 
@@ -159,15 +168,15 @@ class FashionRecommender:
             num_columns = ['ReferenceOrder', 'TrendingOrder', 'Clicked', 'IsFavorite', 'GradeBySystem', 
                 'GradeByUser', 'IsIrrelevant']
             # Fetch searchIDs for search term
-            params = {'table': 'Search', 'Criteria': self.searchTerm}
+            params = {'table': 'RecommenderSearch', 'SearchTerm': self.searchTerm}
             search_df = self.db_manager.runSelectQuery(params)
             searchIDs = search_df['Oid'].tolist()
             # Prepare final query
-            where = 'WHERE ' + ' OR '.join([ 'RSLT.Search = %s' % oid for oid in searchIDs])
+            where = 'WHERE ' + ' OR '.join([ 'RSLT.RecommenderSearch = %s' % oid for oid in searchIDs])
             query = '''
                 SELECT PRD.Oid, PRD.ImageSource, PRD.Description, PRD.Metadata, PRD.ProductTitle,
                         PH.ReferenceOrder, PH.TrendingOrder,
-                        RSLT.Search, RSLT.Clicked, RSLT.IsFavorite, RSLT.GradeBySystem, RSLT.GradeByUser, RSLT.IsIrrelevant, RSLT.CreatedBy
+                        RSLT.RecommenderSearch, RSLT.Clicked, RSLT.IsFavorite, RSLT.GradeBySystem, RSLT.GradeByUser, RSLT.IsIrrelevant, RSLT.CreatedBy
                 FROM %s.dbo.Product AS PRD 
                     LEFT JOIN %s.dbo.ProductHistory AS PH
                     ON PRD.Oid = PH.Product
@@ -193,7 +202,8 @@ class FashionRecommender:
         _products_df = products_df.groupby('Oid').first()[cat_columns]
         _products_df.loc[:, num_columns] = products_df.groupby('Oid').max()[num_columns]
 
-        self.logger.info("Attribute retrieval time: {:.2f} ms".format((time.time() - start) * 1000))
+        self.logger.info("Attribute retrieval time: {:.2f} ms".format((time.time() - start) * 1000), 
+                {'RecommenderSearch': self.searchID})
         return _products_df.reset_index()
 
     def attributePreprocessing(self, products_df):
@@ -237,7 +247,8 @@ class FashionRecommender:
             if not os.path.exists(config.DATADIR):
                 os.makedirs(config.DATADIR)
             np.save(config.TFIDF_VECTOR, tfidf_vector.toarray())
-        self.logger.info("TFIDF feature extraction time: {:.2f} ms".format((time.time() - start) * 1000))
+        self.logger.info("TFIDF feature extraction time: {:.2f} ms".format((time.time() - start) * 1000), 
+                {'RecommenderSearch': self.searchID})
         return products_df, tfidf_vector, vectorizer
 
     def split_ids(self, products_df):
@@ -305,26 +316,26 @@ class FashionRecommender:
 
     def registerRecommendation(self, products_df):
         '''Stores the recommendation as a new record in Results table'''
-        # During recalculation (state!=0) remove previous results according to Search Oid
+        # During recalculation (state!=0) remove previous results according to RecommenderSearch Oid
         if self.recalc:
             for i, row in products_df.iterrows():
                 uniq_params = {'table': 'Result', 
                         'Product': row['Oid'],
-                        'Search': self.searchID}
+                        'RecommenderSearch': self.searchID}
                 params = {'table': 'Result', 
-                        'Search': self.searchID,
+                        'RecommenderSearch': self.searchID,
                         'Product': row['Oid'],
                         'IsIrrelevant': row['IsIrrelevant'],     
                         'GradeByUser': row['GradeByUser'],                    
                         'GradeBySystem': row['final_score']}
                 self.db_manager.runCriteriaUpdateQuery(uniq_params=uniq_params, params=params)
 
-            # query = "DELETE FROM %s.dbo.Result  WHERE Search=%s" % (config.DB_NAME, self.searchID)
+            # query = "DELETE FROM %s.dbo.Result  WHERE RecommenderSearch=%s" % (config.DB_NAME, self.searchID)
             # self.db_manager.runSimpleQuery(query)
         else:
             for i, row in products_df.iterrows():               
                 params = {'table': 'Result', 
-                'Search': self.searchID,
+                'RecommenderSearch': self.searchID,
                 'Product': row['Oid'],
                 'GradeBySystem': row['final_score']}
                 self.db_manager.runInsertQuery(params, get_identity=True)
@@ -347,7 +358,8 @@ class FashionRecommender:
             score = row['text_score']
             text = products_df.loc[products_df['Oid']==oid, 'combined_columns'].values[0]
             imgUrl = products_df.loc[products_df['Oid']==oid, 'ImageSource'].values[0].replace('\\','')
-            self.logger.info('%s: %s - %s\n%s' % (oid, score, text, imgUrl))
+            self.logger.info('%s: %s - %s\n%s' % (oid, score, text, imgUrl), 
+                    {'RecommenderSearch': self.searchID})
 
 
 
@@ -357,22 +369,16 @@ if __name__ == "__main__":
     #
     parser = argparse.ArgumentParser(description = 'A script for executing the recommendation \
             functionality', prog = 'FashionRecommender')
-    parser.add_argument('-s','--searchTerm', type = str, help = '''Input the search terms of the query''', 
-            required = True, nargs = '?')
-    parser.add_argument('-u', '--user', default=config.DEFAULT_USER, type = str, help = '''Input user''')
+    parser.add_argument('-i','--id', type = int, help = '''Input the search id''', required = True)
     parser.add_argument('-r', '--recalc', help = '''Triggers the recalculation functionality \
             of the FashionRecommender, where a new set of recommendations is generated after user's \
             feedback''', action="store_true", default = False)
 
     # Parse arguments
     args, unknown = parser.parse_known_args()
-
-    # Get arguments
-    searchTerm = args.searchTerm
+    searchID = args.id
     recalc = args.recalc
-    user = args.user
 
-    recommender = FashionRecommender(searchTerm=searchTerm, 
-                                     recalc=recalc, 
-                                     user=user)
+    recommender = FashionRecommender(searchID=searchID, 
+                                     recalc=recalc)
     recommender.executeRecommendation()     
