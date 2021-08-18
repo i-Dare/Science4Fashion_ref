@@ -18,7 +18,7 @@ from core.logger import S4F_Logger
 
 
 ## This function handles the scraping functionality of the web crawler
-def performScraping(urlReceived, searchTerm, breakPointNumber):
+def performScraping(crawlSearchID, urlReceived, searchTerm, breakPointNumber):
     # initialize scraping
     start_time = time.time()
     # stats counters
@@ -51,19 +51,19 @@ def performScraping(urlReceived, searchTerm, breakPointNumber):
         trendOrder = referenceOrder = 0
 
         # Register product information
-        head, brand, color, genderid, meta, sku, price, url, imgURL = helper.parseAsosFields(soup, url)
+        head, brand, color, genderID, meta, sku, price, url, imgURL, prodCatID, prodSubCatID = helper.parseAsosFields(soup, url, crawlSearchID)
         uniq_params = {'table': 'Product', 'URL': url}
-        params = {'table': 'Product', 'Description': searchTerm, 'Active':  True, 'Gender': genderid,
+        params = {'table': 'Product', 'Description': searchTerm, 'Active':  True, 'Gender': genderID,
                 'ColorsDescription': color, 'Ordering': 0, 'ProductCode': sku, 'ProductTitle': head, 
                 'SiteHeadline': head, 'Metadata': meta, 'RetailPrice': price, 'URL': url, 
-                'ImageSource': imgURL, 'Brand': brand}
-        cnt, productID = helper.registerData(site, standardUrl, referenceOrder, trendOrder, cnt, 
+                'ImageSource': imgURL, 'Brand': brand, 'ProductCategory': prodCatID, 'ProductSubCategory': prodSubCatID}
+        cnt, productID = helper.registerData(crawlSearchID, site, standardUrl, referenceOrder, trendOrder, cnt, 
                 uniq_params, params)
     else:
         # Get trending products
-        trendDF = helper.resultDataframeAsos(urlReceived, 'trend', breakPointNumber=breakPointNumber)
+        trendDF = helper.crawlingAsos(urlReceived, 'trend', breakPointNumber=breakPointNumber)
         # Get all relevant results for searh term
-        refDF = helper.resultDataframeAsos(urlReceived, 'reference', filterDF=trendDF) 
+        refDF = helper.crawlingAsos(urlReceived, 'reference', filterDF=trendDF) 
 
         # Iterate trending products
         for _, row in trendDF.iterrows():
@@ -77,13 +77,13 @@ def performScraping(urlReceived, searchTerm, breakPointNumber):
                 referenceOrder = 0
             # Register product information
             urlReceived, soup = helper.get_content(url, retry=3)
-            head, brand, color, genderid, meta, sku, price, url, imgURL = helper.parseAsosFields(soup, url)
+            head, brand, color, genderID, meta, sku, price, url, imgURL, prodCatID, prodSubCatID = helper.parseAsosFields(soup, url, crawlSearchID)
             uniq_params = {'table': 'Product', 'URL': url}
-            params = {'table': 'Product', 'Description': searchTerm, 'Active':  True, 'Gender': genderid,
+            params = {'table': 'Product', 'Description': searchTerm, 'Active':  True, 'Gender': genderID,
                     'ColorsDescription': color, 'Ordering': 0, 'ProductCode': sku, 'ProductTitle': head, 
                     'SiteHeadline': head, 'Metadata': meta, 'RetailPrice': price, 'URL': url, 
-                    'ImageSource': imgURL, 'Brand': brand}
-            cnt, productID = helper.registerData(site, standardUrl, referenceOrder, 
+                    'ImageSource': imgURL, 'Brand': brand, 'ProductCategory': prodCatID, 'ProductSubCategory': prodSubCatID}
+            cnt, productID = helper.registerData(crawlSearchID, site, standardUrl, referenceOrder, 
                     trendOrder, cnt, uniq_params, params)
 
     logger.info('Images requested: %s, Images needed: %s, Images Downloaded: %s (%s%%)' % \
@@ -95,7 +95,7 @@ def performScraping(urlReceived, searchTerm, breakPointNumber):
 ############ Main function ############
 if __name__ == '__main__':
     # Get input arguments
-    searchTerm, threshold, user = sys.argv[1], int(sys.argv[2]), sys.argv[3]
+    crawlSearchID, searchTerm, threshold, user = int(sys.argv[1]), sys.argv[2], int(sys.argv[3]), sys.argv[4]
     logging = S4F_Logger('AsosLogger', user=user)
     logger = logging.logger
     helper = Helper(logging)
@@ -111,5 +111,5 @@ if __name__ == '__main__':
     logger.info('Parsing: ' + str(query_url))
 
     folderName = helper.getFolderName(searchTerm)
-    performScraping(query_url, searchTerm, breakPointNumber=threshold)
+    performScraping(crawlSearchID, query_url, searchTerm, breakPointNumber=threshold)
     logger.info("Time to scrape ALL queries is %s seconds ---" % round(time.time() - start_time_all, 2))

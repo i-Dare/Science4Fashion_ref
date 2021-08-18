@@ -287,56 +287,102 @@ class Helper():
 
     ## Add new ProductCategory to the ProductCategory table 
     #
-    def getProductCat(self, prodCat):
+    def getProductCat(self, prodCat, add=True):
         '''
         Adds new ProductCategory info to the ProductCategory table if it does not exist,  
         and returns the added record's  `Oid`. Otherwise returns the existing record 'Oid'. 
         '''
-        uniq_params = {'table': 'ProductCategory', 'Description': prodCat}
-        params = {'table': 'ProductCategory', 'Description': prodCat}
-        
-        prodCat_df =  self.db_manager.runCriteriaInsertQuery(
-                                                            uniq_params=uniq_params, 
-                                                            params=params, 
-                                                            get_identity=True
-                                                        )
-        return prodCat_df.loc[0, 'Oid'] 
+        prodCat_df = self.find_db_match(prodCat, 'ProductCategory')
+        # If match is not found, add the value as anew ProductCategory
+        if prodCat_df.empty and add:
+            uniq_params = {'table': 'ProductCategory', 'Description': prodCat}
+            params = {'table': 'ProductCategory', 'Description': prodCat}
+            
+            prodCat_df =  self.db_manager.runCriteriaInsertQuery(
+                                                                uniq_params=uniq_params, 
+                                                                params=params, 
+                                                                get_identity=True
+                                                            )
+            return prodCat_df['Oid']
+        return None
     
-    def getProductSubCat(self,  prodSubCat, prodCat):
+    def getProductSubCat(self, prodSubCat, prodCat=None, add=True):
         '''
         Adds new ProductSubcategory info to the ProductSubcategory table if it does not exist,  
         and returns the added record's `Oid`. Otherwise returns the existing record 'Oid'. 
         Receives the product category and subCategory as arguments. If the product category is a 
         string, it is used to find the respective category from ProductCategory table, if it is an
         integer, it is considered as productCategory Oid.
+        '''
+        prodSubCat_df = self.find_db_match(prodSubCat, 'ProductSubcategory')
+        # If match is not found, add the value as anew ProductSubategory
+        if prodSubCat_df.empty:
+            if add and pd.notna(prodCat):
+                # Find ProductCategory ID
+                prodCat_df = self.find_db_match(prodCat, 'ProductCategory')
+                prodCatID = prodCat_df.loc[0, 'Oid']
 
-        '''        
-        if type(prodCat) == str:
-            prodCatID = self.getProductCat(prodCat)
-        elif type(prodCat) == int:
-            prodCatID = prodCat
+                uniq_params = {'table': 'ProductSubcategory', 'Description': prodSubCat}
+                params = {'table': 'ProductSubcategory', 'Description': prodSubCat, 'ProductCategory': prodCatID}     
+                
+                prodSubCat_df =  self.db_manager.runCriteriaInsertQuery(
+                                                                    uniq_params=uniq_params, 
+                                                                    params=params, 
+                                                                    get_identity=True
+                                                                )
+            else: 
+                self.logger.warning('Cannot add new subcategory without providing a category argument')
+                return None, None
+
+        return prodSubCat_df[['Oid', 'ProductCategory']]
+
+
+    def find_db_match(self, sample, table):
+        # NLP process category
+        processed_sample = self.preprocess_metadata(sample)
+        # Get categories from DB and match the captured one
+        records = self.db_manager.runSelectQuery(params={'table': table})
+        if not records.empty:
+            matched_record = (records.loc[records['Description'].apply(self.preprocess_metadata)
+                    .isin( processed_sample.split() ), :]).iloc[0]
+            return matched_record
         else:
-            return None
+            return pd.DataFrame()
+            
+    def categorySelectio(self, prodCat=None, prodSubCat=None):
+        # If only one category is provided
+        if pd.isna(prodCat) or pd.isna(prodSubCat):
+            # Search first in ProductSubCategories
+            category = prodCat  if pd.notna(prodCat) else prodSubCat
+            prodSubCatID, prodCatID = self.getProductSubCat(prodSubCat=category, add=False)
+            # If ProductSubcategory is not found, try it as a ProductCategory
+            if pd.isna(prodSubCatID):
+                prodCatID = self.getProductCat(category)
+                prodSubCatID = None
 
-        uniq_params = {'table': 'ProductSubcategory', 
-                        'Description': prodSubCat, 
-                        'ProductCategory': prodCatID}
-
-        params = {'table': 'ProductSubcategory', 
-                  'Description': prodSubCat, 
-                  'ProductCategory': prodCatID}
-        
-        prodSubCat_df =  self.db_manager.runCriteriaInsertQuery(
-                                                            uniq_params=uniq_params, 
-                                                            params=params, 
-                                                            get_identity=True
-                                                        )
-        return prodSubCat_df.loc[0, 'Oid']
-        
+        # If both ProductCategory and ProductSubCategory are provided
+        else:
+            # First, search in ProductSubCategories and in case of a match, infer the ProductCategory 
+            # from the DB
+            prodSubCatID, prodCatID = self.getProductSubCat(prodSubCat=prodSubCat, add=False)
+            # If ProductSubcategory is not found, try looking for the ProductCategory at
+            # ProductCategories
+            if pd.isna(prodSubCatID):
+                prodCatID = self.getProductCat(prodCat, False)
+                # If no ProductCategory is not found, try the ProductSubcategory as a ProductCategory
+                if pd.isna(prodCatID): 
+                    prodCatID = self.getProductCat(prodSubCat, False)
+                    # If a match is found, set ProductSubcategory as None
+                    if pd.notna(prodCatID): 
+                        return prodCatID, None
+                # Otherwise add new records for ProductCategory and ProductSubcategory
+                prodCatID = self.getProductCat(prodCat)
+                prodSubCatID, _ = self.getProductSubCat(prodSubCat=prodSubCat, prodCat=prodSubCat)       
+        return prodCatID, prodSubCatID
 
     ## Add new product to the Product table 
     #
-    def addNewProduct(self, site, uniq_params, params):
+    def addNewProduct(self, crawlSearchID, site, uniq_params, params):
         '''
         Adds new product info to the Product table. 
         '''
@@ -349,56 +395,53 @@ class Helper():
         
         ## Add product and return new records in DataFrame
         # Check if product exists
-        # If DataFrame is empty add new product
-        self.logger.info('Adding new product')
+        # If DataFrame is empty add new product      
+        self.logger.info('Adding new product', {'CrawlSearch': crawlSearchID})  
         product_df = self.db_manager.runCriteriaInsertQuery(
                                                             uniq_params=uniq_params, 
                                                             params=params, 
                                                             get_identity=True
                                                         )
+        oid = product_df.loc[0, 'Oid']        
+
         return product_df
-  
 
     ## Add new product to the ProductHistory table 
     #
-    def addNewProductHistory(self, product_df, referenceOrder, trendOrder):
+    def addNewProductHistory(self, crawlSearchID, product_df, referenceOrder, trendOrder):
         '''
         Adds new product info to the ProductHistory table.
         '''
-        oid, price, searchTerm, adapter = product_df.loc[0, ['Oid', 'RetailPrice', 'Description', 'Adapter']]
-        ## If entry in ProductHistory for Product 'Oid' and CrawlSearch 'Oid' does not exist, create new entry
-        # Get latest 'Oid' from CrawlSearch table for the specific search term and user
-        lastCrawlSearchID = self.db_manager.getLastRecordID('CrawlSearch', "WHERE Description='%s' \
-                AND CreatedBy='%s' AND Adapter=%s" % (searchTerm, self.user, adapter))
-        
-        self.logger.info('Adding new product history')
-        uniq_params = {'table': 'ProductHistory', 'Product': oid, 'CrawlSearch': lastCrawlSearchID}
-        params = {'table': 'ProductHistory', 'Product': oid, 'ReferenceOrder': referenceOrder, 
-                  'TrendingOrder': trendOrder, 'Price': price, 'CrawlSearch': lastCrawlSearchID}
-        return self.db_manager.runCriteriaInsertQuery(uniq_params=uniq_params, params=params, get_identity=True)
+        search_df = self.db_manager.runSelectQuery(params={'table': 'CrawlSearch', 'Oid': crawlSearchID})
+        searchDate = pd.to_datetime(search_df['CreatedOn'].values[0])
+
+        productID, price = product_df.loc[0, ['Oid', 'RetailPrice']]
+        uniq_params = {'table': 'ProductHistory', 'Product': productID, 'CrawlSearch': crawlSearchID}
+        params = {'table': 'ProductHistory', 'Product': productID, 'ReferenceOrder': referenceOrder, 
+                  'TrendingOrder': trendOrder, 'Price': price, 'CrawlSearch': crawlSearchID, 'SearchDate': searchDate}
+
+        self.logger.info('Adding new product history of product %s' % productID, {'Product': productID, 'CrawlSearch': crawlSearchID})  
+        productHist_df = self.db_manager.runCriteriaInsertQuery(uniq_params=uniq_params, params=params, get_identity=True)
+        return productHist_df
 
     ## Update product history 
     #
-    def updateProductHistory(self, product_df, referenceOrder, trendOrder):
+    def updateProductHistory(self, crawlSearchID, product_df, referenceOrder, trendOrder):
         '''
         Updates product's latest entry in ProductHistory table
         '''    
-        productID, price, searchTerm, adapter = product_df.loc[0, ['Oid', 'RetailPrice', 'Description', 'Adapter']]
-        # Get latest 'Oid' from CrawlSearch table for the specific search term and adapter
-        params = {'table': 'CrawlSearch', 'SearchTerm': searchTerm, 'Adapter': adapter}         
-        crawlSearch_df = self.db_manager.runSelectQuery(params)
-        crawlSearch_df.sort_values('Oid', ascending=False, inplace=True)
-        # Get all productHistory for the specific product
-        params = {'table': 'ProductHistory', 'Product': productID}
-        productHist_df = self.db_manager.runSelectQuery(params)
-        # Select the relevant CrawlSerach 'Oid' as the latest (max) 'Oid' in the retrieved ProductHistory
-        lastCrawlSearchID = crawlSearch_df[crawlSearch_df['Oid'].isin(productHist_df['CrawlSearch'])]['Oid'].max()
+        search_df = self.db_manager.runSelectQuery(params={'table': 'CrawlSearch', 'Oid': crawlSearchID})
+        searchDate = pd.to_datetime(search_df['CreatedOn'].values[0])
 
-        uniq_params = {'table': 'ProductHistory', 'Product': productID, 'CrawlSearch': lastCrawlSearchID}
+        productID, price = product_df.loc[0, ['Oid', 'RetailPrice']]
+
+        uniq_params = {'table': 'ProductHistory', 'Product': productID, 'CrawlSearch': crawlSearchID}
         params = {'table': 'ProductHistory', 'UpdatedBy': self.user, 'Price': price, 'TrendingOrder': trendOrder,  
-                  'ReferenceOrder': referenceOrder, 'CrawlSearch': lastCrawlSearchID}
-        return self.db_manager.runCriteriaUpdateQuery(uniq_params=uniq_params, params=params, get_identity=True)
-        
+                  'ReferenceOrder': referenceOrder, 'CrawlSearch': crawlSearchID, 'SearchDate': searchDate}
+
+        self.logger.info('Updating product history for product %s' % productID, {'Product': productID, 'CrawlSearch': crawlSearchID})
+        productHist_df = self.db_manager.runCriteriaUpdateQuery(uniq_params=uniq_params, params=params, get_identity=True)
+        return productHist_df
 
 # --------------------------------------------------------------------------
 #          Natural Language Processing (NLP) Functionality 
@@ -479,7 +522,7 @@ class Helper():
 # --------------------------------------------------------------------------
     ## Generic functionaloty
     # Add/update product information
-    def registerData(self, site, standardUrl, referenceOrder, trendOrder, cnt, uniq_params, params):
+    def registerData(self, crawlSearchID, site, standardUrl, referenceOrder, trendOrder, cnt, uniq_params, params):
         from AutoAnnotation.color import ColorAnnotation
         from AutoAnnotation.clothing import ClothingAnnotation
         from AutoAnnotation.text import MetadataAnnotation
@@ -494,7 +537,7 @@ class Helper():
             ## Product exists, proceed to update ProductHistory table
             # Update ProductHistory
             try:
-                productHist_df = self.updateProductHistory(product_df, referenceOrder, trendOrder)
+                productHist_df = self.updateProductHistory(crawlSearchID, product_df, referenceOrder, trendOrder)
                 cnt += 1
             except Exception as e:
                 self.logger.warn_and_trace(e)
@@ -507,11 +550,11 @@ class Helper():
             params['Image'] = self.saveImage(params['ImageSource'], params['Photo'])
             try:
                 # Create new entry in PRODUCT table
-                product_df = self.addNewProduct(site, uniq_params=uniq_params, params=params)
+                product_df = self.addNewProduct(crawlSearchID, site, uniq_params=uniq_params, params=params)
 
                 cnt += 1
                 # Create new entry in ProductHistory table
-                productHist_df = self.addNewProductHistory(product_df, referenceOrder, trendOrder)
+                productHist_df = self.addNewProductHistory(crawlSearchID, product_df, referenceOrder, trendOrder)
                 # Product IDs to perform annotation
                 oids = product_df.loc[:, 'Oid'].tolist()
                 # Color annotation                
@@ -527,20 +570,21 @@ class Helper():
             except Exception as e:
                 self.logger.warn_and_trace(e)       
                 self.logger.warning('Information for product at %s not added' % \
-                        re.findall(r'\'(http.+)\',', params['URL'])[0])
+                        re.findall(r'\'(http.+)\'', params['URL'])[0])
                 return cnt, None
             
         productID = productHist_df.loc[0, 'Product']
         if action == 'addition':           
-            self.logger.info('Information for product %s added' % productID)
+            self.logger.info('Added new product %s' % productID, {'Product': productID, 'CrawlSearch': crawlSearchID})
+            self.logger.info('Added new product history for product %s' % productID, {'Product': productID, 'CrawlSearch': crawlSearchID})    
         else: 
-            self.logger.info('Information for product %s updated' % productID)
+            self.logger.info('Updated product history for product %s' % productID, {'Product': productID, 'CrawlSearch': crawlSearchID})
         return cnt, productID
 
     ## Asos specific functionality 
     ## Fetch search results form Asos according to 'order' parameter 
     #
-    def resultDataframeAsos(self, keyUrl, order, filterDF=pd.DataFrame([]), breakPointNumber=9999999):
+    def crawlingAsos(self, keyUrl, order, filterDF=pd.DataFrame([]), breakPointNumber=9999999):
         '''
         Fetches search results form Asos according to 'order' parameter. Parameter "filterDF" is 
         filled with the trending order dataframe to call the script with reference order and get the reference order
@@ -662,7 +706,7 @@ class Helper():
 
     ## Get product information from Asos 
     #
-    def parseAsosFields(self, soup, url):
+    def parseAsosFields(self, soup, url, crawlSearchID):
         '''
         Gets product information from Asos
         - Input:
@@ -670,92 +714,103 @@ class Helper():
             url: URL currently parsing
 
         - Returns:
-            head, brand, color, genderid, meta
+            head, brand, color, genderID, meta
         '''
         # Capture json structure with the product information
         try:
             jsonUnparsed = soup.find('script', text=re.compile(r'window\.asos\.pdp\.config\.product.+'))
             jsonInfo = json.loads(re.findall(r'window\.asos\.pdp\.config\.product = ({.+});', str(jsonUnparsed))[0])
         except Exception as e: 
-            self.logger.warn_and_trace(e)
-            self.logger.warning('Exception: Failed to capture json object with products\' info')
+            self.logger.warn_and_trace(e, {'CrawlSearch': crawlSearchID})
+            self.logger.warning('Exception: Failed to capture json object with products\' info', {'CrawlSearch': crawlSearchID})
         # Get attributes
+        # ProductCategory
+        try:
+            # Capture category information
+            category = jsonInfo['productType']['name']
+            prodCatID, prodSubCatID = self.categorySelectio(prodCat=category)
+            
+        except Exception as e:
+            prodCatID = None 
+            prodSubCatID = None 
+            self.logger.warn_and_trace(e, {'CrawlSearch': crawlSearchID})
+            self.logger.warning("ProductCategory and ProductSubcategory not captured at %s" % url, {'CrawlSearch': crawlSearchID})
         # Header
         try:
             head = jsonInfo['name']
         except Exception as e:
             head = None 
-            self.logger.warn_and_trace(e)
-            self.logger.warning("Header not captured at %s" % url)
+            self.logger.warn_and_trace(e, {'CrawlSearch': crawlSearchID})
+            self.logger.warning("Header not captured at %s" % url, {'CrawlSearch': crawlSearchID})
         # Sku ID
         try:
             sku = jsonInfo['productCode']
         except Exception as e: 
             sku = None
-            self.logger.warn_and_trace(e)
-            self.logger.warning("SKU ID not captured at %s" % url) 
+            self.logger.warn_and_trace(e, {'CrawlSearch': crawlSearchID})
+            self.logger.warning("SKU ID not captured at %s" % url, {'CrawlSearch': crawlSearchID}) 
         # Image
         try:
             imgURL = jsonInfo['images'][0]['url']
         except Exception as e: 
             imgURL = None
-            self.logger.warn_and_trace(e)
-            self.logger.warning("Image url not captured at %s" % url) 
+            self.logger.warn_and_trace(e, {'CrawlSearch': crawlSearchID})
+            self.logger.warning("Image url not captured at %s" % url, {'CrawlSearch': crawlSearchID}) 
         # Gender
         try:
             gender = jsonInfo['gender']
-            genderid = self.getGender(gender)
+            genderID = self.getGender(gender)
 
         except Exception as e: 
-            genderid = None
-            self.logger.warn_and_trace(e)
-            self.logger.warning("GenderID not captured at %s" % url)    
+            genderID = None
+            self.logger.warn_and_trace(e, {'CrawlSearch': crawlSearchID})
+            self.logger.warning("GenderID not captured at %s" % url, {'CrawlSearch': crawlSearchID})    
         # Brand
         try:
             brand = jsonInfo['brandName']
         except Exception as e: 
             brand = None
-            self.logger.warn_and_trace(e)
-            self.logger.warning("Brand info not captured at %s" % url)    
+            self.logger.warn_and_trace(e, {'CrawlSearch': crawlSearchID})
+            self.logger.warning("Brand info not captured at %s" % url, {'CrawlSearch': crawlSearchID})    
         # Color
         try:
             color = jsonInfo['variants'][0]['colour']
         except Exception as e: 
             color = None
-            self.logger.warn_and_trace(e)
-            self.logger.warning("Color info not captured at %s" % url)   
+            self.logger.warn_and_trace(e, {'CrawlSearch': crawlSearchID})
+            self.logger.warning("Color info not captured at %s" % url, {'CrawlSearch': crawlSearchID})   
         # Description
         try:
-            description = [li.text.strip() for li in soup.find(
-                'div', {'class': re.compile('product-description')}).find('ul').findAll('li')]
-            about = [soup.find('div', {'class': re.compile(
-                'about-me')}).find('p').text.strip()]
+            # Find "description" and "about" and user regex to capture the text correctly
+            description = [re.sub(r"<.+?>", " ", str(t)).strip() 
+                    for t in soup.find('div', {'class': re.compile('product-description')}).find('ul').findAll('li')]
+            about = [re.sub(r"<.+?>", " ", str(soup.find('div', {'class': re.compile('about-me')}).find('p'))).strip()]
             attr_list = description + about
             meta = ' - '.join(attr_list)
 
         except Exception as e: 
             meta = ''
-            self.logger.warn_and_trace(e)
-            self.logger.warning("Product Description not captured at %s" % url)
+            self.logger.warn_and_trace(e, {'CrawlSearch': crawlSearchID})
+            self.logger.warning("Product Description not captured at %s" % url, {'CrawlSearch': crawlSearchID})
         # Price
         try:
             productID = jsonInfo['id']
             priceApiURL = 'https://www.asos.com/api/product/catalogue/v3/stockprice?productIds=%s&store=ROE&currency=EUR' % productID
-            time.sleep(3)  # suspend execution for 5 secs
+            time.sleep(3)  # suspend execution for 3 secs
             _, priceSoup = self.get_content(priceApiURL, retry=3)
             price = json.loads(str(priceSoup))[0]['productPrice']['current']['value']
         except:
             price = None
-            self.logger.warning("Product price not captured at %s" % url)   
+            self.logger.warning("Product price not captured at %s" % url, {'CrawlSearch': crawlSearchID})   
     
 
-        return head, brand, color, genderid, meta, sku, price, url, imgURL
+        return head, brand, color, genderID, meta, sku, price, url, imgURL, prodCatID, prodSubCatID
 
 
     ## sOliver specific functionality 
     ## Fetch search results form s.Oliver according to 'order' parameter 
     #
-    def resultDataframeSOliver(self, keyUrl, order, filterDF=pd.DataFrame([]), breakPointNumber=9999999):
+    def crawlingSOliver(self, keyUrl, order, filterDF=pd.DataFrame([]), breakPointNumber=9999999):
         '''
         Fetches search results form s.Oliver according to 'order' parameter. Parameter "filterDF" is 
         filled with the trending order dataframe to call the script with reference order and get the reference order
@@ -785,7 +840,12 @@ class Helper():
         
         # Check for redirection
         if 'search' not in  url:
-            self.logger.info('s.Oliver rediraction to %s' % url)
+            self.logger.info('s.Oliver redirection to %s' % url)
+        
+        not_found_text = 'Unfortunately, your search'
+        if not_found_text in soup.text:
+            return pd.DataFrame()
+
         # Prepare ajax request URL
         # Capture hidden parameters of ajax request for the image lazy-loading
         reqParams = json.loads(soup.find(
@@ -812,7 +872,7 @@ class Helper():
 
         # lazy-loading iteration until reaching the maxItems - 12 products in each iteration
         url, soupAjax = self.get_content(urlAjax)
-        articles = soupAjax.findAll('div', {'class': re.compile("productlist__product js-ovgrid-item")})
+        articles = soupAjax.findAll('div', {'class': re.compile("js-ovgrid-item")})
         products = articles
 
         # DataFrame to hold results
@@ -833,7 +893,7 @@ class Helper():
                 resultRange = 'start=%s&sz=%s' % (start, step)
                 urlAjax = re.sub(r'start=[0-9]+&sz=[0-9]+', resultRange, urlAjax)
                 url, soupAjax = self.get_content(urlAjax)
-                articles = soupAjax.findAll('div', {'class': re.compile("productlist__product js-ovgrid-item")})
+                articles = soupAjax.findAll('div', {'class': re.compile("js-ovgrid-item")})
                 products += articles
                 if len(articles)==0: # Exit if no more results
                     break
@@ -845,7 +905,7 @@ class Helper():
                 resultRange = 'start=%s&sz=%s' % (start, step)
                 urlAjax = re.sub(r'start=[0-9]+&sz=[0-9]+', resultRange, urlAjax)
                 url, soupAjax = self.get_content(urlAjax)
-                articles = soupAjax.findAll('div', {'class': re.compile("productlist__product js-ovgrid-item")})
+                articles = soupAjax.findAll('div', {'class': re.compile("js-ovgrid-item")})
                 # Stop if exceed pagination
                 if len(articles)==0:
                     break
@@ -862,14 +922,30 @@ class Helper():
                             .get('data-ovlistview-color-config'))['colorName'])
                     price = (float(product.find('div', {'class': 'ta_prodMiniWrapper'})
                             .get('data-maxprice').split()[0].replace(',', '.')))
-                else:
+                elif product.find('div', {'class': 'ta_Img'}).get('data-picture'):
                     productImg = (json.loads(product.find('div', {'class': 'ta_Img'})
                             .get('data-picture'))['sources'][0]['srcset'].split('?')[0])
                     color = None
                     price = None
+                else:
+                    productImg = json.loads(product.find('div', {'class': 'ta_color'})
+                            .get('data-ovlistview-color-config'))['images'][0]['absURL'].split('?')[0]
+                    color = json.loads(product.find('div', {'class': 'ta_color'})
+                            .get('data-ovlistview-color-config'))['colorName']
+                    try:        
+                        price = float(product.find('span', {'class': 'ta_price'}).text.split()[0].replace(',', '.'))
+                    except:
+                        try:
+                            price = float(product.find('span', {'class': 'ta_newPrice'}).text.split()[0].replace(',', '.'))
+                        except:
+                            try:
+                                price = (float(product.find('div', {'class': 'c-productPanel ta_prodMiniWrapper js-ovlistview-tile--init js-ovlistview-tile'})
+                                        .get("data-maxprice").split()[0].replace(',', '.')))
+                            except:
+                                pass
 
                 series = pd.Series()
-                series['URL'] = productPage.rsplit('?', 1)[0]
+                series['URL'] = productPage.rsplit('?', 1)[0] 
                 series['imgURL'] = productImg
                 series['color'] = color
                 series['price'] = price
@@ -881,7 +957,7 @@ class Helper():
 
     ## Get product information from s.Oliver 
     #
-    def parseSOliverFields(self, soup, url, imgURL):
+    def parseSOliverFields(self, soup, url, imgURL, crawlSearchID):
         '''
         Gets product information from s.Oliver
         - Input:
@@ -890,7 +966,7 @@ class Helper():
             imgURL: image URL
 
         - Returns:
-            price, head, brand, color, genderid, meta
+            price, head, brand, color, genderID, meta
         '''
         # Get product id according to the captured image URL
         pid, sku = '', ''
@@ -904,7 +980,7 @@ class Helper():
                         break
                 
         if sku == '':
-            self.logger.info("ProductCode and active information not captured at %s" % url)
+            self.logger.info("ProductCode and active information not captured at %s" % url, {'CrawlSearch': crawlSearchID})
         ajaxURL = 'https://www.soliver.eu/on/demandware.store/Sites-soliverEU-Site/en/Catalog-GetProductData?pview=variant&pid='
         ajaxURL += pid
         # return ajax request for the selected image
@@ -912,71 +988,65 @@ class Helper():
         try:
             jsonInfo = json.loads(soupTemp.text)['product']['variantInfo']
         except:
-            self.logger.warn("JSON information for product at %s not found" % url)
+            self.logger.warn("JSON information for product at %s not found" % url, {'CrawlSearch': crawlSearchID})
         # color - Clothe's Color
         try:
             color = jsonInfo['variationAttrData']['color']['displayValue']
         except Exception as e:
             color = None
-            self.logger.warn_and_trace(e)
-            self.logger.warn("Color not captured at %s" % url)
+            self.logger.warn_and_trace(e, {'CrawlSearch': crawlSearchID})
+            self.logger.warn("Color not captured at %s" % url, {'CrawlSearch': crawlSearchID})
 
         # price
         try:
             price = jsonInfo['priceData']['salePrice']['value']
         except Exception as e:
             price = None
-            self.logger.warn_and_trace(e)
-            self.logger.warn("Price not captured at %s" % url)
+            self.logger.warn_and_trace(e, {'CrawlSearch': crawlSearchID})
+            self.logger.warn("Price not captured at %s" % url, {'CrawlSearch': crawlSearchID})
 
         # head - Clothe's General Description
         try:
             head = jsonInfo['microdata']['description']
         except Exception as e:
             head = None
-            self.logger.warn_and_trace(e)
-            self.logger.warn("Header not captured at %s" % url)
+            self.logger.warn_and_trace(e, {'CrawlSearch': crawlSearchID})
+            self.logger.warn("Header not captured at %s" % url, {'CrawlSearch': crawlSearchID})
 
         # brand - Clothe's Brand
         try:
             brand = jsonInfo['microdata']['brand']
         except Exception as e:
             brand = None
-            self.logger.warn_and_trace(e)
-            self.logger.warn("Brand not captured at %s" % url)    
+            self.logger.warn_and_trace(e, {'CrawlSearch': crawlSearchID})
+            self.logger.warn("Brand not captured at %s" % url, {'CrawlSearch': crawlSearchID})    
             
         # gender
         try:
             info_json = soup.findAll('span', {'class': re.compile(
                 'jsPageContextData')})[-1].get('data-pagecontext')
             gender = json.loads(info_json)['product']['mainCategoryId']
-            genderid = self.getGender(gender)
-        except:
+            genderID = self.getGender(gender)
+        except Exception as e:
             gender = ''
-            genderid = None
-            self.logger.info("Gender not captured at %s" % url)
+            genderID = None
+            self.logger.warn_and_trace(e, {'CrawlSearch': crawlSearchID})
+            self.logger.info("Gender not captured at %s" % url, {'CrawlSearch': crawlSearchID})
 
         # category - sub category
         try:
             info_json = soup.findAll('span', {'class': re.compile(
                     'jsPageContextData')})[-1].get('data-pagecontext')
-            # Capture category information    
-            prodCatStr = json.loads(info_json)['product']['categoryName']
-            # NLP process category
-            processedCategories = self.preprocess_metadata(prodCatStr)
-            # Get categories from DB and match the captured one
-            allCategories = self.db_manager.runSelectQuery(params={'table': 'ProductCategory'})
-            matchedCategories = (allCategories.loc[allCategories['Description'].str.lower()
-                    .isin( processedCategories.split() ), 'Description'].values)
-            if len(matchedCategories>1):
-                prodCatID = self.getProductCat(matchedCategories[0])
-            else: 
-                prodCatID = self.getProductCat(processedCategories)
-            prodSubCatID = self.getProductSubCat(prodSubCat=prodCatStr, prodCat=prodCatID)
-        except:
-            prodCatID = None
-            prodSubCatID = None
-            self.logger.info("Gender not captured at %s" % url)
+            # Capture category information
+            prodCatStr = json.loads(info_json)['product']['categoryPath'].split('/')[-2]
+            prodSubCatStr = json.loads(info_json)['product']['categoryPath'].split('/')[-1]
+            prodCatID, prodSubCatID = self.categorySelectio(prodCat=prodCatStr, prodSubCat=prodSubCatStr)
+            
+        except Exception as e:
+            prodCatID = None 
+            prodSubCatID = None 
+            self.logger.warn_and_trace(e, {'CrawlSearch': crawlSearchID})
+            self.logger.warning("ProductCategory and ProductSubcategory not captured at %s" % url, {'CrawlSearch': crawlSearchID})
 
         ### Other attributes #
         try:
@@ -994,16 +1064,17 @@ class Helper():
                     else:
                         attr_list.append(field.text.replace('\n', '').strip())
             meta = ' - '.join(attr_list)
-        except:
+        except Exception as e:          
             meta = ''
-            self.logger.info("Product Description not captured at %s" % url)
-        return price, head, brand, color, genderid, meta, sku, prodCatID, prodSubCatID
+            self.logger.warn_and_trace(e, {'CrawlSearch': crawlSearchID})
+            self.logger.info("Product Metadata not captured at %s" % url, {'CrawlSearch': crawlSearchID})
+        return price, head, brand, color, genderID, meta, sku, prodCatID, prodSubCatID
 
 
     ## Zalando specific functionality 
     ## Fetch search results form Zalando according to 'order' parameter 
     #
-    def resultDataframeZalando(self, keyUrl, order, filterDF=pd.DataFrame([]), breakPointNumber=9999999):
+    def crawlingZalando(self, keyUrl, order, filterDF=pd.DataFrame([]), breakPointNumber=9999999):
         '''
         Fetches search results form Zalando according to 'order' parameter. Parameter "filterDF" is 
         filled with the trending order dataframe to call the script with reference order and get the 
@@ -1091,7 +1162,7 @@ class Helper():
 
     # Get product information from Zalando 
     
-    def parseZalandoFields(self, url):
+    def parseZalandoFields(self, url, crawlSearchID):
         '''
         Gets product information from Zalando
         - Input:
@@ -1099,46 +1170,55 @@ class Helper():
             url: URL currently parsing
 
         - Returns:
-            head, brand, color, genderid, meta, sku, True, price
+            head, brand, color, genderID, meta, sku, True, price
         '''
         # Parse product page
         url, soup = self.get_content(url)
+        retry = 0
+        max_retries = 3
+        while 'error-page' in str(soup) and retry<max_retries:
+            url, soup = self.get_content(url)
+            retry += 1
+            if retry == max_retries:
+                self.logger.warn("Unable to access %s" % url, {'CrawlSearch': crawlSearchID})
+                return {}
+
         jsonUnparsed = soup .find('script', attrs={'id': re.compile(r'z-vegas-pdp-props')})
         try:
             jsonInfo = re.findall(r'{.+}', str(jsonUnparsed))[0]
             productInfo = json.loads(jsonInfo)
         except Exception as e:        
-            self.logger.warn_and_trace(e)
+            self.logger.warn_and_trace(e, {'CrawlSearch': crawlSearchID})
             return {}
         # Color 
         try:
             color = productInfo['model']['articleInfo']['color']
         except Exception as e:
             color = None
-            self.logger.info("ColorsDescription not captured at %s" % url)
-        # Product category
+            self.logger.warn_and_trace(e, {'CrawlSearch': crawlSearchID})
+            self.logger.warn("ColorsDescription not captured at %s" % url, {'CrawlSearch': crawlSearchID})
+        # category - sub category
         try:
-            prodCat = productInfo['model']['articleInfo']['silhouette_code']
-            prodCatID = self.getProductCat(prodCat)
+            # Capture category information
+            prodCatStr = productInfo['model']['articleInfo']['silhouette_code']
+            prodSubCatStr = productInfo['model']['articleInfo']['category_tag']
+            prodCatID, prodSubCatID = self.categorySelectio(prodCat=prodCatStr, prodSubCat=prodSubCatStr)
+            
         except Exception as e:
-            prodCat = None
-            self.logger.info("ProductCategory not captured at %s" % url)
-        # Product subcategory
-        try:
-            prodSubCat = productInfo['model']['articleInfo']['category_tag']
-            prodSubCatID = self.getProductSubCat(prodSubCat=prodSubCat, prodCat=prodCat)
-        except Exception as e:
-            prodSubCat = None
-            self.logger.info("ProductSubCategory not captured at %s" % url)
+            prodCatID = None 
+            prodSubCatID = None 
+            self.logger.warn_and_trace(e, {'CrawlSearch': crawlSearchID})
+            self.logger.warning("ProductCategory and ProductSubcategory not captured at %s" % url, {'CrawlSearch': crawlSearchID})
         # Gender
         try:
             gender = [g for g in ['MEN', 'WOMEN', 'KID', 'MAN', 'WOMAN', 'KIDS', 'UNISEX']  \
                     if g.lower() in map(lambda x: x.lower(), 
                     productInfo['model']['articleInfo']['categories'])][0].lower()
-            genderid = self.getGender(gender)
+            genderID = self.getGender(gender)
         except Exception as e:
-            genderid = None
-            self.logger.info("Gender not captured at %s" % url)
+            genderID = None
+            self.logger.warn_and_trace(e, {'CrawlSearch': crawlSearchID})
+            self.logger.warn("Gender not captured at %s" % url, {'CrawlSearch': crawlSearchID})
         # Metadata
         try:
             attributes = productInfo['model']['articleInfo']['attributes']
@@ -1149,8 +1229,9 @@ class Helper():
             meta = '. '.join(meta_names + meta_values)
         except Exception as e:
             meta = ''
-            self.logger.info("Metadata not captured at %s" % url)
+            self.logger.warn_and_trace(e, {'CrawlSearch': crawlSearchID})
+            self.logger.warn("Metadata not captured at %s" % url, {'CrawlSearch': crawlSearchID})
        
         params = {'ColorsDescription': color, 'Metadata': meta, 'ProductCategory': prodCatID, 
-                'ProductSubcategory': prodSubCatID, 'Gender': genderid}
+                'ProductSubcategory': prodSubCatID, 'Gender': genderID}
         return params

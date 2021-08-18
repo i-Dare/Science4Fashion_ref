@@ -9,7 +9,7 @@ from WebCrawlers.SocialMedia.SocialMediaCrawlers import PinterestCrawler, save_r
 
 if __name__ == '__main__':
     # Get input arguments
-    searchTerm, threshold, user = sys.argv[1], int(sys.argv[2]), sys.argv[3]
+    crawlSearchID, searchTerm, threshold, user = int(sys.argv[1]), sys.argv[2], int(sys.argv[3]), sys.argv[4]
     
     start_time_all = time.time()
     

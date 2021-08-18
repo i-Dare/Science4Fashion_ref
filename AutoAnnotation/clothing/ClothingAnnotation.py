@@ -57,6 +57,7 @@ class ClothingAnnotator():
         # Each entry
         self.logger.info("Executing product attribute annotation for %s unlabeled products" % len(self.product_df))
         for index, row in self.product_df.iterrows():
+            productID = row['Oid']
             # check if there is a blob or to skip it
             if not pd.isna(row['Image']):
                 image = self.helper.convertBlobToImage(row['Image'])
@@ -68,34 +69,54 @@ class ClothingAnnotator():
                 if pd.isna(row['NeckDesign']):
                     self.product_df.loc[index, 'NeckDesign'] = self.helper.updateAttribute(config.DICTNECKLINE, image,
                             self.necklineLearner)
+            except Exception as e:
+                self.logger.warn_and_trace(e, {'Product': productID})
+                self.logger.warning('Failed to infer Neckline for Product with Oid %s' % productID, {'Product': productID})
+
                 # Sleeve
                 if pd.isna(row['Sleeve']):
                     self.product_df.loc[index, 'Sleeve'] = self.helper.updateAttribute(config.DICTSLEEVE, image,
                             self.sleeveLearner)
+
+            except Exception as e:
+                self.logger.warn_and_trace(e, {'Product': productID})
+                self.logger.warning('Failed to infer Sleeve for for Product with Oid %s' % productID, {'Product': productID})
+
                 # Length
                 if pd.isna(row['Length']):
                     self.product_df.loc[index, 'Length'] = self.helper.updateAttribute(config.DICTLENGTH, image,
                             self.lengthLearner)
+
+            except Exception as e:
+                self.logger.warn_and_trace(e, {'Product': productID})
+                self.logger.warning('Failed to infer Length for for Product with Oid %s' % productID, {'Product': productID})
+
                 # Collar
                 if pd.isna(row['CollarDesign']):
                     self.product_df.loc[index, 'CollarDesign'] = self.helper.updateAttribute(config.DICTCOLLAR, image,
                             self.collarLearner)
-                # FIT
+
+            except Exception as e:
+                self.logger.warn_and_trace(e, {'Product': productID})
+                self.logger.warning('Failed to infer Collar for for Product with Oid %s' % productID, {'Product': productID})
+
+                # Fit
                 if pd.isna(row['Fit']):
                     self.product_df.loc[index, 'Fit'] = self.helper.updateAttribute(config.DICTFIT, image,
                             self.fitLearner)                
                 
             except Exception as e:
-                self.logger.warn_and_trace(e)
-                self.logger.warning('Failed to load image for Product with Oid %s' % row['Oid'])
+                self.logger.warn_and_trace(e, {'Product': productID})
+                self.logger.warning('Failed to infer Fit for for Product with Oid %s' % productID, {'Product': productID})
+                
         # Batch update Product table
-        self.logger.info('Updating Product table')
+        self.logger.info('Updating Product table after product attribute annotation')
         table = 'Product'
         columns = ['Oid'] + config.PRODUCT_ATTRIBUTES
         self.db_manager.runBatchUpdate(table, self.product_df[columns], 'Oid')
 
         # End Counting Time
-        self.logger.info("--- Finished image annotation of %s records in %s seconds ---" % (len(self.product_df), 
+        self.logger.info("--- Finished product attribute annotation of %s records in %s seconds ---" % (len(self.product_df), 
                 round(time.time() - start_time, 2)))
         self.logger.close()
 

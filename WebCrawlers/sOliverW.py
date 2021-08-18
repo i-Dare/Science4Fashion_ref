@@ -29,9 +29,9 @@ def performScraping(urlReceived, category):
 
     url, soup = helper_functions.get_content(urlReceived)
     # Get all relevant results for searh term
-    refDF = helper_functions.resultDataframeSOliver(urlReceived, 'reference')
+    refDF = helper_functions.crawlingSOliver(urlReceived, 'reference')
     # Get trending products
-    trendDF = helper_functions.resultDataframeSOliver(urlReceived, 'trend')
+    trendDF = helper_functions.crawlingSOliver(urlReceived, 'trend')
 
     # Iterate trending products
     for i, row in trendDF.iterrows():
@@ -46,7 +46,7 @@ def performScraping(urlReceived, category):
 
         # Find fields from product's webpage
         url, soup = helper_functions.get_content(url)
-        price, head, brand, color, genderid, meta, sku, isActive = helper_functions.parseSOliverFields(soup, url, imgURL)
+        price, head, brand, color, genderID, meta, sku, isActive = helper_functions.parseSOliverFields(soup, url, imgURL)
 
         url=url.replace("'", "''")
         querydf = pd.read_sql_query("SELECT * FROM %s.dbo.Product WHERE  CONVERT(VARCHAR(MAX), %s.dbo.PRODUCT.URL) = \
@@ -71,7 +71,7 @@ def performScraping(urlReceived, category):
 
              # Create new entry in PRODUCT table
             helper_functions.addNewProduct(
-                site, category, imageFilePath, empPhoto, url, imgURL, head, color, genderid, brand, meta, sku, isActive)
+                site, category, imageFilePath, empPhoto, url, imgURL, head, color, genderID, brand, meta, sku, isActive)
 
             # Create new entry in ProductHistory table
             helper_functions.addNewProductHistory(url, referenceOrder, trendOrder, price, '')

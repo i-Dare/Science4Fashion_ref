@@ -64,6 +64,7 @@ class ColorAnnotator():
 
         #Colors dataframe
         for _, row in self.product_df.iterrows():
+            productID = row['Oid']
             # Image source
             imgSrc = row['Photo']
             # try:
@@ -76,7 +77,7 @@ class ColorAnnotator():
                 # If image fails to load from binary, retrieve it from the image URL
                 if image is None:
                     image = self.helper.getWebImage(row['ImageSource'])
-                imgSrc = 'Extracted image %s' % row['Oid']
+                imgSrc = 'Extracted image %s' % productID
             _ = self.colorExtraction(image, imgSrc, row)
 
         # End Counting Time
@@ -85,10 +86,11 @@ class ColorAnnotator():
         self.logger.close()
 
     def colorExtraction(self, image, imgSrc, row):
+        productID = row['Oid']
         if image is None:
-            self.logger.warning('Failed to load image for Product with Oid %s' % row['Oid'])
+            self.logger.warning('Failed to load image for Product with Oid %s' % productID, {'Product': productID})
             return -1
-        self.logger.info('Processing image of Product with Oid %s' % row['Oid'])
+        self.logger.info('Processing image of Product with Oid %s' % productID, {'Product': productID})
         # Initialize Cloth seperation module
         cloth = Cloth(imgSrc, imgBGR=image)
 
@@ -105,8 +107,9 @@ class ColorAnnotator():
         try:
             _, clothImg2D = imageUtils.reshapeDim(cloth.clothMask, cloth.clothImg)
             cloth.extractColor(clothImg2D)
-        except:
-            self.logger.info('Failed to extract color informantion for image %s' % imgSrc)
+        except Exception as e:
+            self.logger.warn_and_trace(e, {'Product': productID})
+            self.logger.info('Failed to extract color informantion for image %s' % imgSrc, {'Product': productID})
             # In case of an error color RGB = (-1, -1, -1)
             color_fail = -1 * np.ones(3, dtype=int)
             cloth.colors = [(0., color_fail)] * 5
@@ -126,15 +129,16 @@ class ColorAnnotator():
             params = dict(zip(dict_keys, dict_values))
             uniq_params = dict(zip(rgb_list, color))
             params['table'] = uniq_params['table'] = 'ColorRGB'
+            productID = row['Oid']
             self.logger.info('Captured color \"%s\" - \"%s\" %s for product %s' % (colorName, 
-                    colorNameDetailed, str(color), row['Oid']))
+                    colorNameDetailed, str(color), productID), {'Product': productID})
             newEntryColorRGB_df = self.db_manager.runCriteriaInsertQuery(uniq_params=uniq_params, 
                                                                 params=params, 
                                                                 get_identity=True)
 
             # Prepare insert query for captured color in 'ProductColor' table
             params = {'Ranking': ranking+1, 'Percentage': colorPercentage, 
-                    'ColorRGB': newEntryColorRGB_df.loc[0, 'Oid'], 'Product': row['Oid'],
+                    'ColorRGB': newEntryColorRGB_df.loc[0, 'Oid'], 'Product': productID,
                     'table': 'ProductColor'}
             self.db_manager.runInsertQuery(params)
             

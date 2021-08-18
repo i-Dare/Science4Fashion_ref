@@ -15,7 +15,7 @@ import core.config as config
 
 
 ## This function handles the scraping functionality of the web crawler
-def performScraping(urlReceived, searchTerm, breakPointNumber):
+def performScraping(crawlSearchID, urlReceived, searchTerm, breakPointNumber):
     # initialize scraping
     start_time = time.time()
     # stats counters
@@ -33,9 +33,9 @@ def performScraping(urlReceived, searchTerm, breakPointNumber):
     if breakPointNumber==0:
         breakPointNumber = 10
     # Get trending products
-    trendDF = helper.resultDataframeZalando(urlReceived, 'trend', breakPointNumber=breakPointNumber)
+    trendDF = helper.crawlingZalando(urlReceived, 'trend', breakPointNumber=breakPointNumber)
     # Get all relevant results for searh term
-    refDF = helper.resultDataframeZalando(urlReceived, 'reference', filterDF=trendDF)
+    refDF = helper.crawlingZalando(urlReceived, 'reference', filterDF=trendDF)
     # Iterate captured products
     for _, row in trendDF.iterrows():
         trendOrder = row['trendOrder']
@@ -47,14 +47,14 @@ def performScraping(urlReceived, searchTerm, breakPointNumber):
         else:
             referenceOrder = 0
         
-        paramsFromProductPage = helper.parseZalandoFields(productPage)
+        paramsFromProductPage = helper.parseZalandoFields(productPage, crawlSearchID)
         paramsFromSearchPage = {'table': 'Product', 'Description': searchTerm, 'Active':  True, 
                 'Ordering': 0, 'ProductCode': sku, 'ProductTitle': head, 'SiteHeadline': head, 
                 'RetailPrice': price, 'URL': productPage, 'ImageSource': imgURL, 'Brand': brand}
         uniq_params = {'table': 'Product', 'URL': productPage}
         params = dict(paramsFromProductPage, **paramsFromSearchPage)
         # Register product information
-        cnt, productID = helper.registerData(site, standardUrl, referenceOrder, trendOrder, cnt,
+        cnt, productID = helper.registerData(crawlSearchID, site, standardUrl, referenceOrder, trendOrder, cnt,
                 uniq_params, params)
     
     logger.info('Images requested: %s, Images needed: %s, Images Downloaded: %s (%s%%)' % \
@@ -66,7 +66,7 @@ def performScraping(urlReceived, searchTerm, breakPointNumber):
 ############ Main function ############
 if __name__ == '__main__':
     # Get input arguments
-    searchTerm, threshold, user = sys.argv[1], int(sys.argv[2]), sys.argv[3]
+    crawlSearchID, searchTerm, threshold, user = int(sys.argv[1]), sys.argv[2], int(sys.argv[3]), sys.argv[4]
     logging = S4F_Logger('ZalandoLogger', user=user)
     logger = logging.logger
     helper = Helper(logging)
@@ -82,5 +82,5 @@ if __name__ == '__main__':
     logger.info('Parsing: ' + str(query_url))
 
     folderName = helper.getFolderName(searchTerm)
-    performScraping(query_url, searchTerm, threshold)
+    performScraping(crawlSearchID, query_url, searchTerm, threshold)
     logger.info("Time to scrape ALL queries is %s seconds ---" % round(time.time() - start_time_all, 2))

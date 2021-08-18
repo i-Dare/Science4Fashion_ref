@@ -15,7 +15,7 @@ import core.config as config
 
 
 ############ This function will be called every new keyword line is encountered and will start scraping the amazon web page of the search result according to the text mention in the searchTerm text file ############
-def performScraping(urlReceived, searchTerm, breakPointNumber):
+def performScraping(crawlSearchID, urlReceived, searchTerm, breakPointNumber):
     # initialize scraping
     start_time = time.time()
     # stats counters
@@ -33,37 +33,39 @@ def performScraping(urlReceived, searchTerm, breakPointNumber):
     if breakPointNumber==0:
         breakPointNumber = 10
     # Get trending products
-    trendDF = helper.resultDataframeSOliver(urlReceived, 'trend', breakPointNumber=breakPointNumber)
+    trendDF = helper.crawlingSOliver(urlReceived, 'trend', breakPointNumber=breakPointNumber)
     # Get all relevant results for searh term
-    refDF = helper.resultDataframeSOliver(urlReceived, 'reference', filterDF=trendDF)    
+    refDF = helper.crawlingSOliver(urlReceived, 'reference', filterDF=trendDF)
+    if len(trendDF)==0 or len(refDF)==0:
+        logger.warning('No results found for terms %s in %s' % (searchTerm, urlReceived))
+    else:
+        # Iterate trending products
+        for _, row in trendDF.iterrows():
+            trendOrder, url, imgURL, price, color = row['trendOrder'], row['URL'], row['imgURL'], \
+                    row['price'], row['color']
+            # Retrieve reference order
+            if not refDF.loc[refDF['URL']==url, 'referenceOrder'].empty:
+                referenceOrder = refDF.loc[refDF['URL']==url, 'referenceOrder'].values[0]
+            else:
+                referenceOrder = 0
+            # Find fields from product's webpage
+            url, soup = helper.get_content(url)
+            price, head, brand, color, genderID, meta, sku, prodCatID, prodSubCatID = \
+                    helper.parseSOliverFields(soup, url, imgURL, crawlSearchID)
+            
+            # Check if url already exists in the PRODUCT table
+            # If TRUE update the latest record in ProductHistory table
+            # Otherwise download product image and create new product entry in PRODUCT and ProductHistory tables
+            uniq_params = {'table': 'Product', 'URL': url}
+            params = {'table': 'Product', 'Description': searchTerm, 'Active':  True, 'Gender': genderID,
+                    'ColorsDescription': color, 'Ordering': 0, 'ProductCode': sku, 'ProductTitle': head, 
+                    'SiteHeadline': head, 'Metadata': meta, 'RetailPrice': price, 'URL': url, 
+                    'ImageSource': imgURL, 'Brand': brand, 'ProductCategory': prodCatID, 
+                    'ProductSubcategory': prodSubCatID}
+            cnt, productID = helper.registerData(crawlSearchID, site, standardUrl, referenceOrder, trendOrder, cnt, 
+                    uniq_params, params)
 
-    # Iterate trending products
-    for _, row in trendDF.iterrows():
-        trendOrder, url, imgURL, price, color = row['trendOrder'], row['URL'], row['imgURL'], \
-                row['price'], row['color']
-        # Retrieve reference order
-        if not refDF.loc[refDF['URL']==url, 'referenceOrder'].empty:
-            referenceOrder = refDF.loc[refDF['URL']==url, 'referenceOrder'].values[0]
-        else:
-            referenceOrder = 0
-        # Find fields from product's webpage
-        url, soup = helper.get_content(url)
-        price, head, brand, color, genderid, meta, sku, prodCatID, prodSubCatID = \
-                helper.parseSOliverFields(soup, url, imgURL)
-        
-        # Check if url already exists in the PRODUCT table
-        # If TRUE update the latest record in ProductHistory table
-        # Otherwise download product image and create new product entry in PRODUCT and ProductHistory tables
-        uniq_params = {'table': 'Product', 'URL': url}
-        params = {'table': 'Product', 'Description': searchTerm, 'Active':  True, 'Gender': genderid,
-                'ColorsDescription': color, 'Ordering': 0, 'ProductCode': sku, 'ProductTitle': head, 
-                'SiteHeadline': head, 'Metadata': meta, 'RetailPrice': price, 'URL': url, 
-                'ImageSource': imgURL, 'Brand': brand, 'ProductCategory': prodCatID, 
-                'ProductSubcategory': prodSubCatID}
-        cnt, productID = helper.registerData(site, standardUrl, referenceOrder, trendOrder, cnt, 
-                uniq_params, params)
-
-    logger.info('Images requested: %s, Images needed: %s, Images Downloaded: %s (%s%%)' % \
+        logger.info('Images requested: %s, Images needed: %s, Images Downloaded: %s (%s%%)' % \
             (breakPointNumber, len(trendDF), cnt, round(cnt/len(trendDF),2 ) * 100))
     # The time needed to scrape this query
     logger.info("Time to scrape this query is %s seconds ---" % round(time.time() - start_time, 2))
@@ -73,7 +75,7 @@ def performScraping(urlReceived, searchTerm, breakPointNumber):
 ############ Main function ############
 if __name__ == '__main__':
     # Get input arguments
-    searchTerm, threshold, user = sys.argv[1], int(sys.argv[2]), sys.argv[3]
+    crawlSearchID, searchTerm, threshold, user = int(sys.argv[1]), sys.argv[2], int(sys.argv[3]), sys.argv[4]
     logging = S4F_Logger('SoliverLogger', user=user)
     logger = logging.logger
     helper = Helper(logging)
@@ -90,5 +92,5 @@ if __name__ == '__main__':
     logger.info('Parsing: ' + str(query_url))
 
     folderName = helper.getFolderName(searchTerm)
-    performScraping(query_url, searchTerm, threshold)
+    performScraping(crawlSearchID, query_url, searchTerm, threshold)
     logger.info("Time to scrape ALL queries is %s seconds ---" % round(time.time() - start_time_all, 2))

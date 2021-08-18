@@ -1,11 +1,9 @@
 import os
 import subprocess
 import argparse
-import sqlalchemy
 import pandas as pd
-import warnings
 from datetime import datetime
-import time
+from textblob import TextBlob
 
 from core.helper_functions import *
 import core.config as config
@@ -18,11 +16,11 @@ class WebCrawlers:
       self.dbName = config.DB_NAME
       
       # Get all Adapters as stored in the database
-      self.adapterDF = pd.read_sql_query("SELECT * FROM %s.dbo.Adapter" % self.dbName, self.engine)
+      self.adapterDF = QueryManager().runSelectQuery(params={'table': 'Adapter'})
       
       # Create a dictionary that maps each Adapter to the corresponding script
       # Get adapter scripts
-      self.allAdapters = [adapter.lower() for adapter in self.adapterDF['Description'].values]
+      self.allAdapters = self.adapterDF['Description'].str.lower().tolist()
      
       # Get all python scripts in the WebCrawlers directory
       pythonScripts = [f for f in os.listdir(config.WEB_CRAWLERS) if str(f).endswith('.py')]
@@ -41,32 +39,30 @@ class WebCrawlers:
       # Initialize argument parser      
       self.parser = argparse.ArgumentParser(description = 'A wrapper script for executing the website\
             crawlers', prog = 'Website Crawlers Wrapper')
-      self.parser.add_argument('-s','--searchTerm', type = str, help = '''Input the search query term''', 
-            required = True, nargs = '+')
-      self.parser.add_argument('-n','--numberResults', type = int, help = '''Input the number of \
-            results you want to return''', default = 10, nargs = '?')
-      self.parser.add_argument('-a','--adapter', help = '''Input the Adapter you would like to use \
-            for your search query. The Adapter should be one of: %s''' % self.adapterDF['Description'].values, 
-            type = lambda s: s.lower(), choices = self.allAdapters, required = True, nargs = '+')  
-      self.parser.add_argument('-u', '--user', help = '''User's name''') 
+      self.parser.add_argument('-i','--id', type = int, help = '''Input the search id''', required = True)
       
       # Parse arguments
       self.args = self.parser.parse_args()
-      self.adapter = self.args.adapter
-      self.searchTerm = ' '.join(self.args.searchTerm)
-      self.numberResults = self.args.numberResults
-      self.user = self.args.user
-
+      self.crawlSearchID = self.args.id
+      
       self.initCrawling()
       self.checkArgConstrains()
 
 
    # Init function
    def initCrawling(self,):
-       # Init logger
-      if not self.user:
-         self.user = config.DEFAULT_USER        
+      # Fetch search information from CrawlSearch table
+      search_df = QueryManager().runSelectQuery(params={'table': 'CrawlSearch', 'Oid': self.crawlSearchID})
 
+      # Assign query parameters to the parameters "searchTerm", "NumberOfProductsToReturn", "user", 
+      # and "adapters"      
+      self.numberResults = search_df.iloc[0]['NumberOfProductsToReturn']
+      self.user = search_df.iloc[0]['UpdatedBy']
+      self.adapters = [col.lower() for col in search_df.columns if search_df.iloc[0][col] and col.lower() in self.allAdapters]
+      self.initSearchTerm = search_df.iloc[0]['InitialSearchTerm']
+      self.disableSpellCheck = search_df.iloc[0]['DisableSpellCheck']
+      
+      # Init logger
       self.logging = S4F_Logger('WrapperLogger', user=self.user)
       self.logger = self.logging.logger
       # Init helper
@@ -74,14 +70,28 @@ class WebCrawlers:
       # Init db_manager
       self.db_manager = QueryManager(user=self.user)
 
+      # Check spelling option
+      self.spellCheck()
+
    # Check argument constrains      
    def checkArgConstrains(self,):
-      for adapter in self.adapter:
+      for adapter in self.adapters:
          if adapter not in self.adapter_dict.keys():
             availableAdapters = [a for a in self.adapterDF['Description'].values if a.lower() in \
                   self.adapter_dict.keys()]
             self.logger.warning('Adapter %s not implemented yet. Plese choose one of %s.' \
-                  % (adapter, availableAdapters))
+                  % (adapter, availableAdapters), {'CrawlSearch': self.crawlSearchID})
+   
+   def spellCheck(self,):
+      if self.disableSpellCheck:
+         self.searchTerm = self.initSearchTerm
+      else:
+         # Perform spelling correction
+         self.searchTerm = TextBlob(self.initSearchTerm).correct().string
+      # Update CrawlSearch record with search term
+      uniq_params = {'table': 'CrawlSearch', 'Oid': self.crawlSearchID}
+      params = {'table': 'CrawlSearch', 'SearchTerm': self.searchTerm}
+      self.db_manager.runCriteriaUpdateQuery(uniq_params=uniq_params, params=params)
 
    # Update CrawlSearch table
    def updateCrawlSearchTable(self, description, adapter, numberResults):
@@ -104,8 +114,9 @@ class WebCrawlers:
 # ------------------------------------------------------------
    # Execute Website Crawler process
    def executeWebCrawler(self,):
-      for adapter in self.adapter:
-         self.logger.info('Search for %s on %s' % (self.searchTerm, str(adapter).capitalize()))
+      for adapter in self.adapters:
+         self.logger.info('Search for %s on %s' % (self.searchTerm, str(adapter).capitalize()), 
+               {'CrawlSearch': self.crawlSearchID})
 
          # Upadate CrawlSearch table
          # self.updateCrawlSearchTable(self.searchTerm, adapter, self.numberResults)
@@ -115,17 +126,18 @@ class WebCrawlers:
          #       
          proc = subprocess.run(['python', 
                                  self.adapter_dict[adapter], 
+                                 str(self.crawlSearchID), 
                                  self.searchTerm, 
                                  str(self.numberResults),
                                  str(self.user),
                                  ],
                                  stderr=subprocess.STDOUT)
          if proc.returncode != 0:   
-            self.logger.warning('Issues in adapter %s' % str(adapter).capitalize()) 
+            self.logger.warning('Issues in adapter %s' % str(adapter).capitalize(), {'CrawlSearch': self.crawlSearchID}) 
 
    # Execute product clustering module
    def executeClustering(self, train=False):
-      self.logger.info('Executing: Clustering')      
+      self.logger.info('Executing: Clustering', {'CrawlSearch': self.crawlSearchID})      
       scriptPath = os.path.join(config.CLUSTERING, 'clustering_consensus.py')
       if train:
          args = ['python', scriptPath, '-train', '--user', str(self.user)]
@@ -133,7 +145,7 @@ class WebCrawlers:
          args = ['python', scriptPath, '--user', str(self.user)]
       proc = subprocess.run(args, stderr=subprocess.STDOUT)
       if proc.returncode != 0:
-         self.logger.warning('Issues in clothing based annotation')
+         self.logger.warning('Issues in clothing based annotation', {'CrawlSearch': self.crawlSearchID})
       
 
    ## Sequencially executes the data collection and annotation process
@@ -141,7 +153,7 @@ class WebCrawlers:
    # Step 2: Execute product clustering module
    def run(self,):
       self.executeWebCrawler()
-      self.executeClustering(train=True)
+      # self.executeClustering(train=True)
 
 if __name__ == "__main__":
    webCrawler = WebCrawlers()

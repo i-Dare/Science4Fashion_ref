@@ -64,21 +64,6 @@ class MetadataAnnotator():
         self.products_df = self.product_preprocessing(products_df)
 
 
-        # filters = config.PRODUCT_ATTRIBUTES + ['Oid', 'Metadata', 'Description']
-        # table = 'Product'
-        # if len(oids) > 0:
-        #     where = ' OR '.join(['Oid=%s' % i for i in  oids])
-        #     filters = '%s' % ', '.join(filters)
-        #     query = 'SELECT %s FROM %s.dbo.%s WHERE %s' % (filters, config.DB_NAME, table, where)
-        #     self.products_df = self.db_manager.runSimpleQuery(query, get_identity=True)
-        # else:
-        #     # Filter the old elements with the new one, Keep only the non-updated elements to improve 
-        #     # efficiency, reset index due to slice
-        #     params = {attr: 'NULL' for attr in config.PRODUCT_ATTRIBUTES}
-        #     params['table'] = 'Product'
-        #     product_df = self.db_manager.runSelectQuery(params, filters=filters)
-        #     self.products_df = product_df.reset_index(drop=True)
-
     def product_preprocessing(self, products_df):
         ## Merging results
         # 
@@ -106,12 +91,12 @@ class MetadataAnnotator():
         # attributes_df.loc[:, 'processed_extended_metadata'] = (attributes_df.loc[:, ['Metadata', 'processed_extended_metadata']]
         #       .apply(lambda row: [r  for r in row['processed_extended_metadata'].split() if r not in row['Metadata']] , axis=1)
         #       .str.join(' '))
-        # Final merge to 'Metadata' columns
+        # Final merge to 'Metadata' columns selecting only unique tokens
         attributes_df['Metadata'] = (attributes_df['Metadata']
                 .str.cat(attributes_df['processed_extended_metadata']
-                .astype(str), sep=' '))
+                .astype(str), sep=' ').apply(lambda x: ' '.join(set(x.split())) ))
         self.logger.info('Processed %s records in %s seconds' % (len(attributes_df), round(time.time() - start_time, 2)))
-        return attributes_df.loc[:, config.PRODUCT_ATTRIBUTES+['Description', 'Metadata']].reset_index()
+        return attributes_df.loc[:, config.PRODUCT_ATTRIBUTES + ['Description', 'Metadata']].reset_index()
 
     def execute_annotation(self,):        
         try:
@@ -120,8 +105,8 @@ class MetadataAnnotator():
                 labels_df = pd.DataFrame()
                 labels_df['Oid'] = self.products_df['Oid'].copy()
                 # Metadata and Headline consists of information related to each row 
-                metadata = self.products_df['Metadata'].str.upper()
-                headline = self.products_df['Description'].str.upper()
+                metadata = self.products_df['Metadata'].str.lower()
+                headline = self.products_df['Description'].str.lower()
 
                 # Read possible labels
                 expertAttributesDF = pd.read_excel(config.PRODUCT_ATTRIBUTES_PATH, sheet_name=config.SHEETNAME)
@@ -131,24 +116,27 @@ class MetadataAnnotator():
                 for attr in config.PRODUCT_ATTRIBUTES:
                     attrDict[str(attr)] = (expertAttributesDF[attr].replace(' ', np.nan)
                             .dropna()
-                            .str.upper()
+                            .str.lower()
                             .unique()
                             .tolist())
                     labels_df[attr] = np.empty((len(self.products_df), 0)).tolist()
                 
                 # Preprocessing 
-                # self.logger.info('Preprocessing metadata...')    
                 # Convert every label, metadata and headline to uppercase 
                 splitted_metadata = [s.split() if isinstance(s, str) else " " for s in metadata]
                 splitted_headline = [s.split() if isinstance(s, str) else " " for s in headline]    
                 
                 # Search for occurences of labels in metadata and headline. For attribute LENGTH if the next 
-                #   word is not a kind of cat (Trousers etc) then it is propably wrong so we get rid of it. 
+                # word is not a kind of category (Trousers etc) then it is propably wrong so we get rid of it.
+                # Store label accurences as tuple in the form of (index, label, position, 1|0)
+                # index: the absolute position of the product in "labels_df" 
+                # label: a specific value of product a attribute
+                # position: the position of the "label" in the metadata or headline lists
                 cat = 'ProductCategory'
                 for attr in config.PRODUCT_ATTRIBUTES:
-                    saved_meta = [(index, label, s.find(label), 1) for label in (attrDict[str(attr)]) 
+                    saved_meta = [(index, label, s.find(label), 1) for label in attrDict[str(attr)] 
                             for index,s in enumerate(metadata) if contains_word(s, label)]
-                    saved_head = [(index, label, s.find(label), 0) for label in (attrDict[str(attr)]) 
+                    saved_head = [(index, label, s.find(label), 0) for label in attrDict[str(attr)]
                             for index,s in enumerate(headline) if contains_word(s, label)]
                     for s in (saved_meta + saved_head):
                         s = editStrings(s, attr)
@@ -164,14 +152,14 @@ class MetadataAnnotator():
                 
                 # Find similar words, for example -> rounded and round and one of them is discarded 
                 for attr in config.PRODUCT_ATTRIBUTES:
-                    # Τhe next line sorts the elements of the respective columns based on position and on metadata or headline (headline first and then position on each string)
+                    # Sort the elements of the respective columns based on position on metadata or headline (headline first and then position on each string)
                     labels_df.loc[:, attr] = pd.Series([sorted(list(ele), key = lambda tup: (tup[2], tup[1])) for ele in labels_df.loc[:, attr]])
                     labels_df.loc[:, attr] = pd.Series([list(map(lambda x: x[0], ele)) for ele in labels_df.loc[:, attr]])
                     saved = defaultdict(list)
                     for i, element in enumerate(labels_df.loc[:, attr]):
                         if len(element) >= 2:
                             for (k, l1),(ki, l2) in itertools.combinations(enumerate(element), 2): 
-                                if similar(l1[0], l2[0]) >= 0.8:
+                                if similar(l1, l2) >= 0.8:
                                     saved[i].append((ki,l2))
 
                     for key,value in saved.items():
@@ -200,9 +188,9 @@ class MetadataAnnotator():
                 # Update the DB tables with the new attributes                
                 for (table, values) in labelsUnique.items():
                     self.logger.info('Updating product attribute table %s' % table)  
-                    for v in values:                        
-                        uniq_params = {'table': table, 'Description': v.upper()}
-                        params = {'table': table, 'Description': v.upper(), 'AlternativeDescription': '', 
+                    for v in values:
+                        uniq_params = {'table': table, 'Description': v.lower()}
+                        params = {'table': table, 'Description': v.lower(), 'AlternativeDescription': '', 
                                 'ProductCategory': None, 'Active': True, 'OptimisticLockField': None}
                         self.db_manager.runCriteriaInsertQuery(
                                                             uniq_params=uniq_params, 
@@ -216,7 +204,7 @@ class MetadataAnnotator():
                 for attr in config.PRODUCT_ATTRIBUTES:
                     dfDict[str(attr)+'_DB'] = self.db_manager.runSelectQuery(params={'table': attr})
 
-                # Update Products table for each attribute
+                # Update Product table for each attribute
                 for attr in config.PRODUCT_ATTRIBUTES:
                     # If there are multiple attributes, select the first
                     labels_df.loc[labels_df[attr].notnull(), attr] = (labels_df[labels_df[attr]
@@ -225,7 +213,7 @@ class MetadataAnnotator():
                     # Merge the updated attribute values to Product table
                     merged_df = labels_df.merge(dfDict[str(attr)+'_DB'], left_on=attr, right_on='Description')[['Oid_x', 'Oid_y']]
                     for i, row in merged_df.iterrows():                        
-                        # If values is NA for product attribute, update with new value
+                        # If values is NA for product attribute, update with the captured value
                         if pd.isna(self.products_df.loc[self.products_df['Oid']==row['Oid_x'], attr].values[0]):
                             uniq_params = {'table': 'Product', 'Oid': row['Oid_x']}
                             params = {'table': 'Product', attr: row['Oid_y']}
