@@ -107,20 +107,19 @@ class MetadataAnnotator():
                 # Metadata and Headline consists of information related to each row 
                 metadata = self.products_df['Metadata'].str.lower()
                 headline = self.products_df['Description'].str.lower()
-
-                # Read possible labels
-                expertAttributesDF = pd.read_excel(config.PRODUCT_ATTRIBUTES_PATH, sheet_name=config.SHEETNAME)
                 
-                # Create Variables with same name as the Energiers column names, to store the labels. 
-                attrDict = {}
+                # Create a dictionary of dataframes to read product attribute data from the database
+                dfDict = {}
+                # Create a dictionary of variables with same name as the product attribute names, 
+                # to store the labels. 
+                attrDict = {}                
                 for attr in config.PRODUCT_ATTRIBUTES:
-                    attrDict[str(attr)] = (expertAttributesDF[attr].replace(' ', np.nan)
-                            .dropna()
-                            .str.lower()
-                            .unique()
-                            .tolist())
+                    # Populate dataframe dictionary
+                    dfDict[str(attr)+'_DB'] = self.db_manager.runSelectQuery(params={'table': attr})
+                    # Populate product attribute dictionary
+                    attrDict[str(attr)] = dfDict[str(attr)+'_DB']['Description'].str.lower().tolist()
                     labels_df[attr] = np.empty((len(self.products_df), 0)).tolist()
-                
+               
                 # Preprocessing 
                 # Convert every label, metadata and headline to uppercase 
                 splitted_metadata = [s.split() if isinstance(s, str) else " " for s in metadata]
@@ -179,11 +178,11 @@ class MetadataAnnotator():
                         if label for l in label.split(',')]) 
                         for attr in labels_df.loc[:, config.PRODUCT_ATTRIBUTES].columns}
 
-                # Read from database the labels 
-                # for name in (config.PRODUCT_ATTRIBUTES + config.DEEPFASHIONATTRIBUTES):
-                dfDict = {}
-                for attr in config.PRODUCT_ATTRIBUTES:
-                    dfDict[str(attr)+'_DB'] = self.db_manager.runSelectQuery(params={'table': attr})
+                # # Read from database the labels 
+                # # for name in (config.PRODUCT_ATTRIBUTES + config.DEEPFASHIONATTRIBUTES):
+                # dfDict = {}
+                # for attr in config.PRODUCT_ATTRIBUTES:
+                #     dfDict[str(attr)+'_DB'] = self.db_manager.runSelectQuery(params={'table': attr})
 
                 # Update the DB tables with the new attributes                
                 for (table, values) in labelsUnique.items():

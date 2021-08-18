@@ -20,14 +20,14 @@ class DataAnnotator:
       # Initialize argument parser      
       self.parser = argparse.ArgumentParser(description = 'A wrapper script for executing the adhoc \
             data annotation process', prog = 'Data Annotation Wrapper')
-      self.parser.add_argument('-o','--oids', help = '''Input the Product Oids for annotation. If \
+      self.parser.add_argument('-i','--id', help = '''Input the Product Oids for annotation. If \
             empty, the annotator will be executed for all Product Oids with empty product attributes''', 
             required = False, nargs = '+')  
       self.parser.add_argument('-u', '--user', required = True, help = '''User's name''') 
       
       # Parse arguments
       self.args = self.parser.parse_args()
-      self.oids = self.args.oids
+      self.oids = self.args.id
       self.user = self.args.user      
 
 
