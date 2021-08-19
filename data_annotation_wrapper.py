@@ -109,8 +109,8 @@ class DataAnnotator:
    # Step 4: Execute product clustering module
    def run(self,):
       self.initAnnotation()      
-      # self.executeColorBasedAnnotation()
-      # self.executeClothingBasedAnnotation()
+      self.executeColorBasedAnnotation()
+      self.executeClothingBasedAnnotation()
       self.executeTextBasedAnnotation()
       self.executeClustering(train=True)
 

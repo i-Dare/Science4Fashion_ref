@@ -156,7 +156,7 @@ class WebCrawlers:
    # Step 2: Execute product clustering module
    def run(self,):
       self.executeWebCrawler()
-      # self.executeClustering(train=True)
+      self.executeClustering(train=True)
 
 if __name__ == "__main__":
    webCrawler = WebCrawlers()
