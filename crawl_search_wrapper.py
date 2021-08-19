@@ -40,10 +40,12 @@ class WebCrawlers:
       self.parser = argparse.ArgumentParser(description = 'A wrapper script for executing the website\
             crawlers', prog = 'Website Crawlers Wrapper')
       self.parser.add_argument('-i','--id', type = int, help = '''Input the search id''', required = True)
+      self.parser.add_argument('-l', '--loglevel', required = False, default=config.DEFAULT_LOGGING_LEVEL, help = '''Logging level''')
       
       # Parse arguments
       self.args = self.parser.parse_args()
       self.crawlSearchID = self.args.id
+      self.loglevel = self.args.loglevel      
       
       self.initCrawling()
       self.checkArgConstrains()
@@ -63,7 +65,7 @@ class WebCrawlers:
       self.disableSpellCheck = search_df.iloc[0]['DisableSpellCheck']
       
       # Init logger
-      self.logging = S4F_Logger('WrapperLogger', user=self.user)
+      self.logging = S4F_Logger('WrapperLogger', user=self.user, level=self.loglevel)
       self.logger = self.logging.logger
       # Init helper
       self.helper = Helper(self.logging)
@@ -115,7 +117,7 @@ class WebCrawlers:
    # Execute Website Crawler process
    def executeWebCrawler(self,):
       for adapter in self.adapters:
-         self.logger.info('Search for %s on %s' % (self.searchTerm, str(adapter).capitalize()), 
+         self.logger.info('Execute search for %s on %s' % (self.searchTerm, str(adapter).capitalize()), 
                {'CrawlSearch': self.crawlSearchID})
 
          # Upadate CrawlSearch table
@@ -130,6 +132,7 @@ class WebCrawlers:
                                  self.searchTerm, 
                                  str(self.numberResults),
                                  str(self.user),
+                                 self.loglevel
                                  ],
                                  stderr=subprocess.STDOUT)
          if proc.returncode != 0:   
@@ -140,9 +143,9 @@ class WebCrawlers:
       self.logger.info('Executing: Clustering', {'CrawlSearch': self.crawlSearchID})      
       scriptPath = os.path.join(config.CLUSTERING, 'clustering_consensus.py')
       if train:
-         args = ['python', scriptPath, '-train', '--user', str(self.user)]
+         args = ['python', scriptPath, '-train', '--user', str(self.user), '--loglevel', self.loglevel]
       else:
-         args = ['python', scriptPath, '--user', str(self.user)]
+         args = ['python', scriptPath, '--user', str(self.user), '--loglevel', self.loglevel]
       proc = subprocess.run(args, stderr=subprocess.STDOUT)
       if proc.returncode != 0:
          self.logger.warning('Issues in clothing based annotation', {'CrawlSearch': self.crawlSearchID})

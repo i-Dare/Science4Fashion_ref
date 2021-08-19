@@ -33,12 +33,12 @@ from core.query_manager import QueryManager
 
 class ConsensusClustering:
 
-   def __init__(self, user=config.DEFAULT_USER, linkage=config.LINKAGE, train=False):
+   def __init__(self, user=config.DEFAULT_USER, linkage=config.LINKAGE, train=False, loglevel=config.DEFAULT_LOGGING_LEVEL):
       self.user = user
       self.linkage = linkage
       self.training_mode = train
-
-      self.logging = S4F_Logger('ClusteringLogger', user=self.user)
+      self.loglevel = loglevel
+      self.logging = S4F_Logger('ClusteringLogger', user=self.user, level=self.loglevel)
       self.logger = self.logging.logger
       self.helper = Helper(self.logging)
 
@@ -47,9 +47,9 @@ class ConsensusClustering:
 
       
       if self.training_mode:
-         self.logger.info('Executing Consensus Clustering with training.')
+         self.logger.debug('Executing Consensus Clustering with training.')
       else:
-         self.logger.info('Executing Consensus Clustering without training.')
+         self.logger.debug('Executing Consensus Clustering without training.')
       
       ## Get initial configuration from "config" package
       #      
@@ -118,18 +118,11 @@ class ConsensusClustering:
                 .str.join(',')
                 .str.split(',', expand=True))
       attributes_df.loc[:, ['ColorRanking%s' % n for n in grouped_products_df.columns]] = grouped_products_df.values
-
-      for col in attributes_df:
-         if attributes_df[col].nunique() == 1: # remove columns with identical elements
-            del attributes_df[col]
-
-         elif attributes_df[col].isnull().all():  # remove all-null columns
-            del attributes_df[col]
-
-         elif attributes_df[col].is_unique: # remove columns with unique elements
-            del attributes_df[col]
+      # Drop all empty columns
+      attributes_df.dropna(axis=1, how='all', inplace=True)
       
-      ## Fill NA and None values
+      ## Fill NA and None values of remaining attributes
+      self.attributes = list(set(self.attributes) & set(attributes_df.columns))
       attributes_df[self.attributes].fillna(np.nan, inplace=True)
       return attributes_df
 
@@ -175,7 +168,7 @@ class ConsensusClustering:
       self.logger.info('Executing optimized FAMD transformation for n=%s and selecting k=%s features' \
             % (n_components, k_features))
       # Execute optimized FAMD transformation
-      famd = prince.FAMD(check_input=True, n_components=2, random_state=42)
+      famd = prince.FAMD(check_input=True, n_components=n_components, random_state=42)
       famd.fit(data)
       famd_feats_df = famd.row_coordinates(data)
       # Final feature selection
@@ -190,7 +183,6 @@ class ConsensusClustering:
       #
       # Execute clustering
       #
-      self.logger.info('Start clustering...')
       start_time = time.time() 
       self.run_clustering(data)
       #
@@ -228,7 +220,7 @@ class ConsensusClustering:
       table = 'Product'
       columns = ['Oid', 'Cluster']
       self.db_manager.runBatchUpdate(table, data.reset_index()[columns], 'Oid')
-      self.logger.info("Updated %s records in %s seconds" % (len(data), round(time.time() - start_time, 2)))
+      self.logger.debug("Updated %s records in %s seconds" % (len(data), round(time.time() - start_time, 2)))
 
    def _build_similarity_matrix(self, data):
       # Build the NxN consensus matrix from the clustering results
@@ -475,15 +467,13 @@ class ConsensusClustering:
       # Return clustering labels, numper of clusters and Silhouette score
       return labels, n_clusters, score
 
-   # def fuzzy_clustering_approval()
-
    def clustering_approval(self, sils, davs, cals, model_name, init=2):
       scores_famd = np.hstack(np.dstack((sils, davs, cals)))
       norm_scores_famd = MinMaxScaler().fit_transform(scores_famd)
 
       ind_famd = np.argmax(norm_scores_famd[:,0] + (1 - norm_scores_famd[:,1]) + norm_scores_famd[:,2])
       
-      self.logger.info('''
+      self.logger.debug('''
          Evaluation score of %s clustering:
          > Silhouette score: %s
          > Davies-Bouldin Index score: %s
@@ -545,6 +535,8 @@ if __name__ == "__main__":
    parser.add_argument('-l','--linkage', type = str, help = '''Input linkage type for the \
       Agglomerative clustering''', default = config.LINKAGE, choices=['ward', 'complete', 'average', 'sinlge'])
    parser.add_argument('-u', '--user', default=config.DEFAULT_USER, type = str, help = '''Input user''')
+   parser.add_argument('-l', '--loglevel', required = False, default=config.DEFAULT_LOGGING_LEVEL, help = '''Logging level''')
+
 
    # Parse arguments
    args, unknown = parser.parse_known_args()
@@ -553,5 +545,6 @@ if __name__ == "__main__":
    clustering = ConsensusClustering(
                                     user=args.user,
                                     linkage=args.linkage,
-                                    train=args.train)
+                                    train=args.train,
+                                    loglevel=args.loglevel)
    clustering.executeClustering()

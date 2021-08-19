@@ -20,13 +20,14 @@ from core.query_manager import QueryManager
 from core.helper_functions import *
 
 class FashionRecommender:
-    def __init__(self, searchID=None, recalc=False, user=config.DEFAULT_USER, threshold=1.):
+    def __init__(self, searchID=None, recalc=False, user=config.DEFAULT_USER, threshold=1., loglevel=config.DEFAULT_LOGGING_LEVEL):
                 
         # Get arguments
         self.searchID = searchID
         self.threshold = threshold
         self.recalc = recalc
         self.numberResults = None
+        self.loglevel = loglevel
         
         # Fetch search information from CrawlSearch table
         _db_manager = QueryManager()
@@ -37,7 +38,7 @@ class FashionRecommender:
         self.user = search_df.iloc[0]['UpdatedBy']
 
         # Logger setup
-        self.logging = S4F_Logger('FashionRecommender', user=self.user)
+        self.logging = S4F_Logger('FashionRecommender', user=self.user, level=self.loglevel)
         self.logger = self.logging.logger
         self.helper = Helper(self.logging)
 
@@ -73,7 +74,7 @@ class FashionRecommender:
         trend_factor =  (-trend_mult) * np.log(scaler.fit_transform(products_df['trend_factor'].values.reshape(-1, 1)))
         reference_factor = (-reference_mult) * np.log(scaler.fit_transform(products_df['reference_factor'].values.reshape(-1, 1)))
         products_df['ordering_score'] = trend_factor + reference_factor
-        self.logger.info("Calculate ordering score time: {:.2f} ms".format((time.time() - start) * 1000), 
+        self.logger.debug("Calculate ordering score time: {:.2f} ms".format((time.time() - start) * 1000), 
                 {'RecommenderSearch': self.searchID})
         return products_df
 
@@ -202,7 +203,7 @@ class FashionRecommender:
         _products_df = products_df.groupby('Oid').first()[cat_columns]
         _products_df.loc[:, num_columns] = products_df.groupby('Oid').max()[num_columns]
 
-        self.logger.info("Attribute retrieval time: {:.2f} ms".format((time.time() - start) * 1000), 
+        self.logger.debug("Attribute retrieval time: {:.2f} ms".format((time.time() - start) * 1000), 
                 {'RecommenderSearch': self.searchID})
         return _products_df.reset_index()
 
@@ -247,7 +248,7 @@ class FashionRecommender:
             if not os.path.exists(config.DATADIR):
                 os.makedirs(config.DATADIR)
             np.save(config.TFIDF_VECTOR, tfidf_vector.toarray())
-        self.logger.info("TFIDF feature extraction time: {:.2f} ms".format((time.time() - start) * 1000), 
+        self.logger.debug("TFIDF feature extraction time: {:.2f} ms".format((time.time() - start) * 1000), 
                 {'RecommenderSearch': self.searchID})
         return products_df, tfidf_vector, vectorizer
 
@@ -373,12 +374,15 @@ if __name__ == "__main__":
     parser.add_argument('-r', '--recalc', help = '''Triggers the recalculation functionality \
             of the FashionRecommender, where a new set of recommendations is generated after user's \
             feedback''', action="store_true", default = False)
+    parser.add_argument('-l', '--loglevel', required = False, default=config.DEFAULT_LOGGING_LEVEL, help = '''Logging level''')
 
     # Parse arguments
     args, unknown = parser.parse_known_args()
     searchID = args.id
     recalc = args.recalc
+    loglevel = args.loglevel 
 
     recommender = FashionRecommender(searchID=searchID, 
-                                     recalc=recalc)
+                                     recalc=recalc,
+                                     loglevel=loglevel)
     recommender.executeRecommendation()     

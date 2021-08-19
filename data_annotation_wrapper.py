@@ -23,12 +23,14 @@ class DataAnnotator:
       self.parser.add_argument('-i','--id', help = '''Input the Product Oids for annotation. If \
             empty, the annotator will be executed for all Product Oids with empty product attributes''', 
             required = False, nargs = '+')  
-      self.parser.add_argument('-u', '--user', required = True, help = '''User's name''') 
+      self.parser.add_argument('-u', '--user', required = True, help = '''User's name''')
+      self.parser.add_argument('-l', '--loglevel', required = False, default=config.DEFAULT_LOGGING_LEVEL, help = '''Logging level''')
       
       # Parse arguments
       self.args = self.parser.parse_args()
       self.oids = self.args.id
       self.user = self.args.user      
+      self.loglevel = self.args.loglevel      
 
 
    # Init function
@@ -37,7 +39,7 @@ class DataAnnotator:
       if not self.user:
          self.user = config.DEFAULT_USER        
 
-      self.logging = S4F_Logger('AnnotationWrapperLogger', user=self.user)
+      self.logging = S4F_Logger('AnnotationWrapperLogger', user=self.user, level=self.loglevel)
       self.logger = self.logging.logger
       # Init helper
       self.helper = Helper(self.logging)
@@ -51,13 +53,15 @@ class DataAnnotator:
          proc = subprocess.run(['python',
                               scriptPath, 
                               str(self.user),
-                              *self.oids
+                              *self.oids,
+                              self.loglevel
                               ],
                               stderr=subprocess.STDOUT)
       else:
          proc = subprocess.run(['python',
                                  scriptPath, 
                                  str(self.user),
+                                 self.loglevel
                                  ],
                                  stderr=subprocess.STDOUT)
       if proc.returncode != 0:
@@ -105,8 +109,8 @@ class DataAnnotator:
    # Step 4: Execute product clustering module
    def run(self,):
       self.initAnnotation()      
-      self.executeColorBasedAnnotation()
-      self.executeClothingBasedAnnotation()
+      # self.executeColorBasedAnnotation()
+      # self.executeClothingBasedAnnotation()
       self.executeTextBasedAnnotation()
       self.executeClustering(train=True)
 

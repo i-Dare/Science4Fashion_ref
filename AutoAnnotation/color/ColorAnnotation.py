@@ -26,10 +26,11 @@ class ColorAnnotator():
     '''
     Rensponsible for color annotation
     '''
-    def __init__(self, user, *oids):
+    def __init__(self, user, *oids, loglevel=config.DEFAULT_LOGGING_LEVEL):
         self.user = user
         self.oids = oids
-        self.logging = S4F_Logger('ColorAnnotationLogger', user=user)
+        self.loglevel = loglevel
+        self.logging = S4F_Logger('ColorAnnotationLogger', user=user, level=self.loglevel)
         self.logger = self.logging.logger
         self.helper = Helper(self.logging)
         self.db_manager = QueryManager(user=self.user)   
@@ -56,14 +57,14 @@ class ColorAnnotator():
                         ON PR.Oid=PC.Product
                         WHERE PC.Oid IS NULL''' % (str(dbName), str(dbName))
         # Read data from database
-        self.product_df = self.db_manager.runSimpleQuery(query, get_identity=True)
-        self.product_df = self.product_df.drop_duplicates().reset_index()
+        self.products_df = self.db_manager.runSimpleQuery(query, get_identity=True)
+        self.products_df = self.products_df.drop_duplicates().reset_index()
     
     def execute_annotation(self,):
         start_time = time.time() 
-
+        self.logger.info("Executing color annotation for %s unlabeled products" % len(self.products_df))
         #Colors dataframe
-        for _, row in self.product_df.iterrows():
+        for _, row in self.products_df.iterrows():
             productID = row['Oid']
             # Image source
             imgSrc = row['Photo']
@@ -81,7 +82,7 @@ class ColorAnnotator():
             _ = self.colorExtraction(image, imgSrc, row)
 
         # End Counting Time
-        self.logger.info("--- Finished color annotation of %s records in %s seconds ---" % (len(self.product_df), 
+        self.logger.info("--- Finished color annotation of %s records in %s seconds ---" % (len(self.products_df), 
                 round(time.time() - start_time, 2)))
         self.logger.close()
 
@@ -90,7 +91,7 @@ class ColorAnnotator():
         if image is None:
             self.logger.warning('Failed to load image for Product with Oid %s' % productID, {'Product': productID})
             return -1
-        self.logger.info('Processing image of Product with Oid %s' % productID, {'Product': productID})
+        self.logger.debug('Processing image of Product with Oid %s' % productID, {'Product': productID})
         # Initialize Cloth seperation module
         cloth = Cloth(imgSrc, imgBGR=image)
 
@@ -109,7 +110,7 @@ class ColorAnnotator():
             cloth.extractColor(clothImg2D)
         except Exception as e:
             self.logger.warn_and_trace(e, {'Product': productID})
-            self.logger.info('Failed to extract color informantion for image %s' % imgSrc, {'Product': productID})
+            self.logger.warning('Failed to extract color informantion for image %s' % imgSrc, {'Product': productID})
             # In case of an error color RGB = (-1, -1, -1)
             color_fail = -1 * np.ones(3, dtype=int)
             cloth.colors = [(0., color_fail)] * 5
@@ -130,7 +131,7 @@ class ColorAnnotator():
             uniq_params = dict(zip(rgb_list, color))
             params['table'] = uniq_params['table'] = 'ColorRGB'
             productID = row['Oid']
-            self.logger.info('Captured color \"%s\" - \"%s\" %s for product %s' % (colorName, 
+            self.logger.debug('Captured color \"%s\" - \"%s\" %s for product %s' % (colorName, 
                     colorNameDetailed, str(color), productID), {'Product': productID})
             newEntryColorRGB_df = self.db_manager.runCriteriaInsertQuery(uniq_params=uniq_params, 
                                                                 params=params, 
@@ -175,8 +176,9 @@ def get_color_name(rgb_triplet):
 
 if __name__ == '__main__':
     user = sys.argv[1]
-    oids = sys.argv[2:]
-    color_annotator = ColorAnnotator(user, *oids)
+    oids = sys.argv[2:-1]
+    loglevel = sys.argv[-1]
+    color_annotator = ColorAnnotator(user, *oids, loglevel=loglevel)
     color_annotator.execute_annotation()
 
 

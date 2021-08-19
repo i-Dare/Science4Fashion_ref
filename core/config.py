@@ -15,6 +15,7 @@ with open(PROJECT_CONFIG) as f:
 DB_CONNECTION = config['db_connection']
 DB_NAME = config['db_name']
 ENGINE = sqlalchemy.create_engine(DB_CONNECTION + DB_NAME)
+DEFAULT_LOGGING_LEVEL = config['default_logging_level']
 BATCH_STEP = config['batch_step']
 
 #

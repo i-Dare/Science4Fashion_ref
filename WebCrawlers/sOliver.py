@@ -25,7 +25,7 @@ def performScraping(crawlSearchID, urlReceived, searchTerm, breakPointNumber):
     url, soup = helper.get_content(urlReceived, retry=5)
     noResultsMessage = soup.find('h1', {'class': re.compile(r'ov__titlename')})
     if noResultsMessage:
-        logger.info('Your search produced no results.')
+        logger.warning('Your search produced no results.')
         return 0
     ## Get reference and trend order. Handle the case where the user enters the exact product 
     # name as search terms, and the webpage skips search results page and redirects to the product page
@@ -75,8 +75,9 @@ def performScraping(crawlSearchID, urlReceived, searchTerm, breakPointNumber):
 ############ Main function ############
 if __name__ == '__main__':
     # Get input arguments
-    crawlSearchID, searchTerm, threshold, user = int(sys.argv[1]), sys.argv[2], int(sys.argv[3]), sys.argv[4]
-    logging = S4F_Logger('SoliverLogger', user=user)
+    crawlSearchID, searchTerm, threshold, user, loglevel = (int(sys.argv[1]), sys.argv[2], 
+            int(sys.argv[3]), sys.argv[4], sys.argv[5])
+    logging = S4F_Logger('SoliverLogger', user=user, loglevel=loglevel)
     logger = logging.logger
     helper = Helper(logging)
 
@@ -93,4 +94,3 @@ if __name__ == '__main__':
 
     folderName = helper.getFolderName(searchTerm)
     performScraping(crawlSearchID, query_url, searchTerm, threshold)
-    logger.info("Time to scrape ALL queries is %s seconds ---" % round(time.time() - start_time_all, 2))

@@ -17,10 +17,11 @@ class ClothingAnnotator():
     '''
     Rensponsible for color annotation
     '''
-    def __init__(self, user, *oids):
+    def __init__(self, user, *oids, loglevel=config.DEFAULT_LOGGING_LEVEL):
         self.user = user
         self.oids = oids
-        self.logging = S4F_Logger('ClothingAnnotationLogger', user=user)
+        self.loglevel = loglevel
+        self.logging = S4F_Logger('ClothingAnnotationLogger', user=user, level=self.loglevel)
         self.logger = self.logging.logger
         self.helper = Helper(self.logging)
         self.db_manager = QueryManager(user=self.user)   
@@ -44,20 +45,21 @@ class ClothingAnnotator():
             where = ' OR '.join(['Oid=%s' % i for i in  oids])
             filters = '%s' % ', '.join(filters)
             query = 'SELECT %s FROM %s.dbo.%s WHERE %s' % (filters, config.DB_NAME, table, where)
-            self.product_df = self.db_manager.runSimpleQuery(query, get_identity=True)
+            self.products_df = self.db_manager.runSimpleQuery(query, get_identity=True)
         else:
             params = {attr: 'NULL' for attr in config.ATTRIBUTE_COLUMNS}
             params['table'] = table
-            self.product_df = self.db_manager.runSelectQuery(params, filters=filters)
+            self.products_df = self.db_manager.runSelectQuery(params, filters=filters)
 
 
     def execute_annotation(self,):
         start_time = time.time() 
         table = 'Product'
         # Each entry
-        self.logger.info("Executing product attribute annotation for %s unlabeled products" % len(self.product_df))
-        for index, row in self.product_df.iterrows():
+        self.logger.info("Executing product attribute annotation for %s unlabeled products" % len(self.products_df))
+        for index, row in self.products_df.iterrows():
             productID = row['Oid']
+            self.logger.debug('Clothing annotation for product %s' % productID, {'Product': productID})
             # check if there is a blob or to skip it
             if not pd.isna(row['Image']):
                 image = self.helper.convertBlobToImage(row['Image'])
@@ -67,7 +69,7 @@ class ClothingAnnotator():
                 image = self.helper.convertCVtoPIL(image)
                 # Neckline
                 if pd.isna(row['NeckDesign']):
-                    self.product_df.loc[index, 'NeckDesign'] = self.helper.updateAttribute(config.DICTNECKLINE, image,
+                    self.products_df.loc[index, 'NeckDesign'] = self.helper.updateAttribute(config.DICTNECKLINE, image,
                             self.necklineLearner)
             except Exception as e:
                 self.logger.warn_and_trace(e, {'Product': productID})
@@ -75,7 +77,7 @@ class ClothingAnnotator():
 
                 # Sleeve
                 if pd.isna(row['Sleeve']):
-                    self.product_df.loc[index, 'Sleeve'] = self.helper.updateAttribute(config.DICTSLEEVE, image,
+                    self.products_df.loc[index, 'Sleeve'] = self.helper.updateAttribute(config.DICTSLEEVE, image,
                             self.sleeveLearner)
 
             except Exception as e:
@@ -84,7 +86,7 @@ class ClothingAnnotator():
 
                 # Length
                 if pd.isna(row['Length']):
-                    self.product_df.loc[index, 'Length'] = self.helper.updateAttribute(config.DICTLENGTH, image,
+                    self.products_df.loc[index, 'Length'] = self.helper.updateAttribute(config.DICTLENGTH, image,
                             self.lengthLearner)
 
             except Exception as e:
@@ -93,7 +95,7 @@ class ClothingAnnotator():
 
                 # Collar
                 if pd.isna(row['CollarDesign']):
-                    self.product_df.loc[index, 'CollarDesign'] = self.helper.updateAttribute(config.DICTCOLLAR, image,
+                    self.products_df.loc[index, 'CollarDesign'] = self.helper.updateAttribute(config.DICTCOLLAR, image,
                             self.collarLearner)
 
             except Exception as e:
@@ -102,21 +104,21 @@ class ClothingAnnotator():
 
                 # Fit
                 if pd.isna(row['Fit']):
-                    self.product_df.loc[index, 'Fit'] = self.helper.updateAttribute(config.DICTFIT, image,
+                    self.products_df.loc[index, 'Fit'] = self.helper.updateAttribute(config.DICTFIT, image,
                             self.fitLearner)                
                 
             except Exception as e:
                 self.logger.warn_and_trace(e, {'Product': productID})
                 self.logger.warning('Failed to infer Fit for for Product with Oid %s' % productID, {'Product': productID})
-                
+
         # Batch update Product table
         self.logger.info('Updating Product table after product attribute annotation')
         table = 'Product'
         columns = ['Oid'] + config.PRODUCT_ATTRIBUTES
-        self.db_manager.runBatchUpdate(table, self.product_df[columns], 'Oid')
+        self.db_manager.runBatchUpdate(table, self.products_df[columns], 'Oid')
 
         # End Counting Time
-        self.logger.info("--- Finished product attribute annotation of %s records in %s seconds ---" % (len(self.product_df), 
+        self.logger.info("--- Finished product attribute annotation of %s records in %s seconds ---" % (len(self.products_df), 
                 round(time.time() - start_time, 2)))
         self.logger.close()
 
@@ -124,6 +126,7 @@ if __name__ == "__main__":
     # Begin Counting Time
     start_time = time.time() 
     user = sys.argv[1]
-    oids = sys.argv[2:]
-    clothing_annotator = ClothingAnnotator(user, *oids)
+    oids = sys.argv[2:-1]
+    loglevel = sys.argv[-1]
+    clothing_annotator = ClothingAnnotator(user, *oids, loglevel=loglevel)
     clothing_annotator.execute_annotation()

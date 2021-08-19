@@ -94,7 +94,7 @@ if __name__ == "__main__":
     kmodes = KModes(n_clusters=n_clusters, init=config.INITKMODES, verbose=1, n_jobs=-1)
     clusters = kmodes.fit_predict(X)
     centroids = kmodes.cluster_centroids_
-    logger.info('''Number of final clusters: %s Final Silhouette Score: %s''' % (n_clusters, score))
+    logger.debug('''Number of final clusters: %s Final Silhouette Score: %s''' % (n_clusters, score))
 
     # Update clustes
     clustering_dict = {attr:centroids[:,i] for i,attr in enumerate(attribute_list)}

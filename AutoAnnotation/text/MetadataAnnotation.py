@@ -19,10 +19,11 @@ class MetadataAnnotator():
     '''
     Rensponsible for text annotation
     '''
-    def __init__(self, user, *oids):
+    def __init__(self, user, *oids, loglevel=config.DEFAULT_LOGGING_LEVEL):
         self.user = user
         self.oids = oids
-        self.logging = S4F_Logger('TextAnnotationLogger', user=user)
+        self.loglevel = loglevel
+        self.logging = S4F_Logger('TextAnnotationLogger', user=user, level=self.loglevel)
         self.logger = self.logging.logger
         self.helper = Helper(self.logging)
         self.db_manager = QueryManager(user=self.user)   
@@ -95,19 +96,20 @@ class MetadataAnnotator():
         attributes_df['Metadata'] = (attributes_df['Metadata']
                 .str.cat(attributes_df['processed_extended_metadata']
                 .astype(str), sep=' ').apply(lambda x: ' '.join(set(x.split())) ))
-        self.logger.info('Processed %s records in %s seconds' % (len(attributes_df), round(time.time() - start_time, 2)))
+        self.logger.debug('Processed %s records in %s seconds' % (len(attributes_df), round(time.time() - start_time, 2)))
         return attributes_df.loc[:, config.PRODUCT_ATTRIBUTES + ['Description', 'Metadata']].reset_index()
 
     def execute_annotation(self,):        
         try:
             start_time = time.time()
+            self.logger.info("Executing text annotation for %s unlabeled products" % len(self.products_df))
             if not self.products_df.empty:
                 labels_df = pd.DataFrame()
                 labels_df['Oid'] = self.products_df['Oid'].copy()
                 # Metadata and Headline consists of information related to each row 
                 metadata = self.products_df['Metadata'].str.lower()
                 headline = self.products_df['Description'].str.lower()
-                
+
                 # Create a dictionary of dataframes to read product attribute data from the database
                 dfDict = {}
                 # Create a dictionary of variables with same name as the product attribute names, 
@@ -214,11 +216,18 @@ class MetadataAnnotator():
                     for i, row in merged_df.iterrows():                        
                         # If values is NA for product attribute, update with the captured value
                         if pd.isna(self.products_df.loc[self.products_df['Oid']==row['Oid_x'], attr].values[0]):
-                            uniq_params = {'table': 'Product', 'Oid': row['Oid_x']}
-                            params = {'table': 'Product', attr: row['Oid_y']}
+                            productID =  row['Oid_x']
+                            attrID = row['Oid_y']
+                            attrVal = dfDict[str(attr)+'_DB'].loc[attrID, 'Description']
+
+                            self.logger.debug("Update %s attribute of %s with %s" % (attr,productID, attrVal), 
+                                    {'Product': productID})
+                            # Update record
+                            uniq_params = {'table': 'Product', 'Oid': productID}
+                            params = {'table': 'Product', attr: attrID}
                             self.db_manager.runCriteriaUpdateQuery(uniq_params=uniq_params, params=params)
                 # Batch update Product Metadata
-                self.logger.info('Update product metadata')
+                self.logger.debug('Update product metadata')
                 table = 'Product'
                 columns = ['Oid', 'Metadata']
                 self.db_manager.runBatchUpdate(table, self.products_df[columns], 'Oid')
@@ -250,6 +259,7 @@ def editStrings(s, attr):
 
 if __name__ == "__main__":
     user = sys.argv[1]
-    oids = sys.argv[2:]
-    text_annotator = MetadataAnnotator(user, *oids)
+    oids = sys.argv[2:-1]
+    loglevel = sys.argv[-1]
+    text_annotator = MetadataAnnotator(user, *oids, loglevel=loglevel)
     text_annotator.execute_annotation()

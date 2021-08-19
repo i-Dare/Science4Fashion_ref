@@ -31,9 +31,9 @@ class PinterestCrawler(Pinterest):
     Based on https://github.com/bstoilov/py3-pinterest install using:
     > pip install py3-pinterest
     '''
-    def __init__(self, username, password, user):
+    def __init__(self, username, password, user, loglevel=config.DEFAULT_LOGGING_LEVEL):
         self.user = user
-        self.logging = S4F_Logger('PinterestLogger', user=user)
+        self.logging = S4F_Logger('PinterestLogger', user=user, loglevel=loglevel)
         self.logger = self.logging.logger
         self.helper = Helper(self.logging)
         self.db_manager = QueryManager()
@@ -110,9 +110,9 @@ class InstagramCrawler():
     Based on https://instaloader.github.io/ install using:
     > pip install instaloader
     '''
-    def __init__(self, username, password, user):
+    def __init__(self, username, password, user, loglevel=config.DEFAULT_LOGGING_LEVEL):
         self.user = user
-        self.logging = S4F_Logger('InstagramLogger', user=user)
+        self.logging = S4F_Logger('InstagramLogger', user=user, loglevel=loglevel)
         self.logger = self.logging.logger
         self.helper = Helper(self.logging)
         self.db_manager = QueryManager()

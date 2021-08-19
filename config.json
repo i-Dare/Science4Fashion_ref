@@ -5,6 +5,7 @@
   "db_server": "10.56.48.35",
   "db_username": "sa",
   "db_pass": "SYSADM",
+  "default_logging_level": "INFO",
   "crawler_timeout": 15,
   "batch_step": 200,
   "social_media":{"pinterest_username": "idare.issel@gmail.com",

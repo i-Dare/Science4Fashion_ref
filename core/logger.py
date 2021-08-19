@@ -7,29 +7,41 @@ import sys
 import traceback as tb
 
 
-_NOTSET, _INFO, _COMPLETE, _SKIPPED, _WARNING, _ERROR = -1, 0, 1, 2, 3, 4
+_SKIPPED, _COMPLETE = -1, 0
 LEVEL_DICT = {
-                "INFO": _INFO,
+                "DEBUG": logging.DEBUG,
+                "INFO": logging.INFO,
                 "COMPLETE": _COMPLETE,
                 "SKIPPED": _SKIPPED,
-                "WARNING": _WARNING,
-                "ERROR": _ERROR,
+                "WARNING": logging.WARNING,
+                "ERROR": logging.ERROR,
                 }
 logging.addLevelName(_COMPLETE, "COMPLETE")                 
 logging.addLevelName(_SKIPPED, "SKIPPED")     
 
-
+def _checkLevel(level):
+    if isinstance(level, int):
+        rv = level
+    elif str(level) == level:
+        if level.lower() not in [k.lower() for k in LEVEL_DICT.keys()]:
+            rv = LEVEL_DICT['INFO']
+        rv = LEVEL_DICT[level.upper()]
+    else:
+        rv = LEVEL_DICT['INFO']
+    return rv
 
 # --------------------------------
 #          S4F Logger
 # --------------------------------
 class S4F_Logger():
-    def __init__(self, name, level=1, user=config.DEFAULT_USER):
+    def __init__(self, name, level=config.DEFAULT_LOGGING_LEVEL, user=config.DEFAULT_USER):
+
+        level = _checkLevel(level)
 
         self.level = level
         self.name = name
         self.user = user
-        self.logger = self.initLogger(name, user)
+        self.logger = self.initLogger(name, user)    
 
     def initLogger(self, name, user=None):
         os.environ['PYTHONUNBUFFERED'] = "1"
@@ -59,9 +71,9 @@ class S4F_Logger():
         logger.addHandler(sqlHandler)
 
         if self.user is config.DEFAULT_USER:
-            logger.warning('Start logging for user %s' % self.user) 
+            logger.debug('Start logging for user %s' % self.user) 
         else:
-            logger.info('Start logging for user %s'  % self.user)
+            logger.debug('Start logging for user %s'  % self.user)
         return logger       
 
 

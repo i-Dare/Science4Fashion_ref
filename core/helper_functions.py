@@ -7,6 +7,7 @@ import random
 import json
 import string
 import cv2
+import pickle
 import pandas as pd
 import regex as re
 import numpy as np
@@ -71,7 +72,7 @@ class Helper():
                 'Referer': url,
                 'User-Agent': user_agent
             }
-            self.logger.info('Get content from: %s, try: %s ' % (url+suffix, i))
+            self.logger.debug('Get content from: %s, try: %s ' % (url+suffix, i))
             try:
                 req = requests.get(url+suffix, headers=headers, timeout=config.CRAWLER_TIMEOUT ,verify=False)
                 soup = BeautifulSoup(req.content, 'html.parser')
@@ -81,7 +82,7 @@ class Helper():
                 
                 new_req = ''            
                 if req.history:
-                    self.logger.info('Request redirected to %s try: %s ' % (url+suffix, i))
+                    self.logger.debug('Request redirected to %s try: %s ' % (url+suffix, i))
                     new_req = requests.get(req.url+suffix, headers=headers, timeout=config.CRAWLER_TIMEOUT, 
                             verify=False)
                     soup = BeautifulSoup(new_req.content, 'html.parser')                    
@@ -221,7 +222,7 @@ class Helper():
         model_name += extension
         model_path = os.path.join(directory, model_name)
         pickle.dump(model, open(model_path, 'wb'))
-        self.logger.info('Model %s saved at %s' % (model_name, model_path))
+        self.logger.debug('Model %s saved at %s' % (model_name, model_path))
 
     def get_model(self, model_name):
         try:
@@ -396,26 +397,26 @@ class Helper():
         ## Add product and return new records in DataFrame
         # Check if product exists
         # If DataFrame is empty add new product      
-        self.logger.info('Adding new product', {'CrawlSearch': crawlSearchID})  
-        product_df = self.db_manager.runCriteriaInsertQuery(
+        self.logger.debug('Adding new product', {'CrawlSearch': crawlSearchID})  
+        products_df = self.db_manager.runCriteriaInsertQuery(
                                                             uniq_params=uniq_params, 
                                                             params=params, 
                                                             get_identity=True
                                                         )
-        oid = product_df.loc[0, 'Oid']        
+        oid = products_df.loc[0, 'Oid']        
 
-        return product_df
+        return products_df
 
     ## Add new product to the ProductHistory table 
     #
-    def addNewProductHistory(self, crawlSearchID, product_df, referenceOrder, trendOrder):
+    def addNewProductHistory(self, crawlSearchID, products_df, referenceOrder, trendOrder):
         '''
         Adds new product info to the ProductHistory table.
         '''
         search_df = self.db_manager.runSelectQuery(params={'table': 'CrawlSearch', 'Oid': crawlSearchID})
         searchDate = pd.to_datetime(search_df['CreatedOn'].values[0])
 
-        productID, price = product_df.loc[0, ['Oid', 'RetailPrice']]
+        productID, price = products_df.loc[0, ['Oid', 'RetailPrice']]
         uniq_params = {'table': 'ProductHistory', 'Product': productID, 'CrawlSearch': crawlSearchID}
         params = {'table': 'ProductHistory', 'Product': productID, 'ReferenceOrder': referenceOrder, 
                   'TrendingOrder': trendOrder, 'Price': price, 'CrawlSearch': crawlSearchID, 'SearchDate': searchDate}
@@ -426,20 +427,19 @@ class Helper():
 
     ## Update product history 
     #
-    def updateProductHistory(self, crawlSearchID, product_df, referenceOrder, trendOrder):
+    def updateProductHistory(self, crawlSearchID, products_df, referenceOrder, trendOrder):
         '''
         Updates product's latest entry in ProductHistory table
         '''    
         search_df = self.db_manager.runSelectQuery(params={'table': 'CrawlSearch', 'Oid': crawlSearchID})
         searchDate = pd.to_datetime(search_df['CreatedOn'].values[0])
 
-        productID, price = product_df.loc[0, ['Oid', 'RetailPrice']]
+        productID, price = products_df.loc[0, ['Oid', 'RetailPrice']]
 
         uniq_params = {'table': 'ProductHistory', 'Product': productID, 'CrawlSearch': crawlSearchID}
         params = {'table': 'ProductHistory', 'UpdatedBy': self.user, 'Price': price, 'TrendingOrder': trendOrder,  
                   'ReferenceOrder': referenceOrder, 'CrawlSearch': crawlSearchID, 'SearchDate': searchDate}
 
-        self.logger.info('Updating product history for product %s' % productID, {'Product': productID, 'CrawlSearch': crawlSearchID})
         productHist_df = self.db_manager.runCriteriaUpdateQuery(uniq_params=uniq_params, params=params, get_identity=True)
         return productHist_df
 
@@ -455,9 +455,13 @@ class Helper():
         fashion_att = fashion_att_file.read().split(',')
         fashion_att_file.close()
         # Image annotation labels
-        fashionLabels = pd.read_excel(config.PRODUCT_ATTRIBUTES_PATH, sheet_name=config.SHEETNAME)
-        attributList = np.hstack([fashionLabels[attr].replace(' ', np.nan).dropna().unique() for attr in config.PRODUCT_ATTRIBUTES]).tolist()
-        fashion_att = self.preprocess_words(fashion_att + attributList)
+        for attr in config.PRODUCT_ATTRIBUTES:
+            # Populate dataframe dictionary
+            df = self.db_manager.runSelectQuery(params={'table': attr})
+            # Populate product attribute dictionary
+            fashion_att += df['Description'].str.lower().tolist()
+            
+        fashion_att = self.preprocess_words(list(set(fashion_att)))
         return fashion_att
 
 
@@ -530,14 +534,14 @@ class Helper():
         # Check if product url exists to decide if addition of update is needed
         url = params['URL']
         _params = {'table': 'Product', 'URL': url}
-        product_df = self.db_manager.runSelectQuery(_params)
+        products_df = self.db_manager.runSelectQuery(_params)
 
-        if not product_df.empty:
+        if not products_df.empty:
             action = 'update' # action flag
             ## Product exists, proceed to update ProductHistory table
             # Update ProductHistory
             try:
-                productHist_df = self.updateProductHistory(crawlSearchID, product_df, referenceOrder, trendOrder)
+                productHist_df = self.updateProductHistory(crawlSearchID, products_df, referenceOrder, trendOrder)
                 cnt += 1
             except Exception as e:
                 self.logger.warn_and_trace(e)
@@ -550,13 +554,13 @@ class Helper():
             params['Image'] = self.saveImage(params['ImageSource'], params['Photo'])
             try:
                 # Create new entry in PRODUCT table
-                product_df = self.addNewProduct(crawlSearchID, site, uniq_params=uniq_params, params=params)
+                products_df = self.addNewProduct(crawlSearchID, site, uniq_params=uniq_params, params=params)
 
                 cnt += 1
                 # Create new entry in ProductHistory table
-                productHist_df = self.addNewProductHistory(crawlSearchID, product_df, referenceOrder, trendOrder)
+                productHist_df = self.addNewProductHistory(crawlSearchID, products_df, referenceOrder, trendOrder)
                 # Product IDs to perform annotation
-                oids = product_df.loc[:, 'Oid'].tolist()
+                oids = products_df.loc[:, 'Oid'].tolist()
                 # Color annotation                
                 color_annotator = ColorAnnotation.ColorAnnotator(self.user, *oids)
                 color_annotator.execute_annotation()
@@ -601,7 +605,7 @@ class Helper():
         try:
             ordering = orderDict[order]  # results' ordering
         except:
-            self.logger.info(
+            self.logger.warning(
                 'Result parser error: \"order\" argument is either \"reference\" or \"trend\"')
             return None
         pageNo = 1
@@ -693,7 +697,7 @@ class Helper():
                     price = sales_price if isSale else price
                 except:
                     price = None
-                    self.logger.info("Price not captured for %s" % productPage)
+                    self.logger.debug("Price not captured for %s" % productPage)
 
                 series = pd.Series({'URL': productPage,
                                     'imgURL': productImg,
@@ -827,7 +831,7 @@ class Helper():
         try:
             ordering = orderDict[order]  # results' ordering
         except:
-            self.logger.info(
+            self.logger.error(
                 'Result parser error: \"order\" argument is either \"reference\" or \"trend\"')
             return None
 
@@ -840,7 +844,7 @@ class Helper():
         
         # Check for redirection
         if 'search' not in  url:
-            self.logger.info('s.Oliver redirection to %s' % url)
+            self.logger.debug('s.Oliver redirection to %s' % url)
         
         not_found_text = 'Unfortunately, your search'
         if not_found_text in soup.text:
@@ -1031,7 +1035,7 @@ class Helper():
             gender = ''
             genderID = None
             self.logger.warn_and_trace(e, {'CrawlSearch': crawlSearchID})
-            self.logger.info("Gender not captured at %s" % url, {'CrawlSearch': crawlSearchID})
+            self.logger.warning("Gender not captured at %s" % url, {'CrawlSearch': crawlSearchID})
 
         # category - sub category
         try:
@@ -1067,7 +1071,7 @@ class Helper():
         except Exception as e:          
             meta = ''
             self.logger.warn_and_trace(e, {'CrawlSearch': crawlSearchID})
-            self.logger.info("Product Metadata not captured at %s" % url, {'CrawlSearch': crawlSearchID})
+            self.logger.warning("Product Metadata not captured at %s" % url, {'CrawlSearch': crawlSearchID})
         return price, head, brand, color, genderID, meta, sku, prodCatID, prodSubCatID
 
 
@@ -1103,7 +1107,7 @@ class Helper():
         jsonInfo = json.loads(str(soup))
         # Capture query error
         if not jsonInfo['articles']:
-            self.logger.info('Your search produced no results.')
+            self.logger.warning('Your search produced no results.')
             return 0
 
         # Handle pagination and gather all products
