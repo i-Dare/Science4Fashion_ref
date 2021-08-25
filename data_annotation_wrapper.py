@@ -11,6 +11,9 @@ from core.helper_functions import *
 import core.config as config
 from core.logger import S4F_Logger
 from core.query_manager import QueryManager
+from AutoAnnotation.color import ColorAnnotation
+from AutoAnnotation.clothing import ClothingAnnotation
+from AutoAnnotation.text import MetadataAnnotation
 
 class DataAnnotator:
    def __init__(self):
@@ -46,73 +49,60 @@ class DataAnnotator:
       # Init db_manager
       self.db_manager = QueryManager(user=self.user)
    
-   # Method for module execution
-   def runProcess(self, scriptPath, process):
-      self.logger.info('Executing: %s' % process)
-      if self.oids:
-         proc = subprocess.run(['python',
-                              scriptPath, 
-                              str(self.user),
-                              *self.oids,
-                              self.loglevel
-                              ],
-                              stderr=subprocess.STDOUT)
-      else:
-         proc = subprocess.run(['python',
-                                 scriptPath, 
-                                 str(self.user),
-                                 self.loglevel
-                                 ],
-                                 stderr=subprocess.STDOUT)
-      if proc.returncode != 0:
-         self.logger.warning('Issues in %s' % process)
-
-
 # ------------------------------------------------------------
 #                     MODULE EXECUTION
 # ------------------------------------------------------------
-     # Execute text metadata based annotation  
-   def executeTextBasedAnnotation(self,):
-      scriptPath = os.path.join(config.AUTOANNOTATION, 'text', 'MetadataAnnotation.py')
-      self.runProcess(scriptPath, 'text based annotation')
-   
-
-   # Execute color based annotation 
-   def executeColorBasedAnnotation(self,):
-      scriptPath = os.path.join(config.AUTOANNOTATION, 'color', 'ColorAnnotation.py')
-      self.runProcess(scriptPath, 'text based annotation')
-      
-
-   # Execute clothing based annotation
-   def executeClothingBasedAnnotation(self,):
-      scriptPath = os.path.join(config.AUTOANNOTATION, 'clothing', 'ClothingAnnotation.py')
-      self.runProcess(scriptPath, 'text based annotation')
-      
-
    # Execute product clustering module
    def executeClustering(self, train=False):
-      self.logger.info('Executing: Clustering')      
+      self.logger.info('Executing: Clustering', {'CrawlSearch': self.crawlSearchID})      
       scriptPath = os.path.join(config.CLUSTERING, 'clustering_consensus.py')
       if train:
-         args = ['python', scriptPath, '-train', '--user', str(self.user)]
+         args = ['python', scriptPath, '-train', '--user', str(self.user), '--loglevel', self.loglevel]
       else:
-         args = ['python', scriptPath, '--user', str(self.user)]
+         args = ['python', scriptPath, '--user', str(self.user), '--loglevel', self.loglevel]
       proc = subprocess.run(args, stderr=subprocess.STDOUT)
       if proc.returncode != 0:
-         self.logger.warning('Issues in clothing based annotation')
+         self.logger.warning('Issues in clothing based annotation', {'CrawlSearch': self.crawlSearchID})
+      
       
 
    ## Sequencially executes the data annotation process
    # Step 1: Execute text metadata based annotation 
-   # Step 2: Execute color based annotation 
-   # Step 3: Execute clothing based annotation
-   # Step 4: Execute product clustering module
+   # Step 2: Execute AutoAnnotation
+   # Step 3: Execute product clustering module
    def run(self,):
-      self.initAnnotation()      
-      self.executeColorBasedAnnotation()
-      self.executeClothingBasedAnnotation()
-      self.executeTextBasedAnnotation()
+      self.initAnnotation()
+      executeAutoAnnotation(self.logger, self.user, self.oids, self.loglevel)
       self.executeClustering(train=True)
+
+# --------------------------------------------------------------------------                        
+#          AutoAnnotation functionality
+# --------------------------------------------------------------------------
+# Execute AutoAnnotation module
+def executeAutoAnnotation(logger, user, oids, loglevel):
+   try:
+      # Color annotation                
+      color_annotator = ColorAnnotation.ColorAnnotator(user, *oids, loglevel=loglevel)
+      color_annotator.execute_annotation()
+   except Exception as e:
+      logger.warn_and_trace(e)       
+      logger.warning('Color annotation for products not failed')
+
+   try:
+      # Clothing annotation                
+      clothing_annotator = ClothingAnnotation.ClothingAnnotator(user, *oids, loglevel=loglevel)
+      clothing_annotator.execute_annotation()
+   except Exception as e:
+      logger.warn_and_trace(e)       
+      logger.warning('Clothing annotation for products not failed')
+
+   try:
+      # Metatada annotation                
+      metadata_annotator = MetadataAnnotation.MetadataAnnotator(user, *oids, loglevel=loglevel)
+      metadata_annotator.execute_annotation()
+   except Exception as e:
+      logger.warn_and_trace(e)       
+      logger.warning('Metadata annotation for products not failed')
 
 
 if __name__ == "__main__":
