@@ -14,6 +14,7 @@ import core.config as config
 from core.logger import S4F_Logger
 from core.query_manager import QueryManager
 
+PRODUCT_ATTRIBUTES = config.PRODUCT_ATTRIBUTES + ['Gender']
 
 class MetadataAnnotator():
     '''
@@ -26,13 +27,13 @@ class MetadataAnnotator():
         self.logging = S4F_Logger('TextAnnotationLogger', user=user, level=self.loglevel)
         self.logger = self.logging.logger
         self.helper = Helper(self.logging)
-        self.db_manager = QueryManager(user=self.user)   
+        self.db_manager = QueryManager(user=self.user)        
 
         ### Select Products to execute the text based annotation
         ## Prepare query
         # Merge product and color information from database
         attJoin, attSelect = '', []
-        for i, attr in enumerate(config.PRODUCT_ATTRIBUTES):
+        for i, attr in enumerate(PRODUCT_ATTRIBUTES):
             attSelect += ['attr%s.Description AS %s' % (i, attr)]
             attJoin += ' LEFT JOIN %s.dbo.%s AS attr%s\nON PRD.%s = attr%s.Oid ' \
                 % (config.DB_NAME, attr, i, attr, i) 
@@ -42,23 +43,20 @@ class MetadataAnnotator():
             where = ' OR '.join(['PRD.Oid=%s' % i for i in  oids])            
         else:
             # Select from products with missing attributes
-            where = ' OR '.join(['PRD.%s is NULL' % attr for attr in  config.PRODUCT_ATTRIBUTES])
+            where = ' OR '.join(['PRD.%s is NULL' % attr for attr in  PRODUCT_ATTRIBUTES])
 
         query = '''SELECT PRD.Oid, PRD.Description, PRD.Metadata,
                     C.Label, C.LabelDetailed, C.Red, C.Blue, C.Green,
                     PC.Ranking,
-                    G.Description as Gender,
                     %s
                 FROM %s.dbo.Product AS PRD 
                 LEFT JOIN %s.dbo.ProductColor AS PC
                 ON PC.Product=PRD.Oid
                 LEFT JOIN %s.dbo.ColorRGB AS C
                 ON PC.ColorRGB = C.Oid
-                LEFT JOIN %s.dbo.Gender AS G
-                ON PRD.Gender=G.Oid
                 %s
                 WHERE %s''' % (','.join(attSelect), config.DB_NAME, config.DB_NAME, config.DB_NAME, 
-                config.DB_NAME, attJoin, where)
+                attJoin, where)
         
         products_df = self.db_manager.runSimpleQuery(query, get_identity=True)
         products_df = products_df.drop_duplicates(ignore_index=True)
@@ -69,8 +67,8 @@ class MetadataAnnotator():
         ## Merging results
         # 
         start_time = time.time() 
-        attributes_df = products_df.groupby('Oid').first()[config.PRODUCT_ATTRIBUTES + 
-                ['Gender', 'Metadata', 'Description']]
+        attributes_df = products_df.groupby('Oid').first()[PRODUCT_ATTRIBUTES + 
+                ['Metadata', 'Description']]
         # Color data merging
         grouped_products_df = (products_df.groupby('Oid')
                 .apply( lambda row:  list(row['Label'] ))
@@ -78,7 +76,7 @@ class MetadataAnnotator():
                 .str.split(',', expand=True))
         attributes_df.loc[:, ['ColorRanking%s' % n for n in grouped_products_df.columns]] = grouped_products_df.values
         # Text merging
-        text_columns = config.PRODUCT_ATTRIBUTES + ['Label', 'LabelDetailed', 'Gender']
+        text_columns = config.PRODUCT_ATTRIBUTES + ['Label', 'LabelDetailed']
         attributes_df['extended_metadata'] = (products_df.groupby('Oid')
                 .apply( lambda row:  [list(set(row[col])) for col in text_columns ] )
                 .apply( lambda row:  [r.replace(' ', '_') for r in (sum(row, []))  if not pd.isna(r)] )
@@ -97,7 +95,7 @@ class MetadataAnnotator():
                 .str.cat(attributes_df['processed_extended_metadata']
                 .astype(str), sep=' ').apply(lambda x: ' '.join(set(x.split())) ))
         self.logger.debug('Processed %s records in %s seconds' % (len(attributes_df), round(time.time() - start_time, 2)))
-        return attributes_df.loc[:, config.PRODUCT_ATTRIBUTES + ['Description', 'Metadata']].reset_index()
+        return attributes_df.loc[:, PRODUCT_ATTRIBUTES+ ['Description', 'Metadata']].reset_index()
 
     def execute_annotation(self,):        
         try:
@@ -115,7 +113,7 @@ class MetadataAnnotator():
                 # Create a dictionary of variables with same name as the product attribute names, 
                 # to store the labels. 
                 attrDict = {}                
-                for attr in config.PRODUCT_ATTRIBUTES:
+                for attr in PRODUCT_ATTRIBUTES:
                     # Populate dataframe dictionary
                     dfDict[str(attr)+'_DB'] = self.db_manager.runSelectQuery(params={'table': attr})
                     # Populate product attribute dictionary
@@ -133,8 +131,7 @@ class MetadataAnnotator():
                 # index: the absolute position of the product in "labels_df" 
                 # label: a specific value of product a attribute
                 # position: the position of the "label" in the metadata or headline lists
-                cat = 'ProductCategory'
-                for attr in config.PRODUCT_ATTRIBUTES:
+                for attr in PRODUCT_ATTRIBUTES:
                     saved_meta = [(index, label, s.find(label), 1) for label in attrDict[str(attr)] 
                             for index,s in enumerate(metadata) if contains_word(s, label)]
                     saved_head = [(index, label, s.find(label), 0) for label in attrDict[str(attr)]
@@ -152,7 +149,7 @@ class MetadataAnnotator():
                                 labels_df.loc[s[0], attr].remove((s[1], s[2], s[3]))
                 
                 # Find similar words, for example -> rounded and round and one of them is discarded 
-                for attr in config.PRODUCT_ATTRIBUTES:
+                for attr in PRODUCT_ATTRIBUTES:
                     # Sort the elements of the respective columns based on position on metadata or headline (headline first and then position on each string)
                     labels_df.loc[:, attr] = pd.Series([sorted(list(ele), key = lambda tup: (tup[2], tup[1])) for ele in labels_df.loc[:, attr]])
                     labels_df.loc[:, attr] = pd.Series([list(map(lambda x: x[0], ele)) for ele in labels_df.loc[:, attr]])
@@ -172,41 +169,40 @@ class MetadataAnnotator():
                             labels_df.loc[key, attr].reverse()
 
                 # Check if list is empty and in this case make it None 
-                # for attr in (config.PRODUCT_ATTRIBUTES + config.DEEPFASHIONATTRIBUTES):
-                for attr in config.PRODUCT_ATTRIBUTES:
+                for attr in PRODUCT_ATTRIBUTES:
                     labels_df.loc[:, attr] = labels_df[attr].apply(lambda x: ','.join(x) if x else None)
                 #Extract unique labels from metadata and headline
                 labelsUnique = {attr:set([l for label in labels_df[attr].unique() 
                         if label for l in label.split(',')]) 
-                        for attr in labels_df.loc[:, config.PRODUCT_ATTRIBUTES].columns}
-
-                # # Read from database the labels 
-                # # for name in (config.PRODUCT_ATTRIBUTES + config.DEEPFASHIONATTRIBUTES):
-                # dfDict = {}
-                # for attr in config.PRODUCT_ATTRIBUTES:
-                #     dfDict[str(attr)+'_DB'] = self.db_manager.runSelectQuery(params={'table': attr})
+                        for attr in labels_df.loc[:, PRODUCT_ATTRIBUTES].columns}
 
                 # Update the DB tables with the new attributes                
                 for (table, values) in labelsUnique.items():
-                    self.logger.info('Updating product attribute table %s' % table)  
-                    for v in values:
-                        uniq_params = {'table': table, 'Description': v.lower()}
-                        params = {'table': table, 'Description': v.lower(), 'AlternativeDescription': '', 
-                                'ProductCategory': None, 'Active': True, 'OptimisticLockField': None}
-                        self.db_manager.runCriteriaInsertQuery(
-                                                            uniq_params=uniq_params, 
-                                                            params=params, 
-                                                        )
+                    if table != 'Gender':
+                        self.logger.info('Updating product attribute table %s' % table)
+                        for v in values:
+                            uniq_params = {'table': table, 'Description': v.lower()}
+                            params = {'table': table, 'Description': v.lower(), 'AlternativeDescription': '', 
+                                    'ProductCategory': None, 'Active': True, 'OptimisticLockField': None}
+                            self.db_manager.runCriteriaInsertQuery(
+                                                                uniq_params=uniq_params, 
+                                                                params=params, 
+                                                            )
                                 
                 self.logger.info('Update product attributes')
                 ## Update Product table with the foreign key values of the updated attributes
                 # re-load from database the updated attribute tables and create a dataframe for each 
                 dfDict = {}
-                for attr in config.PRODUCT_ATTRIBUTES:
+                for attr in PRODUCT_ATTRIBUTES:
                     dfDict[str(attr)+'_DB'] = self.db_manager.runSelectQuery(params={'table': attr})
+                    for col in dfDict[str(attr)+'_DB'].columns:
+                        try:                        
+                            dfDict[str(attr)+'_DB'][col] = dfDict[str(attr)+'_DB'][col].str.lower()
+                        except:
+                            pass
 
                 # Update Product table for each attribute
-                for attr in config.PRODUCT_ATTRIBUTES:
+                for attr in PRODUCT_ATTRIBUTES:
                     # If there are multiple attributes, select the first
                     labels_df.loc[labels_df[attr].notnull(), attr] = (labels_df[labels_df[attr]
                                                                         .notnull()][attr]

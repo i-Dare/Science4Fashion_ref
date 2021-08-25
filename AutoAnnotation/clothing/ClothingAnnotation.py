@@ -65,9 +65,9 @@ class ClothingAnnotator():
                 image = self.helper.convertBlobToImage(row['Image'])
             else:
                 image = self.helper.getWebImage(row['ImageSource'])
+            image = self.helper.convertCVtoPIL(image)
+            # Neckline
             try:
-                image = self.helper.convertCVtoPIL(image)
-                # Neckline
                 if pd.isna(row['NeckDesign']):
                     self.products_df.loc[index, 'NeckDesign'] = self.helper.updateAttribute(config.DICTNECKLINE, image,
                             self.necklineLearner)
@@ -75,7 +75,8 @@ class ClothingAnnotator():
                 self.logger.warn_and_trace(e, {'Product': productID})
                 self.logger.warning('Failed to infer Neckline for Product with Oid %s' % productID, {'Product': productID})
 
-                # Sleeve
+            # Sleeve
+            try:                
                 if pd.isna(row['Sleeve']):
                     self.products_df.loc[index, 'Sleeve'] = self.helper.updateAttribute(config.DICTSLEEVE, image,
                             self.sleeveLearner)
@@ -84,7 +85,8 @@ class ClothingAnnotator():
                 self.logger.warn_and_trace(e, {'Product': productID})
                 self.logger.warning('Failed to infer Sleeve for for Product with Oid %s' % productID, {'Product': productID})
 
-                # Length
+            # Length
+            try:  
                 if pd.isna(row['Length']):
                     self.products_df.loc[index, 'Length'] = self.helper.updateAttribute(config.DICTLENGTH, image,
                             self.lengthLearner)
@@ -93,7 +95,8 @@ class ClothingAnnotator():
                 self.logger.warn_and_trace(e, {'Product': productID})
                 self.logger.warning('Failed to infer Length for for Product with Oid %s' % productID, {'Product': productID})
 
-                # Collar
+            # Collar
+            try:  
                 if pd.isna(row['CollarDesign']):
                     self.products_df.loc[index, 'CollarDesign'] = self.helper.updateAttribute(config.DICTCOLLAR, image,
                             self.collarLearner)
@@ -102,7 +105,8 @@ class ClothingAnnotator():
                 self.logger.warn_and_trace(e, {'Product': productID})
                 self.logger.warning('Failed to infer Collar for for Product with Oid %s' % productID, {'Product': productID})
 
-                # Fit
+            # Fit
+            try:  
                 if pd.isna(row['Fit']):
                     self.products_df.loc[index, 'Fit'] = self.helper.updateAttribute(config.DICTFIT, image,
                             self.fitLearner)                
