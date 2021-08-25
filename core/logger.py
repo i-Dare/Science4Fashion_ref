@@ -191,7 +191,12 @@ class MyFormatter(logging.Formatter):
     def format(self, record):
         record.user = self.user
         record.levelno = LEVEL_DICT[record.levelname]
-        return super().format(record)
+        try:
+            record = super().format(record)
+        except ValueError:
+            record.msg = record.msg.replace("'", "''").replace('%', '%%')
+            record = super().format(record)
+        return record
 
 
 # --------------------------------

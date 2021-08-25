@@ -252,10 +252,13 @@ class QueryManager():
     def parseStr(self, i):
         if i == 'NULL':
             return i
-        if i.startswith('http'):
+        elif i.startswith('http'):
+            return "'%s'" % i
+        elif re.search(r'(http(?=s|:)\S+)', i):
+            url_match = re.findall(r'(http(?=s|:)\S+)', i)[0]
             return "'%s'" % i
         else:
-            return "STRING_ESCAPE('%s', \'json\')" % i.replace("'", "''").replace('%', '%%')
+            return "STRING_ESCAPE('%s', \'json\')" % i#.replace("'", "''").replace('%', '%%')
 
     def parseBool(self, i):
         return str(1) if i else str(0)

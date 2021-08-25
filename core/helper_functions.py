@@ -29,6 +29,7 @@ import warnings
 import core.config as config
 from core.query_manager import QueryManager
 
+
 wordsegment.load()
 warnings.filterwarnings('ignore')
 
@@ -74,7 +75,11 @@ class Helper():
             }
             self.logger.debug('Get content from: %s, try: %s ' % (url+suffix, i))
             try:
-                req = requests.get(url+suffix, headers=headers, timeout=config.CRAWLER_TIMEOUT ,verify=False)
+                if 'asos.com' in url and 'search' in url:
+                    req = requests.get(url+suffix, headers=headers, timeout=config.CRAWLER_TIMEOUT, 
+                            verify=False, cookies=config.ASOS_COOKIE)
+                else:
+                    req = requests.get(url+suffix, headers=headers, timeout=config.CRAWLER_TIMEOUT, verify=False)
                 soup = BeautifulSoup(req.content, 'html.parser')
                 if req.reason == 'OK':
                     url = req.url
@@ -304,6 +309,7 @@ class Helper():
                                                                 params=params, 
                                                                 get_identity=True
                                                             )
+        if not prodCat_df.empty:
             return prodCat_df['Oid']
         return None
     
@@ -332,7 +338,7 @@ class Helper():
                                                                     get_identity=True
                                                                 )
             else: 
-                self.logger.warning('Cannot add new subcategory without providing a category argument')
+                self.logger.warning('Cannot add %s as new subcategory' % prodSubCat)
                 return None, None
 
         return prodSubCat_df[['Oid', 'ProductCategory']]
@@ -345,12 +351,12 @@ class Helper():
         records = self.db_manager.runSelectQuery(params={'table': table})
         if not records.empty:
             matched_record = (records.loc[records['Description'].apply(self.preprocess_metadata)
-                    .isin( processed_sample.split() ), :]).iloc[0]
-            return matched_record
-        else:
-            return pd.DataFrame()
+                    .isin( processed_sample.split() ), :])
+            if not matched_record.empty:
+                return matched_record.iloc[0]
+        return pd.DataFrame()
             
-    def categorySelectio(self, prodCat=None, prodSubCat=None):
+    def categorySelection(self, prodCat=None, prodSubCat=None):
         # If only one category is provided
         if pd.isna(prodCat) or pd.isna(prodSubCat):
             # Search first in ProductSubCategories
@@ -396,15 +402,15 @@ class Helper():
         
         ## Add product and return new records in DataFrame
         # Check if product exists
-        # If DataFrame is empty add new product      
-        self.logger.debug('Adding new product', {'CrawlSearch': crawlSearchID})  
+        # If DataFrame is empty add new product        
         products_df = self.db_manager.runCriteriaInsertQuery(
                                                             uniq_params=uniq_params, 
                                                             params=params, 
                                                             get_identity=True
                                                         )
-        oid = products_df.loc[0, 'Oid']        
-
+        productID = products_df.loc[0, 'Oid']
+        self.logger.info('Added new product %s' % productID, 
+                {'Product': productID, 'CrawlSearch': crawlSearchID})
         return products_df
 
     ## Add new product to the ProductHistory table 
@@ -419,10 +425,10 @@ class Helper():
         productID, price = products_df.loc[0, ['Oid', 'RetailPrice']]
         uniq_params = {'table': 'ProductHistory', 'Product': productID, 'CrawlSearch': crawlSearchID}
         params = {'table': 'ProductHistory', 'Product': productID, 'ReferenceOrder': referenceOrder, 
-                  'TrendingOrder': trendOrder, 'Price': price, 'CrawlSearch': crawlSearchID, 'SearchDate': searchDate}
-
-        self.logger.info('Adding new product history of product %s' % productID, {'Product': productID, 'CrawlSearch': crawlSearchID})  
+                  'TrendingOrder': trendOrder, 'Price': price, 'CrawlSearch': crawlSearchID, 'SearchDate': searchDate} 
         productHist_df = self.db_manager.runCriteriaInsertQuery(uniq_params=uniq_params, params=params, get_identity=True)
+        self.logger.info('Added new product history for product %s' % productID, 
+                {'Product': productID, 'CrawlSearch': crawlSearchID})
         return productHist_df
 
     ## Update product history 
@@ -460,7 +466,7 @@ class Helper():
             df = self.db_manager.runSelectQuery(params={'table': attr})
             # Populate product attribute dictionary
             fashion_att += df['Description'].str.lower().tolist()
-            
+
         fashion_att = self.preprocess_words(list(set(fashion_att)))
         return fashion_att
 
@@ -521,74 +527,57 @@ class Helper():
         tfidf_vector = vectorizer.transform(doc)
         return tfidf_vector
 
+        
 # --------------------------------------------------------------------------                        
 #          Web crawler functionality, specific for each website
 # --------------------------------------------------------------------------
     ## Generic functionaloty
     # Add/update product information
-    def registerData(self, crawlSearchID, site, standardUrl, referenceOrder, trendOrder, cnt, uniq_params, params):
-        from AutoAnnotation.color import ColorAnnotation
-        from AutoAnnotation.clothing import ClothingAnnotation
-        from AutoAnnotation.text import MetadataAnnotation
-
+    def registerData(self, crawlSearchID, site, standardUrl, referenceOrder, trendOrder, uniq_params, params):
         # Check if product url exists to decide if addition of update is needed
         url = params['URL']
         _params = {'table': 'Product', 'URL': url}
         products_df = self.db_manager.runSelectQuery(_params)
-
+        productID = None
         if not products_df.empty:
-            action = 'update' # action flag
             ## Product exists, proceed to update ProductHistory table
             # Update ProductHistory
             try:
                 productHist_df = self.updateProductHistory(crawlSearchID, products_df, referenceOrder, trendOrder)
-                cnt += 1
+                productID = productHist_df.loc[0, 'Product']
+                self.logger.info('Updated product history for product %s' % productID, 
+                        {'Product': productID, 'CrawlSearch': crawlSearchID})
             except Exception as e:
                 self.logger.warn_and_trace(e)
             
         else:
-            action = 'addition' # action flag
             # Download product image
-            params['Photo'] = self.setImageFilePath(standardUrl, 
-                    ''.join(params['Description'].split()), trendOrder)
-            params['Image'] = self.saveImage(params['ImageSource'], params['Photo'])
+            if 'Photo' not in params.keys():
+                params['Photo'] = self.setImageFilePath(standardUrl, 
+                        ''.join(params['Description'].split()), trendOrder)
+            if 'Image' not in params.keys():
+                params['Image'] = self.saveImage(params['ImageSource'], params['Photo'])
             try:
                 # Create new entry in PRODUCT table
                 products_df = self.addNewProduct(crawlSearchID, site, uniq_params=uniq_params, params=params)
+                # Set the new product ID as the returning item
+                if not products_df.empty:
+                    productID = products_df.loc[0, 'Oid']
 
-                cnt += 1
                 # Create new entry in ProductHistory table
                 productHist_df = self.addNewProductHistory(crawlSearchID, products_df, referenceOrder, trendOrder)
-                # Product IDs to perform annotation
-                oids = products_df.loc[:, 'Oid'].tolist()
-                # Color annotation                
-                color_annotator = ColorAnnotation.ColorAnnotator(self.user, *oids)
-                color_annotator.execute_annotation()
-                # Clothing annotation                
-                clothing_annotator = ClothingAnnotation.ClothingAnnotator(self.user, *oids)
-                clothing_annotator.execute_annotation()
-                # Metatada annotation                
-                metadata_annotator = MetadataAnnotation.MetadataAnnotator(self.user, *oids)
-                metadata_annotator.execute_annotation()
-
             except Exception as e:
                 self.logger.warn_and_trace(e)       
                 self.logger.warning('Information for product at %s not added' % \
                         re.findall(r'\'(http.+)\'', params['URL'])[0])
-                return cnt, None
-            
-        productID = productHist_df.loc[0, 'Product']
-        if action == 'addition':           
-            self.logger.info('Added new product %s' % productID, {'Product': productID, 'CrawlSearch': crawlSearchID})
-            self.logger.info('Added new product history for product %s' % productID, {'Product': productID, 'CrawlSearch': crawlSearchID})    
-        else: 
-            self.logger.info('Updated product history for product %s' % productID, {'Product': productID, 'CrawlSearch': crawlSearchID})
-        return cnt, productID
+                return None
+        # Retuρn Product ID
+        return productID
 
     ## Asos specific functionality 
     ## Fetch search results form Asos according to 'order' parameter 
     #
-    def crawlingAsos(self, keyUrl, order, filterDF=pd.DataFrame([]), breakPointNumber=9999999):
+    def crawlingAsos(self, keyUrl, order, filterDF=pd.DataFrame([]), threshold=9999999):
         '''
         Fetches search results form Asos according to 'order' parameter. Parameter "filterDF" is 
         filled with the trending order dataframe to call the script with reference order and get the reference order
@@ -617,14 +606,17 @@ class Helper():
         # Fetch initial search result page
         url, soup = self.get_content(resultsURL, retry=5)
         maxItems = int(soup.find('progress').get('max'))
-        breakPointNumber = breakPointNumber if breakPointNumber <= maxItems else maxItems
+        threshold = threshold if threshold <= maxItems else maxItems
         # Prepare ajax request URL
         # Capture hidden parameters of ajax request for the image loading
         try:
             jsonUnparsed = [script for script in soup.findAll('script') if 'ANALYTICS_REMOVE_PENDING_EVENT' in str(script)]
             jsonInfo = json.loads(re.findall(r'JSON\.parse.+({\"(?=analytics).+products\".+\]}}})', str(jsonUnparsed))[0].replace('\\', ''))
             articles = jsonInfo['search']['products']
-            products = articles
+            # Check for duplicates by accessing the DB Product table 
+            existing_articles = self.db_manager.runSelectQuery(params={'table': 'Product', 'Adapter': 1}, 
+                    filters=['ImageSource']).squeeze().tolist()
+            products = [p for p in articles if 'https://' + p['image'] not in existing_articles]
         except Exception as e:        
             self.logger.warn_and_trace(e)
 
@@ -632,7 +624,7 @@ class Helper():
         # DataFrame to hold results
         resultsDF = pd.DataFrame(columns=[ordering, 'URL', 'imgURL', 'price'])
         if order=='reference':
-            breakPointNumber = len(filterDF)
+            threshold = len(filterDF)
             # Search for URLs if they exist in the filterDF
             while len(products) < maxItems:
                 urlList = ['https://www.asos.com/uk/' + a['url'] for a in articles]
@@ -660,7 +652,7 @@ class Helper():
                     self.logger.warn_and_trace(e)
                     self.logger.warning('Failed to parse %s' % resultsURL)
         else:
-            maxItems = breakPointNumber
+            maxItems = threshold            
             while len(products) < maxItems:
                 pageNo += 1
                 _paging = '&page=%s' % pageNo
@@ -732,7 +724,7 @@ class Helper():
         try:
             # Capture category information
             category = jsonInfo['productType']['name']
-            prodCatID, prodSubCatID = self.categorySelectio(prodCat=category)
+            prodCatID, prodSubCatID = self.categorySelection(prodCat=category)
             
         except Exception as e:
             prodCatID = None 
@@ -814,7 +806,7 @@ class Helper():
     ## sOliver specific functionality 
     ## Fetch search results form s.Oliver according to 'order' parameter 
     #
-    def crawlingSOliver(self, keyUrl, order, filterDF=pd.DataFrame([]), breakPointNumber=9999999):
+    def crawlingSOliver(self, keyUrl, order, filterDF=pd.DataFrame([]), threshold=9999999):
         '''
         Fetches search results form s.Oliver according to 'order' parameter. Parameter "filterDF" is 
         filled with the trending order dataframe to call the script with reference order and get the reference order
@@ -822,7 +814,7 @@ class Helper():
         - Input:
             keyUrl: search URL according to keywords
             order: ordering of results, valid values are 'reference' and 'trend'
-            breakPointNumber: defines the number of results to fetch
+            threshold: defines the number of results to fetch
 
         - Returns:
             resultsDF: pandas DataFrame with columns the ordering sequence, the product webpage URL, the product's image URL 
@@ -877,12 +869,15 @@ class Helper():
         # lazy-loading iteration until reaching the maxItems - 12 products in each iteration
         url, soupAjax = self.get_content(urlAjax)
         articles = soupAjax.findAll('div', {'class': re.compile("js-ovgrid-item")})
-        products = articles
+        # Check for duplicates by accessing the DB Product table 
+        existing_articles = self.db_manager.runSelectQuery(params={'table': 'Product', 'Adapter': 2}, 
+                filters=['ImageSource']).squeeze().tolist()
+        products = [p for p in articles if 'https://' + p['image'] not in existing_articles]
 
         # DataFrame to hold results
         resultsDF = pd.DataFrame(columns=[ordering, 'URL', 'imgURL'])
         if order=='reference':
-            breakPointNumber = len(filterDF)
+            threshold = len(filterDF)
             while len(products) < maxItems:
                 urlList = ['https://www.soliver.eu' + a.find('a', {'class': 
                             re.compile("js-ovlistview-productdetaillink")}).get('href') 
@@ -902,7 +897,7 @@ class Helper():
                 if len(articles)==0: # Exit if no more results
                     break
         else:
-            maxItems = breakPointNumber
+            maxItems = threshold
             while len(products) < maxItems:
                 # Prepare next ajax request
                 start += step
@@ -1044,7 +1039,7 @@ class Helper():
             # Capture category information
             prodCatStr = json.loads(info_json)['product']['categoryPath'].split('/')[-2]
             prodSubCatStr = json.loads(info_json)['product']['categoryPath'].split('/')[-1]
-            prodCatID, prodSubCatID = self.categorySelectio(prodCat=prodCatStr, prodSubCat=prodSubCatStr)
+            prodCatID, prodSubCatID = self.categorySelection(prodCat=prodCatStr, prodSubCat=prodSubCatStr)
             
         except Exception as e:
             prodCatID = None 
@@ -1078,7 +1073,7 @@ class Helper():
     ## Zalando specific functionality 
     ## Fetch search results form Zalando according to 'order' parameter 
     #
-    def crawlingZalando(self, keyUrl, order, filterDF=pd.DataFrame([]), breakPointNumber=9999999):
+    def crawlingZalando(self, keyUrl, order, filterDF=pd.DataFrame([]), threshold=9999999):
         '''
         Fetches search results form Zalando according to 'order' parameter. Parameter "filterDF" is 
         filled with the trending order dataframe to call the script with reference order and get the 
@@ -1112,20 +1107,26 @@ class Helper():
 
         # Handle pagination and gather all products
         articles = jsonInfo['articles']
-        products = articles
-
-        ## Capture product information according to the 'breakPointNumber'
-        # if 'breakPointNumber' is less than the 'maxItems' return 'breakPointNumber' items
+        # Check for duplicates by accessing the DB Product table 
+        existing_articles = self.db_manager.runSelectQuery(params={'table': 'Product', 'Adapter': 3}, 
+                filters=['ImageSource']).squeeze().tolist()
+        new_articles = [a for a in articles 
+                if 'https://img01.ztat.net/article/' + a['media'][0]['path'] not in existing_articles]
+        products = new_articles
+        ## Capture product information according to the 'threshold'
+        # maxItems are equal to the caprured max_items minus the initial added articles
+        # if 'threshold' is less than the 'maxItems' return 'threshold' items
         # Otherwise parse additional result pages
         maxItems = jsonInfo['total_count']
-        breakPointNumber = breakPointNumber if breakPointNumber <= maxItems else maxItems
+        remainingItems = maxItems - len(articles)
+        threshold = threshold if threshold <= remainingItems else remainingItems
         offset, limit = len(products), 84
         # DataFrame to hold results
         resultsDF = pd.DataFrame(columns=[ordering, 'URL', 'imgURL'])
         if order=='reference':  
-            breakPointNumber = len(filterDF)   
-            while len(products) < maxItems:
-                urlList = ['https://www.zalando.co.uk/%s.html' % a['url_key'] for a in articles]
+            threshold = len(filterDF)   
+            while len(products) < remainingItems:
+                urlList = ['https://www.zalando.co.uk/%s.html' % a['url_key'] for a in new_articles]
                 if not filterDF[filterDF['URL'].isin(urlList)].empty:
                     resultsDF = resultsDF.append(filterDF[filterDF['URL'].isin(urlList)], ignore_index=True)
                 if len(resultsDF) >= len(filterDF): # Exit condition for reference order
@@ -1136,18 +1137,23 @@ class Helper():
                 url, _soup = self.get_content(_resultsURL)
                 _jsonInfo = json.loads(str(_soup))
                 articles = _jsonInfo['articles']
+                remainingItems -= len(articles)
+                new_articles = [a for a in articles 
+                        if 'https://img01.ztat.net/article/' + a['media'][0]['path'] not in existing_articles]
                 offset += limit
-                products += articles
+                products += new_articles
         else:
-            maxItems = breakPointNumber 
-            while len(products) < maxItems:
+            while len(products) < remainingItems:
                 _resultsURL = resultsURL + '&offset=%s' % offset
                 url, _soup = self.get_content(_resultsURL)
                 _jsonInfo = json.loads(str(_soup))
                 articles = _jsonInfo['articles']
-                products += articles
+                remainingItems -= len(articles)
+                new_articles = [a for a in articles 
+                        if 'https://img01.ztat.net/article/' + a['media'][0]['path'] not in existing_articles]
+                products += new_articles
                 offset += limit      
-            products = products[:maxItems]  
+            products = products[:threshold]  
             # Iterate result pages
             for product in products:
                 # Capture actual products information from json fields
@@ -1186,9 +1192,9 @@ class Helper():
             if retry == max_retries:
                 self.logger.warn("Unable to access %s" % url, {'CrawlSearch': crawlSearchID})
                 return {}
-
-        jsonUnparsed = soup .find('script', attrs={'id': re.compile(r'z-vegas-pdp-props')})
+        
         try:
+            jsonUnparsed = soup.find('script', attrs={'id': re.compile(r'z-vegas-pdp-props')})
             jsonInfo = re.findall(r'{.+}', str(jsonUnparsed))[0]
             productInfo = json.loads(jsonInfo)
         except Exception as e:        
@@ -1204,9 +1210,9 @@ class Helper():
         # category - sub category
         try:
             # Capture category information
-            prodCatStr = productInfo['model']['articleInfo']['silhouette_code']
-            prodSubCatStr = productInfo['model']['articleInfo']['category_tag']
-            prodCatID, prodSubCatID = self.categorySelectio(prodCat=prodCatStr, prodSubCat=prodSubCatStr)
+            prodCatStr = productInfo['model']['articleInfo']['category_tag']
+            prodSubCatStr = productInfo['model']['articleInfo']['silhouette_code']
+            prodCatID, prodSubCatID = self.categorySelection(prodCat=prodCatStr, prodSubCat=prodSubCatStr)
             
         except Exception as e:
             prodCatID = None 
