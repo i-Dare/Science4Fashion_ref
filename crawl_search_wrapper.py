@@ -11,6 +11,8 @@ import core.config as config
 from core.logger import S4F_Logger
 from core.query_manager import QueryManager
 from data_annotation_wrapper import executeAutoAnnotation
+from WebCrawlers.SocialMedia import SocialMediaCrawlers
+from WebCrawlers.Websites import WebsiteCrawlers
 
 
 class WebCrawlers:
@@ -97,14 +99,14 @@ class WebCrawlers:
       # Get all modules from SocialMediaCrawlers
       socialMediaCrawlersMods = [obj  for _, obj in inspect.getmembers(sys.modules['WebCrawlers.SocialMedia']) 
             if inspect.ismodule(obj)]
-      # Get all modules from SocialMediaCrawlers
+      # Get all modules from WebsiteCrawlers
       websiteCrawlersMods = [obj  for _, obj in inspect.getmembers(sys.modules['WebCrawlers.Websites']) 
             if inspect.ismodule(obj)]
       adapterModules = socialMediaCrawlersMods + websiteCrawlersMods
       adapterModulesDict = {name: obj for mod in adapterModules 
             for name, obj in inspect.getmembers(sys.modules[mod.__name__])   
             if inspect.isclass(obj) and name.endswith('Crawler')}
-      # Create a list with all the adapter classes
+      # Create a list with all the adapter classes that should be executed during this search
       adapterClassList = [
             list(filter(re.compile('%s' % a, re.I).match, list(adapterModulesDict.keys())))[0]  
             for a in self.adapters if list(filter(re.compile('%s' % a, re.I).match, 

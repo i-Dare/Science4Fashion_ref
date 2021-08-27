@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 ############################# Import all the libraries needed ###########################
 import os
+from pandas.core.frame import DataFrame
 import requests
 import time
 import random
@@ -207,14 +208,16 @@ class Helper():
         - Returns:
             empPhoto: image binary
         '''
-        r = requests.get(imgURL, allow_redirects=True)
+        if imgURL:
+            r = requests.get(imgURL, allow_redirects=True)
 
-        imageFile = open(imageFilePath, 'wb')
-        imageFile.write(r.content)
-        imageFile.close()
-        # convert image to binary
-        empPhoto = self.convertToBinaryData(imageFilePath)
-        return empPhoto
+            imageFile = open(imageFilePath, 'wb')
+            imageFile.write(r.content)
+            imageFile.close()
+            # convert image to binary
+            empPhoto = self.convertToBinaryData(imageFilePath)
+            return empPhoto
+        return None
 
     def save_model(self, model, model_name, directory):
         '''
@@ -254,6 +257,15 @@ class Helper():
 # --------------------------------------------------------------------------                        
 #          Database IO Functionality
 # -------------------------------------------------------------------------- 
+
+    ## Return Adapter ID according to the logger name.
+    #
+    def getAdapter(self,):
+        adapter = self.logger.name.split('Logger')[0]
+        adapter_df = self.db_manager.runSelectQuery(params={'table': 'Adapter'}, filters=['Oid', 'Description'])
+        oid, _ = adapter_df[adapter_df['Description'].str.match(adapter, case=False)].iloc[0]
+        return oid
+
 
     ## Return gender ID according to the extracted text from the crawler
     #
@@ -309,6 +321,7 @@ class Helper():
                                                                 params=params, 
                                                                 get_identity=True
                                                             )
+            prodCat_df = prodCat_df.squeeze()
         if not prodCat_df.empty:
             return prodCat_df['Oid']
         return None
@@ -327,7 +340,7 @@ class Helper():
             if add and pd.notna(prodCat):
                 # Find ProductCategory ID
                 prodCat_df = self.find_db_match(prodCat, 'ProductCategory')
-                prodCatID = prodCat_df.loc[0, 'Oid']
+                prodCatID = prodCat_df.squeeze()['Oid'] if not prodCat_df.empty else None
 
                 uniq_params = {'table': 'ProductSubcategory', 'Description': prodSubCat}
                 params = {'table': 'ProductSubcategory', 'Description': prodSubCat, 'ProductCategory': prodCatID}     
@@ -337,8 +350,9 @@ class Helper():
                                                                     params=params, 
                                                                     get_identity=True
                                                                 )
+                prodSubCat_df = prodSubCat_df.squeeze()
             else: 
-                self.logger.warning('Cannot add %s as new subcategory' % prodSubCat)
+                self.logger.debug('Cannot add %s as new subcategory' % prodSubCat)
                 return None, None
 
         return prodSubCat_df[['Oid', 'ProductCategory']]
@@ -350,8 +364,8 @@ class Helper():
         # Get categories from DB and match the captured one
         records = self.db_manager.runSelectQuery(params={'table': table})
         if not records.empty:
-            matched_record = (records.loc[records['Description'].apply(self.preprocess_metadata)
-                    .isin( processed_sample.split() ), :])
+            matched_record = (records.loc[records['Description']
+                    .apply(self.preprocess_metadata).str.match(processed_sample), :])
             if not matched_record.empty:
                 return matched_record.iloc[0]
         return pd.DataFrame()
@@ -389,13 +403,11 @@ class Helper():
 
     ## Add new product to the Product table 
     #
-    def addNewProduct(self, crawlSearchID, site, uniq_params, params):
+    def addNewProduct(self, crawlSearchID, uniq_params, params):
         '''
         Adds new product info to the Product table. 
         '''
-        params['Adapter'] = pd.read_sql_query("SELECT * FROM %s.dbo.Adapter WHERE \
-                %s.dbo.Adapter.Description = '%s'" % (config.DB_NAME, config.DB_NAME, site), 
-                config.ENGINE).loc[0, 'Oid']
+        params['Adapter'] = self.getAdapter()
         # Add a new Brand if it does not exist dn return the 'Oid' or just return existing 'Oid'
         if 'Brand' in params.keys():
             params['Brand'] = self.getBrand(params['Brand'])        
@@ -533,7 +545,7 @@ class Helper():
 # --------------------------------------------------------------------------
     ## Generic functionaloty
     # Add/update product information
-    def registerData(self, crawlSearchID, site, standardUrl, referenceOrder, trendOrder, uniq_params, params):
+    def registerData(self, crawlSearchID, standardUrl, referenceOrder, trendOrder, uniq_params, params):
         # Check if product url exists to decide if addition of update is needed
         url = params['URL']
         _params = {'table': 'Product', 'URL': url}
@@ -559,13 +571,13 @@ class Helper():
                 params['Image'] = self.saveImage(params['ImageSource'], params['Photo'])
             try:
                 # Create new entry in PRODUCT table
-                products_df = self.addNewProduct(crawlSearchID, site, uniq_params=uniq_params, params=params)
+                products_df = self.addNewProduct(crawlSearchID, uniq_params=uniq_params, params=params)
                 # Set the new product ID as the returning item
                 if not products_df.empty:
                     productID = products_df.loc[0, 'Oid']
 
-                # Create new entry in ProductHistory table
-                productHist_df = self.addNewProductHistory(crawlSearchID, products_df, referenceOrder, trendOrder)
+                    # Create new entry in ProductHistory table
+                    productHist_df = self.addNewProductHistory(crawlSearchID, products_df, referenceOrder, trendOrder)
             except Exception as e:
                 self.logger.warn_and_trace(e)       
                 self.logger.warning('Information for product at %s not added' % \
@@ -614,9 +626,12 @@ class Helper():
             jsonInfo = json.loads(re.findall(r'JSON\.parse.+({\"(?=analytics).+products\".+\]}}})', str(jsonUnparsed))[0].replace('\\', ''))
             articles = jsonInfo['search']['products']
             # Check for duplicates by accessing the DB Product table 
-            existing_articles = self.db_manager.runSelectQuery(params={'table': 'Product', 'Adapter': 1}, 
-                    filters=['ImageSource']).squeeze().tolist()
-            products = [p for p in articles if 'https://' + p['image'] not in existing_articles]
+            adapter = self.getAdapter()
+            existing_articles = self.db_manager.runSelectQuery(params={'table': 'Product', 'Adapter': adapter}, 
+                    filters=['URL'])
+            # Convert to list
+            existing_articles = existing_articles.squeeze().to_list() if isinstance(existing_articles, pd.DataFrame) else existing_articles.to_list()
+            products = [a for a in articles if 'https://www.asos.com/uk/' + a['url'] not in existing_articles]
         except Exception as e:        
             self.logger.warn_and_trace(e)
 
@@ -644,10 +659,11 @@ class Helper():
                     _jsonUnparsed = [script for script in _soup.findAll('script') if 'ANALYTICS_REMOVE_PENDING_EVENT' in str(script)]
                     _jsonInfo = json.loads(re.findall(r'JSON\.parse.+({\"(?=analytics).+products\".+\]}}})', 
                             str(_jsonUnparsed))[0].replace('\\', ''))
-                    articles = _jsonInfo['search']['products']
-                    products += articles
+                    articles = _jsonInfo['search']['products']                    
                     if len(articles)==0:
                         break
+                    new_articles = [a for a in articles if a['url'] not in existing_articles]
+                    products += new_articles
                 except Exception as e:                
                     self.logger.warn_and_trace(e)
                     self.logger.warning('Failed to parse %s' % resultsURL)
@@ -670,7 +686,8 @@ class Helper():
                 except Exception as e:                
                     self.logger.warn_and_trace(e)
                     self.logger.warning('Failed to parse %s' % resultsURL)
-                products += articles
+                new_articles = [a for a in articles if a['url'] not in existing_articles]
+                products += new_articles
             products = products[:maxItems]  
             # Iterate result pages
             for product in products:
@@ -797,9 +814,8 @@ class Helper():
             price = json.loads(str(priceSoup))[0]['productPrice']['current']['value']
         except:
             price = None
-            self.logger.warning("Product price not captured at %s" % url, {'CrawlSearch': crawlSearchID})   
-    
-
+            self.logger.warning("Product price not captured at %s" % url, {'CrawlSearch': crawlSearchID})       
+        # Return captured elements
         return head, brand, color, genderID, meta, sku, price, url, imgURL, prodCatID, prodSubCatID
 
 
@@ -869,11 +885,16 @@ class Helper():
         # lazy-loading iteration until reaching the maxItems - 12 products in each iteration
         url, soupAjax = self.get_content(urlAjax)
         articles = soupAjax.findAll('div', {'class': re.compile("js-ovgrid-item")})
-        # Check for duplicates by accessing the DB Product table 
-        existing_articles = self.db_manager.runSelectQuery(params={'table': 'Product', 'Adapter': 2}, 
-                filters=['ImageSource']).squeeze().tolist()
-        products = [p for p in articles if 'https://' + p['image'] not in existing_articles]
-
+        # Check for duplicates by accessing the DB Product table
+        adapter = self.getAdapter()
+        existing_articles = self.db_manager.runSelectQuery(params={'table': 'Product', 'Adapter': adapter}, 
+                filters=['URL'])
+        # Convert to list
+        existing_articles = existing_articles['URL'].to_list() if isinstance(existing_articles, pd.DataFrame) else existing_articles.to_list()
+        articlesURLs = ['https://www.soliver.eu' + \
+            a.find('a', {'class': re.compile("js-ovlistview-productdetaillink")}).get('href') for a in articles]
+        productsIndex = [i for i, a in enumerate(articlesURLs) if a not in existing_articles]
+        products = [articles[i] for i in productsIndex]
         # DataFrame to hold results
         resultsDF = pd.DataFrame(columns=[ordering, 'URL', 'imgURL'])
         if order=='reference':
@@ -892,10 +913,14 @@ class Helper():
                 resultRange = 'start=%s&sz=%s' % (start, step)
                 urlAjax = re.sub(r'start=[0-9]+&sz=[0-9]+', resultRange, urlAjax)
                 url, soupAjax = self.get_content(urlAjax)
-                articles = soupAjax.findAll('div', {'class': re.compile("js-ovgrid-item")})
-                products += articles
+                articles = soupAjax.findAll('div', {'class': re.compile("js-ovgrid-item")})                
                 if len(articles)==0: # Exit if no more results
                     break
+                articlesURLs = ['https://www.soliver.eu' + \
+                    a.find('a', {'class': re.compile("js-ovlistview-productdetaillink")}).get('href') for a in articles]
+                productsIndex = [i for i, a in enumerate(articlesURLs) if a not in existing_articles]
+                new_articles = [articles[i] for i in productsIndex]
+                products += new_articles
         else:
             maxItems = threshold
             while len(products) < maxItems:
@@ -908,7 +933,11 @@ class Helper():
                 # Stop if exceed pagination
                 if len(articles)==0:
                     break
-                products += articles
+                articlesURLs = ['https://www.soliver.eu' + \
+                    a.find('a', {'class': re.compile("js-ovlistview-productdetaillink")}).get('href') for a in articles]
+                productsIndex = [i for i, a in enumerate(articlesURLs) if a not in existing_articles]
+                new_articles = [articles[i] for i in productsIndex]
+                products += new_articles
             products = products[:maxItems]
             for product in products:
                 productPage = product.find('a', {'class': re.compile(
@@ -1067,6 +1096,7 @@ class Helper():
             meta = ''
             self.logger.warn_and_trace(e, {'CrawlSearch': crawlSearchID})
             self.logger.warning("Product Metadata not captured at %s" % url, {'CrawlSearch': crawlSearchID})
+        # Return captured elements
         return price, head, brand, color, genderID, meta, sku, prodCatID, prodSubCatID
 
 
@@ -1108,8 +1138,11 @@ class Helper():
         # Handle pagination and gather all products
         articles = jsonInfo['articles']
         # Check for duplicates by accessing the DB Product table 
-        existing_articles = self.db_manager.runSelectQuery(params={'table': 'Product', 'Adapter': 3}, 
-                filters=['ImageSource']).squeeze().tolist()
+        adapter = self.getAdapter()
+        existing_articles = self.db_manager.runSelectQuery(params={'table': 'Product', 'Adapter': adapter}, 
+                filters=['ImageSource'])
+        # Convert to list                
+        existing_articles = existing_articles.squeeze().to_list() if isinstance(existing_articles, pd.DataFrame) else existing_articles.to_list()
         new_articles = [a for a in articles 
                 if 'https://img01.ztat.net/article/' + a['media'][0]['path'] not in existing_articles]
         products = new_articles
@@ -1210,8 +1243,8 @@ class Helper():
         # category - sub category
         try:
             # Capture category information
-            prodCatStr = productInfo['model']['articleInfo']['category_tag']
-            prodSubCatStr = productInfo['model']['articleInfo']['silhouette_code']
+            prodCatStr = productInfo['model']['articleInfo']['silhouette_code']
+            prodSubCatStr = productInfo['model']['articleInfo']['category_tag']
             prodCatID, prodSubCatID = self.categorySelection(prodCat=prodCatStr, prodSubCat=prodSubCatStr)
             
         except Exception as e:
@@ -1244,4 +1277,5 @@ class Helper():
        
         params = {'ColorsDescription': color, 'Metadata': meta, 'ProductCategory': prodCatID, 
                 'ProductSubcategory': prodSubCatID, 'Gender': genderID}
+        # Return captured elements
         return params

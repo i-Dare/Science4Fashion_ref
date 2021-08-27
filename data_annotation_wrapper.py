@@ -54,7 +54,7 @@ class DataAnnotator:
 # ------------------------------------------------------------
    # Execute product clustering module
    def executeClustering(self, train=False):
-      self.logger.info('Executing: Clustering', {'CrawlSearch': self.crawlSearchID})      
+      self.logger.info('Executing: Clustering')      
       scriptPath = os.path.join(config.CLUSTERING, 'clustering_consensus.py')
       if train:
          args = ['python', scriptPath, '-train', '--user', str(self.user), '--loglevel', self.loglevel]
@@ -62,7 +62,7 @@ class DataAnnotator:
          args = ['python', scriptPath, '--user', str(self.user), '--loglevel', self.loglevel]
       proc = subprocess.run(args, stderr=subprocess.STDOUT)
       if proc.returncode != 0:
-         self.logger.warning('Issues in clothing based annotation', {'CrawlSearch': self.crawlSearchID})
+         self.logger.warning('Issues in clothing based annotation')
       
       
 

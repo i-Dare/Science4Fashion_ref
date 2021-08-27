@@ -50,7 +50,6 @@ class PinterestCrawler(Pinterest):
         cred_root = os.path.join(config.RESOURCESDIR, 'data')
         super().__init__(password=password, proxies=None, username='', email=username, cred_root=cred_root, user_agent=None)
         
-        self.logger.info('Connected to Pinterest', {'CrawlSearch': self.crawlSearchID})
         self.home_page = 'https://gr.pinterest.com/'        
         self.fashion_att = self.helper.get_fashion_attributes()
 
@@ -58,8 +57,9 @@ class PinterestCrawler(Pinterest):
         results = self.search('pins', self.searchTerm, page_size=threshold)
         # Discard irrelevant results
         results = [r for r in results if r['type'] == 'pin' and r['videos'] == None]
-        # Discard duplicates by accessing the DB Product table 
-        existing_articles = self.db_manager.runSelectQuery(params={'table': 'Product', 'Adapter': 5}, 
+        # Discard duplicates by accessing the DB Product table
+        adapter = self.helper.getAdapter()
+        existing_articles = self.db_manager.runSelectQuery(params={'table': 'Product', 'Adapter': adapter}, 
                 filters=['URL']).squeeze().tolist()
         results = [r for r in results if r['link'] not in existing_articles and r['link']]
         if len(results)>0:            
@@ -111,7 +111,9 @@ class PinterestCrawler(Pinterest):
 
     def executeCrawling(self,):
         # Login to Pinterest
-        self.login()
+        response = self.login()
+        self.logger.info('Connected to Pinterest', {'CrawlSearch': self.crawlSearchID})
+
         # Execute crawling in Pinterest 
         start_time_all = time.time()
         query_result = self.search_query()
@@ -122,7 +124,7 @@ class PinterestCrawler(Pinterest):
 
             self.logger.info('Images requested: %s, New images found: %s' % (self.threshold, len(productIDs)),
                  {'CrawlSearch': self.crawlSearchID})
-            self.logger.info("Time to scrape ALL queries is %s seconds ---" % 
+            self.logger.info("Time to complete query: %s seconds ---" % 
                     round(time.time() - start_time_all, 2), {'CrawlSearch': self.crawlSearchID})
         else:
             self.logger.warning('No results in Pinterest for %s' % self.searchTerm, {'CrawlSearch': self.crawlSearchID})
@@ -209,7 +211,8 @@ class InstagramCrawler():
         n_exists = 0
         hasNextPage = True
         # Check for duplicates by accessing the DB Product table 
-        existing_articles = self.db_manager.runSelectQuery(params={'table': 'Product', 'Adapter': 4}, 
+        adapter = self.helper.getAdapter()
+        existing_articles = self.db_manager.runSelectQuery(params={'table': 'Product', 'Adapter': adapter}, 
                 filters=['URL']).squeeze().tolist()
 
         while hasNextPage:
@@ -284,7 +287,7 @@ class InstagramCrawler():
 
             self.logger.info('Images requested: %s, New images found: %s' % (self.threshold, len(productIDs)),
                  {'CrawlSearch': self.crawlSearchID})
-            self.logger.info("Time to scrape ALL queries is %s seconds ---" % 
+            self.logger.info("Time to complete query: %s seconds ---" % 
                     round(time.time() - start_time_all, 2), {'CrawlSearch': self.crawlSearchID})
         else:
             self.logger.warning('No results in Instagram for %s' % self.searchTerm, {'CrawlSearch': self.crawlSearchID})
@@ -348,7 +351,7 @@ def save_ranked(crawlSearchID, helper, query_result, adapter, standardUrl, segme
         params = {'table': 'Product', 'Description': searchTerm, 'Active':  True, 'Ordering': 0, 
                  'ProductTitle': head, 'SiteHeadline': head, 'Metadata': meta, 'URL': url, 
                  'ImageSource': imgURL, 'Image': empPhoto, 'Photo': imageFilePath}
-        productID = helper.registerData(crawlSearchID, site, standardUrl, referenceOrder, trendOrder, uniq_params, params)
+        productID = helper.registerData(crawlSearchID, standardUrl, referenceOrder, trendOrder, uniq_params, params)
         productIDs.append(productID)
     return productIDs
 
