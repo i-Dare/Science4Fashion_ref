@@ -205,43 +205,46 @@ class QueryManager():
         Parses query parameters and adds 'user' information if 'has_owner' is True
         """
         _params = params.copy()
-        for k,v in _params.items():
+        for k,v in params.items():
             # parse floats
             if 'float' in str(type(v)).lower():
                 if np.isnan(v):
-                    del params[k]
+                    del _params[k]
                     continue
                 else:
-                    params[k] = self.parseFloat(v)
+                    _params[k] = self.parseFloat(v)
             # parse integers
             if 'int' in str(type(v)).lower():
-                params[k] = self.parseInt(v)
+                _params[k] = self.parseInt(v)
             # parse strings
             if type(v) == str:
-                params[k] = self.parseStr(v)
+                _params[k] = self.parseStr(v)
             # parse booleans
             if type(v) == bool:
-                params[k] = self.parseBool(v)
+                _params[k] = self.parseBool(v)
             # parse decimal
             if 'decimal' in str(type(v)):
-                params[k] = self.parseDecimal(v)
+                _params[k] = self.parseDecimal(v)
             # parse timestamps
             if 'timestamp' in str(type(v)).lower():
-                params[k] = self.parseStr(str(v))
+                _params[k] = self.parseStr(str(v))
+            # parse UUID
+            if 'uuid' in str(type(v)).lower():
+                _params[k] = self.parseStr(str(v))
             # ignore None values and 'table' key
             if v is None or k == 'table':
-                del params[k]
+                del _params[k]
                 continue
         
         # Add user information if owner is needed and is not already set beforehand as parameter
-        if has_owner and 'CreatedBy' not in params.keys() and 'UpdatedBy' not in params.keys():
+        if has_owner and 'CreatedBy' not in _params.keys() and 'UpdatedBy' not in _params.keys():
             if self.user != config.DEFAULT_USER:
-                params['CreatedBy'] = "'%s'" % self.user
-                params['UpdatedBy'] = "'%s'" % self.user
+                _params['CreatedBy'] = "'%s'" % self.user
+                _params['UpdatedBy'] = "'%s'" % self.user
             else:
-                params['CreatedBy'] = self.user
-                params['UpdatedBy'] = self.user
-        return params
+                _params['CreatedBy'] = self.user
+                _params['UpdatedBy'] = self.user
+        return _params
 
     def parseFloat(self, i):
         return 'CAST(%s AS FLOAT)' % i
