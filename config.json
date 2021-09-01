@@ -42,7 +42,7 @@
                           "rating_model": {"directory": "incremental_learning_models",
                                            "model": "rating_model.pkl"},
                           "irrelevance_model": {"directory": "incremental_learning_models",
-                                              "model": "irrelevane_model.pkl"}
+                                              "model": "irrelevance_model.pkl"}
                           }
                 },
   "clustering":{"famd_repeats": 20,

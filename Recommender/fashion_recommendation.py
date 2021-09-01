@@ -26,16 +26,17 @@ class FashionRecommender:
         self.searchID = searchID
         self.threshold = threshold
         self.recalc = recalc
-        self.numberResults = None
+        self.user = user
+        # self.numberResults = None
         self.loglevel = loglevel
         
-        # Fetch search information from CrawlSearch table
+        # Fetch search term information from RecommenderSearch table
         _db_manager = QueryManager()
         search_df = _db_manager.runSelectQuery(params={'table': 'RecommenderSearch', 'Oid': self.searchID})
 
-        # Assign query parameters to the parameters "searchTerm", "NumberOfProductsToReturn", "user"
-        self.searchTerm = search_df.iloc[0]['SearchTerm']
-        self.user = search_df.iloc[0]['UpdatedBy']
+        # Assign query parameters to the parameters "searchTerm"
+        self.searchTerm = search_df.iloc[0]['SearchTerm']        
+        self.user = search_df.iloc[0]['CreatedBy']        
 
         # Logger setup
         self.logging = S4F_Logger('FashionRecommender', user=self.user, level=self.loglevel)
@@ -99,7 +100,6 @@ class FashionRecommender:
             self.helper.remove_model(config.IRRELEVANCE_MODEL)
         return products_df   
 
-
     def recommendationScore(self, products_df, grading_mult=1, text_mult=1, ordering_mult=1, 
                             color_mult=1, clothing_mult=1):
         '''Calculate recommendation scoring factoring in the relevance of the searchTerms and the 
@@ -120,7 +120,6 @@ class FashionRecommender:
         # Return items sorted according to final score
         products_df.sort_values('final_score', ascending=False, inplace=True)
         return products_df
-
 
     def executeRecommendation(self, ):
         # Get search information
@@ -147,7 +146,7 @@ class FashionRecommender:
         # existing recommendation
         self.registerRecommendation(products_df)
 
-        self.evalRecommendation(products_df)
+        # self.evalRecommendation(products_df)
 
 # ----------------------------------------------
 #       Utility Functions
@@ -317,7 +316,9 @@ class FashionRecommender:
 
     def registerRecommendation(self, products_df):
         '''Stores the recommendation as a new record in Results table'''
-        # During recalculation (state!=0) remove previous results according to RecommenderSearch Oid
+        self.logger.info('Registering recommendation...', {'RecommenderSearch': self.searchID})
+        start = time.time()
+        # During recalculation (state!=0) update previous results according to RecommenderSearch Oid
         if self.recalc:
             for i, row in products_df.iterrows():
                 uniq_params = {'table': 'Result', 
@@ -339,7 +340,10 @@ class FashionRecommender:
                 'RecommenderSearch': self.searchID,
                 'Product': row['Oid'],
                 'GradeBySystem': row['final_score']}
-                self.db_manager.runInsertQuery(params, get_identity=True)
+                self.db_manager.runInsertQuery(params)
+
+        self.logger.debug("Finished recommendation registreation in {:.2f} seconds".format((time.time() - start)), 
+                {'RecommenderSearch': self.searchID})
 
 # ----------------------------------------------
 #       Evaluation Functions
@@ -359,8 +363,7 @@ class FashionRecommender:
             score = row['text_score']
             text = products_df.loc[products_df['Oid']==oid, 'combined_columns'].values[0]
             imgUrl = products_df.loc[products_df['Oid']==oid, 'ImageSource'].values[0].replace('\\','')
-            self.logger.info('%s: %s - %s\n%s' % (oid, score, text, imgUrl), 
-                    {'RecommenderSearch': self.searchID})
+            self.logger.info('%s: %s - %s\n%s' % (oid, score, text, imgUrl))
 
 
 
