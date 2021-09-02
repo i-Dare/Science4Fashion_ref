@@ -149,22 +149,24 @@ class ConsensusClustering:
    def famd_features(self, data):
       self.logger.info('Start FAMD feature endcoding...')
       inertia = []
-      for n in range(1, self.n_components):
+      for n in range(2, self.n_components):
          try:
-            famd = prince.FAMD(check_input=True,n_iter = 3, n_components=n, random_state=42)
+            famd = prince.FAMD(check_input=True,n_iter=3, n_components=n, random_state=42)
             famd.fit(data)
             # Calculate the 70th percentile for n number of components
             q = np.percentile(famd.explained_inertia_, 70, interpolation='nearest')
-            where = np.where(famd.explained_inertia_ >= q)
-            # Capture the number of components that explain the 70th percentile 
-            inertia.append((len(famd.explained_inertia_[where]), 
-                  sum(famd.explained_inertia_[where])/sum(famd.explained_inertia_)))       
+            where = np.where(famd.explained_inertia_>=q)
+            # Capture the number of components that explain the 70th percentile
+            # We store the total number of components, the number of components that capture >=70nth 
+            # percentile of inertia, the inertia percentage captured by the selected components
+            inertia.append((n, len(where[0]), 
+                  sum(famd.explained_inertia_[where]) / sum(famd.explained_inertia_)))
         
          except:
             pass
       # Final number of FAMD components is the n for which the maximum explained inertia is captured 
-      sorted_inertia = np.argsort([x[1] for x in inertia])[::-1]
-      n_components, k_features = sorted_inertia[1] + 1, inertia[sorted_inertia[1]][0]
+      sorted_inertia = np.argsort([x[2] for x in inertia])[::-1]
+      n_components, k_features, _ = inertia[sorted_inertia[0]]
       self.logger.info('Executing optimized FAMD transformation for n=%s and selecting k=%s features' \
             % (n_components, k_features))
       # Execute optimized FAMD transformation

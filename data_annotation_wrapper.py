@@ -14,6 +14,7 @@ from core.query_manager import QueryManager
 from AutoAnnotation.color import ColorAnnotation
 from AutoAnnotation.clothing import ClothingAnnotation
 from AutoAnnotation.text import MetadataAnnotation
+from Clustering.clustering_consensus import ConsensusClustering
 
 class DataAnnotator:
    def __init__(self):
@@ -55,14 +56,12 @@ class DataAnnotator:
    # Execute product clustering module
    def executeClustering(self, train=False):
       self.logger.info('Executing: Clustering')      
-      scriptPath = os.path.join(config.CLUSTERING, 'clustering_consensus.py')
-      if train:
-         args = ['python', scriptPath, '-train', '--user', str(self.user), '--loglevel', self.loglevel]
-      else:
-         args = ['python', scriptPath, '--user', str(self.user), '--loglevel', self.loglevel]
-      proc = subprocess.run(args, stderr=subprocess.STDOUT)
-      if proc.returncode != 0:
-         self.logger.warning('Issues in clothing based annotation')
+      clustering = ConsensusClustering(
+                                    user=self.user,
+                                    linkage=config.LINKAGE,
+                                    train=train,
+                                    loglevel=self.loglevel)
+      clustering.executeClustering()
       
       
 
