@@ -50,7 +50,7 @@ class FashionRecommender:
         '''Calculates recommendation score based on the grades of the user
         '''
         self.logger.info('Calculating recommendation factor according to text similarity', 
-                {'RecommenderSearch': self.searchID})
+                extra={'RecommenderSearch': self.searchID})
         # Calculate text features for recommendation 
         products_df, tfidf_vector, vectorizer = self.calculateTextDescriptors(products_df)
         
@@ -67,7 +67,7 @@ class FashionRecommender:
            as captured in the 'ProductHistory' table
         '''
         self.logger.info('Calculating recommendation factor according to ordering', 
-                {'RecommenderSearch': self.searchID})
+                extra={'RecommenderSearch': self.searchID})
         # Normalize ordering values
         start = time.time()
         scaler = MinMaxScaler((.1, .9))
@@ -76,7 +76,7 @@ class FashionRecommender:
         reference_factor = (-reference_mult) * np.log(scaler.fit_transform(products_df['reference_factor'].values.reshape(-1, 1)))
         products_df['ordering_score'] = trend_factor + reference_factor
         self.logger.debug("Calculate ordering score time: {:.2f} ms".format((time.time() - start) * 1000), 
-                {'RecommenderSearch': self.searchID})
+                extra={'RecommenderSearch': self.searchID})
         return products_df
 
     def feedbackBasedScore(self, products_df):
@@ -85,7 +85,7 @@ class FashionRecommender:
             # split data
             seen_rating_ids, irrelevant_ids, unseen_ids = self.split_ids(products_df)
             if unseen_ids.shape[0] == products_df.shape[0]:
-                self.logger.warn('No feedback provided.', {'RecommenderSearch': self.searchID})
+                self.logger.warn('No feedback provided.', extra={'RecommenderSearch': self.searchID})
                 return products_df
             # Predict ratings
             products_df = self.make_prediction(products_df, seen_rating_ids, unseen_ids, action='rating')
@@ -203,7 +203,7 @@ class FashionRecommender:
         _products_df.loc[:, num_columns] = products_df.groupby('Oid').max()[num_columns]
 
         self.logger.debug("Attribute retrieval time: {:.2f} ms".format((time.time() - start) * 1000), 
-                {'RecommenderSearch': self.searchID})
+                extra={'RecommenderSearch': self.searchID})
         return _products_df.reset_index()
 
     def attributePreprocessing(self, products_df):
@@ -248,7 +248,7 @@ class FashionRecommender:
                 os.makedirs(config.DATADIR)
             np.save(config.TFIDF_VECTOR, tfidf_vector.toarray())
         self.logger.debug("TFIDF feature extraction time: {:.2f} ms".format((time.time() - start) * 1000), 
-                {'RecommenderSearch': self.searchID})
+                extra={'RecommenderSearch': self.searchID})
         return products_df, tfidf_vector, vectorizer
 
     def split_ids(self, products_df):
@@ -316,7 +316,7 @@ class FashionRecommender:
 
     def registerRecommendation(self, products_df):
         '''Stores the recommendation as a new record in Results table'''
-        self.logger.info('Registering recommendation...', {'RecommenderSearch': self.searchID})
+        self.logger.info('Registering recommendation...', extra={'RecommenderSearch': self.searchID})
         start = time.time()
         # During recalculation (state!=0) update previous results according to RecommenderSearch Oid
         if self.recalc:
@@ -343,7 +343,7 @@ class FashionRecommender:
                 self.db_manager.runInsertQuery(params)
 
         self.logger.debug("Finished recommendation registreation in {:.2f} seconds".format((time.time() - start)), 
-                {'RecommenderSearch': self.searchID})
+                extra={'RecommenderSearch': self.searchID})
 
 # ----------------------------------------------
 #       Evaluation Functions

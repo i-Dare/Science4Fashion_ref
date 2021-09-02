@@ -89,9 +89,9 @@ class ColorAnnotator():
     def colorExtraction(self, image, imgSrc, row):
         productID = row['Oid']
         if image is None:
-            self.logger.warning('Failed to load image for Product with Oid %s' % productID, {'Product': productID})
+            self.logger.warning('Failed to load image for Product with Oid %s' % productID, extra={'Product': productID})
             return -1
-        self.logger.debug('Processing image of Product with Oid %s' % productID, {'Product': productID})
+        self.logger.debug('Processing image of Product with Oid %s' % productID, extra={'Product': productID})
         # Initialize Cloth seperation module
         cloth = Cloth(imgSrc, imgBGR=image)
 
@@ -109,8 +109,8 @@ class ColorAnnotator():
             _, clothImg2D = imageUtils.reshapeDim(cloth.clothMask, cloth.clothImg)
             cloth.extractColor(clothImg2D)
         except Exception as e:
-            self.logger.warn_and_trace(e, {'Product': productID})
-            self.logger.warning('Failed to extract color informantion for image %s' % imgSrc, {'Product': productID})
+            self.logger.warn_and_trace(e, extra={'Product': productID})
+            self.logger.warning('Failed to extract color informantion for image %s' % imgSrc, extra={'Product': productID})
             # In case of an error color RGB = (-1, -1, -1)
             color_fail = -1 * np.ones(3, dtype=int)
             cloth.colors = [(0., color_fail)] * 5
@@ -132,7 +132,7 @@ class ColorAnnotator():
             params['table'] = uniq_params['table'] = 'ColorRGB'
             productID = row['Oid']
             self.logger.debug('Captured color \"%s\" - \"%s\" %s for product %s' % (colorName, 
-                    colorNameDetailed, str(color), productID), {'Product': productID})
+                    colorNameDetailed, str(color), productID), extra={'Product': productID})
             newEntryColorRGB_df = self.db_manager.runCriteriaInsertQuery(uniq_params=uniq_params, 
                                                                 params=params, 
                                                                 get_identity=True)

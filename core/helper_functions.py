@@ -422,7 +422,7 @@ class Helper():
                                                         )
         productID = products_df.loc[0, 'Oid']
         self.logger.info('Added new product %s' % productID, 
-                {'Product': productID, 'CrawlSearch': crawlSearchID})
+                extra={'Product': productID, 'CrawlSearch': crawlSearchID})
         return products_df
 
     ## Add new product to the ProductHistory table 
@@ -440,7 +440,7 @@ class Helper():
                   'TrendingOrder': trendOrder, 'Price': price, 'CrawlSearch': crawlSearchID, 'SearchDate': searchDate} 
         productHist_df = self.db_manager.runCriteriaInsertQuery(uniq_params=uniq_params, params=params, get_identity=True)
         self.logger.info('Added new product history for product %s' % productID, 
-                {'Product': productID, 'CrawlSearch': crawlSearchID})
+                extra={'Product': productID, 'CrawlSearch': crawlSearchID})
         return productHist_df
 
     ## Update product history 
@@ -558,7 +558,7 @@ class Helper():
                 productHist_df = self.updateProductHistory(crawlSearchID, products_df, referenceOrder, trendOrder)
                 productID = productHist_df.loc[0, 'Product']
                 self.logger.info('Updated product history for product %s' % productID, 
-                        {'Product': productID, 'CrawlSearch': crawlSearchID})
+                        extra={'Product': productID, 'CrawlSearch': crawlSearchID})
             except Exception as e:
                 self.logger.warn_and_trace(e)
             
@@ -734,8 +734,8 @@ class Helper():
             jsonUnparsed = soup.find('script', text=re.compile(r'window\.asos\.pdp\.config\.product.+'))
             jsonInfo = json.loads(re.findall(r'window\.asos\.pdp\.config\.product = ({.+});', str(jsonUnparsed))[0])
         except Exception as e: 
-            self.logger.warn_and_trace(e, {'CrawlSearch': crawlSearchID})
-            self.logger.warning('Exception: Failed to capture json object with products\' info', {'CrawlSearch': crawlSearchID})
+            self.logger.warn_and_trace(e, extra={'CrawlSearch': crawlSearchID})
+            self.logger.warning('Exception: Failed to capture json object with products\' info', extra={'CrawlSearch': crawlSearchID})
         # Get attributes
         # ProductCategory
         try:
@@ -746,29 +746,29 @@ class Helper():
         except Exception as e:
             prodCatID = None 
             prodSubCatID = None 
-            self.logger.warn_and_trace(e, {'CrawlSearch': crawlSearchID})
-            self.logger.warning("ProductCategory and ProductSubcategory not captured at %s" % url, {'CrawlSearch': crawlSearchID})
+            self.logger.warn_and_trace(e, extra={'CrawlSearch': crawlSearchID})
+            self.logger.warning("ProductCategory and ProductSubcategory not captured at %s" % url, extra={'CrawlSearch': crawlSearchID})
         # Header
         try:
             head = jsonInfo['name']
         except Exception as e:
             head = None 
-            self.logger.warn_and_trace(e, {'CrawlSearch': crawlSearchID})
-            self.logger.warning("Header not captured at %s" % url, {'CrawlSearch': crawlSearchID})
+            self.logger.warn_and_trace(e, extra={'CrawlSearch': crawlSearchID})
+            self.logger.warning("Header not captured at %s" % url, extra={'CrawlSearch': crawlSearchID})
         # Sku ID
         try:
             sku = jsonInfo['productCode']
         except Exception as e: 
             sku = None
-            self.logger.warn_and_trace(e, {'CrawlSearch': crawlSearchID})
-            self.logger.warning("SKU ID not captured at %s" % url, {'CrawlSearch': crawlSearchID}) 
+            self.logger.warn_and_trace(e, extra={'CrawlSearch': crawlSearchID})
+            self.logger.warning("SKU ID not captured at %s" % url, extra={'CrawlSearch': crawlSearchID}) 
         # Image
         try:
             imgURL = jsonInfo['images'][0]['url']
         except Exception as e: 
             imgURL = None
-            self.logger.warn_and_trace(e, {'CrawlSearch': crawlSearchID})
-            self.logger.warning("Image url not captured at %s" % url, {'CrawlSearch': crawlSearchID}) 
+            self.logger.warn_and_trace(e, extra={'CrawlSearch': crawlSearchID})
+            self.logger.warning("Image url not captured at %s" % url, extra={'CrawlSearch': crawlSearchID}) 
         # Gender
         try:
             gender = jsonInfo['gender']
@@ -776,22 +776,22 @@ class Helper():
 
         except Exception as e: 
             genderID = None
-            self.logger.warn_and_trace(e, {'CrawlSearch': crawlSearchID})
-            self.logger.warning("GenderID not captured at %s" % url, {'CrawlSearch': crawlSearchID})    
+            self.logger.warn_and_trace(e, extra={'CrawlSearch': crawlSearchID})
+            self.logger.warning("GenderID not captured at %s" % url, extra={'CrawlSearch': crawlSearchID})    
         # Brand
         try:
             brand = jsonInfo['brandName']
         except Exception as e: 
             brand = None
-            self.logger.warn_and_trace(e, {'CrawlSearch': crawlSearchID})
-            self.logger.warning("Brand info not captured at %s" % url, {'CrawlSearch': crawlSearchID})    
+            self.logger.warn_and_trace(e, extra={'CrawlSearch': crawlSearchID})
+            self.logger.warning("Brand info not captured at %s" % url, extra={'CrawlSearch': crawlSearchID})    
         # Color
         try:
             color = jsonInfo['variants'][0]['colour']
         except Exception as e: 
             color = None
-            self.logger.warn_and_trace(e, {'CrawlSearch': crawlSearchID})
-            self.logger.warning("Color info not captured at %s" % url, {'CrawlSearch': crawlSearchID})   
+            self.logger.warn_and_trace(e, extra={'CrawlSearch': crawlSearchID})
+            self.logger.warning("Color info not captured at %s" % url, extra={'CrawlSearch': crawlSearchID})   
         # Description
         try:
             # Find "description" and "about" and user regex to capture the text correctly
@@ -803,8 +803,8 @@ class Helper():
 
         except Exception as e: 
             meta = ''
-            self.logger.warn_and_trace(e, {'CrawlSearch': crawlSearchID})
-            self.logger.warning("Product Description not captured at %s" % url, {'CrawlSearch': crawlSearchID})
+            self.logger.warn_and_trace(e, extra={'CrawlSearch': crawlSearchID})
+            self.logger.warning("Product Description not captured at %s" % url, extra={'CrawlSearch': crawlSearchID})
         # Price
         try:
             productID = jsonInfo['id']
@@ -814,7 +814,7 @@ class Helper():
             price = json.loads(str(priceSoup))[0]['productPrice']['current']['value']
         except:
             price = None
-            self.logger.warning("Product price not captured at %s" % url, {'CrawlSearch': crawlSearchID})       
+            self.logger.warning("Product price not captured at %s" % url, extra={'CrawlSearch': crawlSearchID})       
         # Return captured elements
         return head, brand, color, genderID, meta, sku, price, url, imgURL, prodCatID, prodSubCatID
 
@@ -1008,7 +1008,7 @@ class Helper():
                         break
                 
         if sku == '':
-            self.logger.info("ProductCode and active information not captured at %s" % url, {'CrawlSearch': crawlSearchID})
+            self.logger.info("ProductCode and active information not captured at %s" % url, extra={'CrawlSearch': crawlSearchID})
         ajaxURL = 'https://www.soliver.eu/on/demandware.store/Sites-soliverEU-Site/en/Catalog-GetProductData?pview=variant&pid='
         ajaxURL += pid
         # return ajax request for the selected image
@@ -1016,38 +1016,38 @@ class Helper():
         try:
             jsonInfo = json.loads(soupTemp.text)['product']['variantInfo']
         except:
-            self.logger.warn("JSON information for product at %s not found" % url, {'CrawlSearch': crawlSearchID})
+            self.logger.warn("JSON information for product at %s not found" % url, extra={'CrawlSearch': crawlSearchID})
         # color - Clothe's Color
         try:
             color = jsonInfo['variationAttrData']['color']['displayValue']
         except Exception as e:
             color = None
-            self.logger.warn_and_trace(e, {'CrawlSearch': crawlSearchID})
-            self.logger.warn("Color not captured at %s" % url, {'CrawlSearch': crawlSearchID})
+            self.logger.warn_and_trace(e, extra={'CrawlSearch': crawlSearchID})
+            self.logger.warn("Color not captured at %s" % url, extra={'CrawlSearch': crawlSearchID})
 
         # price
         try:
             price = jsonInfo['priceData']['salePrice']['value']
         except Exception as e:
             price = None
-            self.logger.warn_and_trace(e, {'CrawlSearch': crawlSearchID})
-            self.logger.warn("Price not captured at %s" % url, {'CrawlSearch': crawlSearchID})
+            self.logger.warn_and_trace(e, extra={'CrawlSearch': crawlSearchID})
+            self.logger.warn("Price not captured at %s" % url, extra={'CrawlSearch': crawlSearchID})
 
         # head - Clothe's General Description
         try:
             head = jsonInfo['microdata']['description']
         except Exception as e:
             head = None
-            self.logger.warn_and_trace(e, {'CrawlSearch': crawlSearchID})
-            self.logger.warn("Header not captured at %s" % url, {'CrawlSearch': crawlSearchID})
+            self.logger.warn_and_trace(e, extra={'CrawlSearch': crawlSearchID})
+            self.logger.warn("Header not captured at %s" % url, extra={'CrawlSearch': crawlSearchID})
 
         # brand - Clothe's Brand
         try:
             brand = jsonInfo['microdata']['brand']
         except Exception as e:
             brand = None
-            self.logger.warn_and_trace(e, {'CrawlSearch': crawlSearchID})
-            self.logger.warn("Brand not captured at %s" % url, {'CrawlSearch': crawlSearchID})    
+            self.logger.warn_and_trace(e, extra={'CrawlSearch': crawlSearchID})
+            self.logger.warn("Brand not captured at %s" % url, extra={'CrawlSearch': crawlSearchID})    
             
         # gender
         try:
@@ -1058,8 +1058,8 @@ class Helper():
         except Exception as e:
             gender = ''
             genderID = None
-            self.logger.warn_and_trace(e, {'CrawlSearch': crawlSearchID})
-            self.logger.warning("Gender not captured at %s" % url, {'CrawlSearch': crawlSearchID})
+            self.logger.warn_and_trace(e, extra={'CrawlSearch': crawlSearchID})
+            self.logger.warning("Gender not captured at %s" % url, extra={'CrawlSearch': crawlSearchID})
 
         # category - sub category
         try:
@@ -1073,8 +1073,8 @@ class Helper():
         except Exception as e:
             prodCatID = None 
             prodSubCatID = None 
-            self.logger.warn_and_trace(e, {'CrawlSearch': crawlSearchID})
-            self.logger.warning("ProductCategory and ProductSubcategory not captured at %s" % url, {'CrawlSearch': crawlSearchID})
+            self.logger.warn_and_trace(e, extra={'CrawlSearch': crawlSearchID})
+            self.logger.warning("ProductCategory and ProductSubcategory not captured at %s" % url, extra={'CrawlSearch': crawlSearchID})
 
         ### Other attributes #
         try:
@@ -1094,8 +1094,8 @@ class Helper():
             meta = ' - '.join(attr_list)
         except Exception as e:          
             meta = ''
-            self.logger.warn_and_trace(e, {'CrawlSearch': crawlSearchID})
-            self.logger.warning("Product Metadata not captured at %s" % url, {'CrawlSearch': crawlSearchID})
+            self.logger.warn_and_trace(e, extra={'CrawlSearch': crawlSearchID})
+            self.logger.warning("Product Metadata not captured at %s" % url, extra={'CrawlSearch': crawlSearchID})
         # Return captured elements
         return price, head, brand, color, genderID, meta, sku, prodCatID, prodSubCatID
 
@@ -1223,7 +1223,7 @@ class Helper():
             url, soup = self.get_content(url)
             retry += 1
             if retry == max_retries:
-                self.logger.warn("Unable to access %s" % url, {'CrawlSearch': crawlSearchID})
+                self.logger.warn("Unable to access %s" % url, extra={'CrawlSearch': crawlSearchID})
                 return {}
         
         try:
@@ -1231,15 +1231,15 @@ class Helper():
             jsonInfo = re.findall(r'{.+}', str(jsonUnparsed))[0]
             productInfo = json.loads(jsonInfo)
         except Exception as e:        
-            self.logger.warn_and_trace(e, {'CrawlSearch': crawlSearchID})
+            self.logger.warn_and_trace(e, extra={'CrawlSearch': crawlSearchID})
             return {}
         # Color 
         try:
             color = productInfo['model']['articleInfo']['color']
         except Exception as e:
             color = None
-            self.logger.warn_and_trace(e, {'CrawlSearch': crawlSearchID})
-            self.logger.warn("ColorsDescription not captured at %s" % url, {'CrawlSearch': crawlSearchID})
+            self.logger.warn_and_trace(e, extra={'CrawlSearch': crawlSearchID})
+            self.logger.warn("ColorsDescription not captured at %s" % url, extra={'CrawlSearch': crawlSearchID})
         # category - sub category
         try:
             # Capture category information
@@ -1250,8 +1250,8 @@ class Helper():
         except Exception as e:
             prodCatID = None 
             prodSubCatID = None 
-            self.logger.warn_and_trace(e, {'CrawlSearch': crawlSearchID})
-            self.logger.warning("ProductCategory and ProductSubcategory not captured at %s" % url, {'CrawlSearch': crawlSearchID})
+            self.logger.warn_and_trace(e, extra={'CrawlSearch': crawlSearchID})
+            self.logger.warning("ProductCategory and ProductSubcategory not captured at %s" % url, extra={'CrawlSearch': crawlSearchID})
         # Gender
         try:
             gender = [g for g in ['MEN', 'WOMEN', 'KID', 'MAN', 'WOMAN', 'KIDS', 'UNISEX']  \
@@ -1260,8 +1260,8 @@ class Helper():
             genderID = self.getGender(gender)
         except Exception as e:
             genderID = None
-            self.logger.warn_and_trace(e, {'CrawlSearch': crawlSearchID})
-            self.logger.warn("Gender not captured at %s" % url, {'CrawlSearch': crawlSearchID})
+            self.logger.warn_and_trace(e, extra={'CrawlSearch': crawlSearchID})
+            self.logger.warn("Gender not captured at %s" % url, extra={'CrawlSearch': crawlSearchID})
         # Metadata
         try:
             attributes = productInfo['model']['articleInfo']['attributes']
@@ -1272,8 +1272,8 @@ class Helper():
             meta = '. '.join(meta_names + meta_values)
         except Exception as e:
             meta = ''
-            self.logger.warn_and_trace(e, {'CrawlSearch': crawlSearchID})
-            self.logger.warn("Metadata not captured at %s" % url, {'CrawlSearch': crawlSearchID})
+            self.logger.warn_and_trace(e, extra={'CrawlSearch': crawlSearchID})
+            self.logger.warn("Metadata not captured at %s" % url, extra={'CrawlSearch': crawlSearchID})
        
         params = {'ColorsDescription': color, 'Metadata': meta, 'ProductCategory': prodCatID, 
                 'ProductSubcategory': prodSubCatID, 'Gender': genderID}

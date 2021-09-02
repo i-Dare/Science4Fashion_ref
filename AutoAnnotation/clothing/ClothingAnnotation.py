@@ -59,7 +59,7 @@ class ClothingAnnotator():
         self.logger.info("Executing product attribute annotation for %s unlabeled products" % len(self.products_df))
         for index, row in self.products_df.iterrows():
             productID = row['Oid']
-            self.logger.debug('Clothing annotation for product %s' % productID, {'Product': productID})
+            self.logger.debug('Clothing annotation for product %s' % productID, extra={'Product': productID})
             # check if there is a blob or to skip it
             if not pd.isna(row['Image']):
                 image = self.helper.convertBlobToImage(row['Image'])
@@ -72,8 +72,8 @@ class ClothingAnnotator():
                     self.products_df.loc[index, 'NeckDesign'] = self.helper.updateAttribute(config.DICTNECKLINE, image,
                             self.necklineLearner)
             except Exception as e:
-                self.logger.warn_and_trace(e, {'Product': productID})
-                self.logger.warning('Failed to infer Neckline for Product with Oid %s' % productID, {'Product': productID})
+                self.logger.warn_and_trace(e, extra={'Product': productID})
+                self.logger.warning('Failed to infer Neckline for Product with Oid %s' % productID, extra={'Product': productID})
 
             # Sleeve
             try:                
@@ -82,8 +82,8 @@ class ClothingAnnotator():
                             self.sleeveLearner)
 
             except Exception as e:
-                self.logger.warn_and_trace(e, {'Product': productID})
-                self.logger.warning('Failed to infer Sleeve for for Product with Oid %s' % productID, {'Product': productID})
+                self.logger.warn_and_trace(e, extra={'Product': productID})
+                self.logger.warning('Failed to infer Sleeve for for Product with Oid %s' % productID, extra={'Product': productID})
 
             # Length
             try:  
@@ -92,8 +92,8 @@ class ClothingAnnotator():
                             self.lengthLearner)
 
             except Exception as e:
-                self.logger.warn_and_trace(e, {'Product': productID})
-                self.logger.warning('Failed to infer Length for for Product with Oid %s' % productID, {'Product': productID})
+                self.logger.warn_and_trace(e, extra={'Product': productID})
+                self.logger.warning('Failed to infer Length for for Product with Oid %s' % productID, extra={'Product': productID})
 
             # Collar
             try:  
@@ -102,8 +102,8 @@ class ClothingAnnotator():
                             self.collarLearner)
 
             except Exception as e:
-                self.logger.warn_and_trace(e, {'Product': productID})
-                self.logger.warning('Failed to infer Collar for for Product with Oid %s' % productID, {'Product': productID})
+                self.logger.warn_and_trace(e, extra={'Product': productID})
+                self.logger.warning('Failed to infer Collar for for Product with Oid %s' % productID, extra={'Product': productID})
 
             # Fit
             try:  
@@ -112,8 +112,8 @@ class ClothingAnnotator():
                             self.fitLearner)                
                 
             except Exception as e:
-                self.logger.warn_and_trace(e, {'Product': productID})
-                self.logger.warning('Failed to infer Fit for for Product with Oid %s' % productID, {'Product': productID})
+                self.logger.warn_and_trace(e, extra={'Product': productID})
+                self.logger.warning('Failed to infer Fit for for Product with Oid %s' % productID, extra={'Product': productID})
 
         # Batch update Product table
         self.logger.info('Updating Product table after product attribute annotation')

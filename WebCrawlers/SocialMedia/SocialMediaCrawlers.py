@@ -83,14 +83,14 @@ class PinterestCrawler(Pinterest):
                     pass
             return query_result
         else:
-            self.logger.warning('No new items', {'CrawlSearch': self.crawlSearchID})
+            self.logger.warning('No new items', extra={'CrawlSearch': self.crawlSearchID})
             return []
 
     def search_query(self,):
         max_threshold = 250
         if self.threshold > max_threshold:
             self.logger.warning('Number of requested items exceeds the maximum number of items, up to \
-                    250 items will be collected.', {'CrawlSearch': self.crawlSearchID})
+                    250 items will be collected.', extra={'CrawlSearch': self.crawlSearchID})
             self.threshold = 250
         # Execute query
         query_result = self._search(self.threshold)
@@ -112,7 +112,7 @@ class PinterestCrawler(Pinterest):
     def executeCrawling(self,):
         # Login to Pinterest
         response = self.login()
-        self.logger.info('Connected to Pinterest', {'CrawlSearch': self.crawlSearchID})
+        self.logger.info('Connected to Pinterest', extra={'CrawlSearch': self.crawlSearchID})
 
         # Execute crawling in Pinterest 
         start_time_all = time.time()
@@ -123,11 +123,11 @@ class PinterestCrawler(Pinterest):
             productIDs = save_ranked(self.crawlSearchID, self.helper, query_result, 'Pinterest', self.home_page)
 
             self.logger.info('Images requested: %s, New images found: %s' % (self.threshold, len(productIDs)),
-                 {'CrawlSearch': self.crawlSearchID})
+                 extra={'CrawlSearch': self.crawlSearchID})
             self.logger.info("Time to complete query: %s seconds ---" % 
-                    round(time.time() - start_time_all, 2), {'CrawlSearch': self.crawlSearchID})
+                    round(time.time() - start_time_all, 2), extra={'CrawlSearch': self.crawlSearchID})
         else:
-            self.logger.warning('No results in Pinterest for %s' % self.searchTerm, {'CrawlSearch': self.crawlSearchID})
+            self.logger.warning('No results in Pinterest for %s' % self.searchTerm, extra={'CrawlSearch': self.crawlSearchID})
         return productIDs
 
         
@@ -164,13 +164,13 @@ class InstagramCrawler():
             self.instagram.login(self.username, self.password)
         except ConnectionException as ex:
             self.logger.warn_and_trace(ex)
-            self.logger.warn('Login failed, attempting to login with Firefox session.', {'CrawlSearch': self.crawlSearchID})
+            self.logger.warn('Login failed, attempting to login with Firefox session.', extra={'CrawlSearch': self.crawlSearchID})
             cookiefile = self.get_cookiefile()
             session_path = os.path.join(config.RESOURCESDIR, 'data', 'instagram_session')
             username = self.import_session(cookiefile, session_path)
             self.instagram.load_session_from_file(username, session_path)
         if self.instagram.context.is_logged_in:
-            self.logger.info('Connected to Instagram', {'CrawlSearch': self.crawlSearchID})
+            self.logger.info('Connected to Instagram', extra={'CrawlSearch': self.crawlSearchID})
 
     def get_cookiefile(self):
         default_cookiefile = {
@@ -228,7 +228,7 @@ class InstagramCrawler():
                     imageFilePath = self.helper.setImageFilePath(post_url, self.searchTerm.replace(' ',''), index)
                     post_title = self.searchTerm
                     timestamp = datetime.fromtimestamp(post['media']['taken_at']).date()
-                    if post_url in existing_articles:
+                    if post_url not in existing_articles:
                         query_result.append(({'searchTerm': self.searchTerm,
                                     'timestamp': timestamp,
                                     'URL': post_url,
@@ -237,7 +237,7 @@ class InstagramCrawler():
                                     'title': post_title,
                                     'description': post_info}))
                     else:
-                        self.logger.debug('Product already exists', {'CrawlSearch': self.crawlSearchID})
+                        self.logger.debug('Product already exists', extra={'CrawlSearch': self.crawlSearchID})
                         n_exists += 1
                     if len(query_result) == self.threshold:
                         return query_result
@@ -266,7 +266,7 @@ class InstagramCrawler():
         #                         'title': post_title,
         #                         'description': post_info}))
         #         else:
-        #             self.logger.info('Product already exists', {'CrawlSearch': self.crawlSearchID})
+        #             self.logger.info('Product already exists', extra={'CrawlSearch': self.crawlSearchID})
         #             n_exists += 1
 
         #     if index - n_exists> threshold:
@@ -286,11 +286,11 @@ class InstagramCrawler():
             productIDs = save_ranked(self.crawlSearchID, self.helper, query_result, 'Instagram', self.home_page)
 
             self.logger.info('Images requested: %s, New images found: %s' % (self.threshold, len(productIDs)),
-                 {'CrawlSearch': self.crawlSearchID})
+                 extra={'CrawlSearch': self.crawlSearchID})
             self.logger.info("Time to complete query: %s seconds ---" % 
-                    round(time.time() - start_time_all, 2), {'CrawlSearch': self.crawlSearchID})
+                    round(time.time() - start_time_all, 2), extra={'CrawlSearch': self.crawlSearchID})
         else:
-            self.logger.warning('No results in Instagram for %s' % self.searchTerm, {'CrawlSearch': self.crawlSearchID})
+            self.logger.warning('No results in Instagram for %s' % self.searchTerm, extra={'CrawlSearch': self.crawlSearchID})
         return productIDs
 
     

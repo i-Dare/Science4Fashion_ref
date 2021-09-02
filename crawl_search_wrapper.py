@@ -13,6 +13,8 @@ from core.query_manager import QueryManager
 from data_annotation_wrapper import executeAutoAnnotation
 from WebCrawlers.SocialMedia import SocialMediaCrawlers
 from WebCrawlers.Websites import WebsiteCrawlers
+from Clustering.clustering_consensus import ConsensusClustering
+
 
 
 class WebCrawlers:
@@ -118,7 +120,7 @@ class WebCrawlers:
       self.oids = []
       for adapter in adapterClassList:
          self.logger.info('Execute search for "%s" on "%s"' % (self.searchTerm, adapter), 
-               {'CrawlSearch': self.crawlSearchID})
+               extra={'CrawlSearch': self.crawlSearchID})
 
          #                                                           
          # Programmatically execute adapter    
@@ -135,16 +137,14 @@ class WebCrawlers:
 
    # Execute product clustering module
    def executeClustering(self, train=False):
-      self.logger.info('Executing: Clustering', {'CrawlSearch': self.crawlSearchID})      
-      scriptPath = os.path.join(config.CLUSTERING, 'clustering_consensus.py')
-      if train:
-         args = ['python', scriptPath, '-train', '--user', str(self.user), '--loglevel', self.loglevel]
-      else:
-         args = ['python', scriptPath, '--user', str(self.user), '--loglevel', self.loglevel]
-      proc = subprocess.run(args, stderr=subprocess.STDOUT)
-      if proc.returncode != 0:
-         self.logger.warning('Issues in clothing based annotation', {'CrawlSearch': self.crawlSearchID})
-      
+      self.logger.info('Executing: Clustering', extra={'CrawlSearch': self.crawlSearchID})   
+      clustering = ConsensusClustering(
+                                    user=self.user,
+                                    linkage=config.LINKAGE,
+                                    train=train,
+                                    loglevel=self.loglevel)
+      clustering.executeClustering()
+
 
    ## Sequencially executes the data collection and annotation process
    # Step 1: Execute query for a selected website crawlers

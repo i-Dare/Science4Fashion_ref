@@ -194,7 +194,7 @@ class MyFormatter(logging.Formatter):
         try:
             record = super().format(record)
         except ValueError:
-            record.msg = record.msg.replace("'", "''").replace('%', '%%')
+            record.msg = record.msg.replace("'", "''")
             record = super().format(record)
         return record
 

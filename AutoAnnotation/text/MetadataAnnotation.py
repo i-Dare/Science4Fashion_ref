@@ -217,7 +217,7 @@ class MetadataAnnotator():
                             attrVal = dfDict[str(attr)+'_DB'].loc[attrID, 'Description']
 
                             self.logger.debug("Update %s attribute of %s with %s" % (attr,productID, attrVal), 
-                                    {'Product': productID})
+                                    extra={'Product': productID})
                             # Update record
                             uniq_params = {'table': 'Product', 'Oid': productID}
                             params = {'table': 'Product', attr: attrID}

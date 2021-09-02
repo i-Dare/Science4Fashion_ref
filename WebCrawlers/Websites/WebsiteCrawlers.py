@@ -35,7 +35,7 @@ class AsosCrawler:
         self.site = str((self.standardUrl.split('.')[1]).capitalize())
 
         self.query_url = self.standardUrl + '%20'.join(self.searchTerm.split())
-        self.logger.info('Parsing: ' + str(self.query_url), {'CrawlSearch': self.crawlSearchID})
+        self.logger.info('Parsing: ' + str(self.query_url), extra={'CrawlSearch': self.crawlSearchID})
 
 
     ## This function handles the scraping functionality of the web crawler
@@ -49,13 +49,13 @@ class AsosCrawler:
             url, soup = self.helper.get_content(self.query_url, retry=5)
         except Exception as e:                
             self.logger.warn_and_trace(e)
-            self.logger.warning('Failed to parse %s' % self.query_url, {'CrawlSearch': self.crawlSearchID})
+            self.logger.warning('Failed to parse %s' % self.query_url, extra={'CrawlSearch': self.crawlSearchID})
         
         # If timeout or no result is returned
         try:
             noResultsMessage = soup.find('link', {'href': re.compile(r'no-results-page')})
             if noResultsMessage:
-                self.logger.warning('Your search produced no results.', {'CrawlSearch': self.crawlSearchID})
+                self.logger.warning('Your search produced no results.', extra={'CrawlSearch': self.crawlSearchID})
                 return 0
         except:
             return None
@@ -65,7 +65,7 @@ class AsosCrawler:
         # else 
         #   parse according to reference and trending order
         if 'Search' not in str(soup.title) :
-            self.logger.warning('Redirected to product page', {'CrawlSearch': self.crawlSearchID})
+            self.logger.warning('Redirected to product page', extra={'CrawlSearch': self.crawlSearchID})
             self.threshold = 1
             #  Download product image
             trendOrder = referenceOrder = 0
@@ -109,10 +109,10 @@ class AsosCrawler:
                 productIDs.append(productID)
 
         self.logger.info('Images requested: %s, New images found: %s' % (self.threshold, len(trendDF)),
-                 {'CrawlSearch': self.crawlSearchID})
+                 extra={'CrawlSearch': self.crawlSearchID})
         # The time needed to scrape this query
         self.logger.info("Time to complete query: %s seconds ---" % 
-                round(time.time() - start_time, 2), {'CrawlSearch': self.crawlSearchID})
+                round(time.time() - start_time, 2), extra={'CrawlSearch': self.crawlSearchID})
         return productIDs
 
 
@@ -134,7 +134,7 @@ class SOliverCrawler:
         self.site = str((self.standardUrl.split('.')[1]).capitalize())
 
         self.query_url = self.standardUrl + '%20'.join(self.searchTerm.split())
-        self.logger.info('Parsing: ' + str(self.query_url), {'CrawlSearch': self.crawlSearchID})
+        self.logger.info('Parsing: ' + str(self.query_url), extra={'CrawlSearch': self.crawlSearchID})
 
 
     ############ This function will be called every new keyword line is encountered and will start scraping the amazon web page of the search result according to the text mention in the searchTerm text file ############
@@ -147,7 +147,7 @@ class SOliverCrawler:
         url, soup = self.helper.get_content(self.query_url, retry=5)
         noResultsMessage = soup.find('h1', {'class': re.compile(r'ov__titlename')})
         if noResultsMessage:
-            self.logger.warning('Your search produced no results.', {'CrawlSearch': self.crawlSearchID})
+            self.logger.warning('Your search produced no results.', extra={'CrawlSearch': self.crawlSearchID})
             return 0
         ## Get reference and trend order. Handle the case where the user enters the exact product 
         # name as search terms, and the webpage skips search results page and redirects to the product page
@@ -186,10 +186,10 @@ class SOliverCrawler:
             productIDs.append(productID)
 
         self.logger.info('Images requested: %s, New images found: %s' % (self.threshold, len(trendDF)),
-                {'CrawlSearch': self.crawlSearchID})
+                extra={'CrawlSearch': self.crawlSearchID})
         # The time needed to scrape this query
         self.logger.info("Time to complete query: %s seconds ---" 
-                % round(time.time() - start_time, 2), {'CrawlSearch': self.crawlSearchID})
+                % round(time.time() - start_time, 2), extra={'CrawlSearch': self.crawlSearchID})
         return productIDs
 
 
@@ -211,7 +211,7 @@ class ZalandoCrawler:
         self.site = str((self.standardUrl.split('.')[1]).capitalize())
 
         self.query_url = self.standardUrl + '%20'.join(searchTerm.split())
-        self.logger.info('Parsing: ' + str(self.query_url), {'CrawlSearch': self.crawlSearchID})
+        self.logger.info('Parsing: ' + str(self.query_url), extra={'CrawlSearch': self.crawlSearchID})
 
 
     ## This function handles the scraping functionality of the web crawler
@@ -224,7 +224,7 @@ class ZalandoCrawler:
         url, soup = self.helper.get_content(self.query_url)
         noResultsMessage = soup.find('span', {'class': re.compile(r'cat_subHeadline-11sbl')})
         if noResultsMessage:
-            self.logger.warning('Your search produced no results.', {'CrawlSearch': self.crawlSearchID})
+            self.logger.warning('Your search produced no results.', extra={'CrawlSearch': self.crawlSearchID})
             return 0
         ## Get reference and trend order. Handle the case where the user enters the exact product 
         # name as search terms, and the webpage skips search results page and redirects to the product page
@@ -257,8 +257,8 @@ class ZalandoCrawler:
                     uniq_params, params)
             productIDs.append(productID)
         self.logger.info('Images requested: %s, New images found: %s' % (self.threshold, len(trendDF)),
-                 {'CrawlSearch': self.crawlSearchID})
+                 extra={'CrawlSearch': self.crawlSearchID})
         # The time needed to scrape this query
         self.logger.info("Time to complete query: %s seconds ---" 
-                % round(time.time() - start_time, 2), {'CrawlSearch': self.crawlSearchID})
+                % round(time.time() - start_time, 2), extra={'CrawlSearch': self.crawlSearchID})
         return productIDs
