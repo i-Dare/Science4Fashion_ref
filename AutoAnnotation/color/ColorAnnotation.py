@@ -58,7 +58,7 @@ class ColorAnnotator():
                         WHERE PC.Oid IS NULL''' % (str(dbName), str(dbName))
         # Read data from database
         self.products_df = self.db_manager.runSimpleQuery(query, get_identity=True)
-        self.products_df = self.products_df.drop_duplicates().reset_index()
+        self.products_df = self.products_df.drop_duplicates().reset_index().drop(columns='index')
     
     def execute_annotation(self,):
         start_time = time.time() 

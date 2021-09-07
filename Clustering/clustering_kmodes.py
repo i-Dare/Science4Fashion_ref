@@ -65,7 +65,7 @@ if __name__ == "__main__":
     start_time = time.time()
     user = sys.argv[1]
     # Logger setup
-    logging = S4F_Logger('ClusteringCLLogger', user=user) 
+    logging = S4F_Logger('KModesClusteringLogger', user=user) 
     logger = logging.logger
     helper = Helper(logging)
     db_manager = QueryManager(user=user)

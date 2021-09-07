@@ -91,7 +91,7 @@ DICTNECKLINE = {0:2,1:7, 2:4, 3:6, 4:1, 5:3, 6:5}
 MODEL_NECKLINE = config['resources']['models']['product_attribute_model']['model']['neckline']
 #Sleeve
 DICTSLEEVE = {0:8, 1:2, 2:6, 3:1, 4:4}
-MODELSLEEVE = config['resources']['models']['product_attribute_model']['model']['sleeve']
+MODEL_SLEEVE = config['resources']['models']['product_attribute_model']['model']['sleeve']
 #Length
 DICTLENGTH = {0:4, 1:2, 2:3, 3:1}
 MODEL_LENGTH = config['resources']['models']['product_attribute_model']['model']['length']
