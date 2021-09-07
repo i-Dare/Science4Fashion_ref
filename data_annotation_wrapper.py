@@ -80,27 +80,30 @@ class DataAnnotator:
 # Execute AutoAnnotation module
 def executeAutoAnnotation(logger, user, oids, loglevel):
    try:
-      # Color annotation                
-      color_annotator = ColorAnnotation.ColorAnnotator(user, *oids, loglevel=loglevel)
+      # Color annotation
+      color_annotator = ColorAnnotation.ColorAnnotator(user, *oids, loglevel=loglevel) \
+            if oids else ColorAnnotation.ColorAnnotator(user, loglevel=loglevel)
       color_annotator.execute_annotation()
    except Exception as e:
-      logger.warn_and_trace(e)       
+      logger.warn_and_trace(e)
       logger.warning('Color annotation for products not failed')
 
    try:
-      # Clothing annotation                
-      clothing_annotator = ClothingAnnotation.ClothingAnnotator(user, *oids, loglevel=loglevel)
+      # Clothing annotation
+      clothing_annotator = ClothingAnnotation.ClothingAnnotator(user, *oids, loglevel=loglevel) \
+            if oids else ClothingAnnotation.ClothingAnnotator(user, loglevel=loglevel)
       clothing_annotator.execute_annotation()
    except Exception as e:
-      logger.warn_and_trace(e)       
+      logger.warn_and_trace(e)
       logger.warning('Clothing annotation for products not failed')
 
    try:
-      # Metatada annotation                
-      metadata_annotator = MetadataAnnotation.MetadataAnnotator(user, *oids, loglevel=loglevel)
+      # Metatada annotation
+      metadata_annotator = MetadataAnnotation.MetadataAnnotator(user, *oids, loglevel=loglevel) \
+            if oids else MetadataAnnotation.MetadataAnnotator(user, loglevel=loglevel)
       metadata_annotator.execute_annotation()
    except Exception as e:
-      logger.warn_and_trace(e)       
+      logger.warn_and_trace(e)
       logger.warning('Metadata annotation for products not failed')
 
 
