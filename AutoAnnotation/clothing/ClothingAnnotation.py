@@ -13,6 +13,22 @@ import warnings; warnings.filterwarnings("ignore", category=torch.serialization.
 
 defaults.device = torch.device(config.DEVICE)
 
+MODEL_DICT = {
+    'NeckDesign': config.MODEL_NECKLINE, 
+    'Sleeve': config.MODEL_SLEEVE, 
+    'Length': config.MODEL_LENGTH, 
+    'CollarDesign': config.MODEL_COLLAR, 
+    'Fit': config.MODEL_FIT
+}
+LABEL_DICT = {
+    'NeckDesign': config.DICTNECKLINE, 
+    'Sleeve': config.DICTSLEEVE, 
+    'Length': config.DICTLENGTH, 
+    'CollarDesign': config.DICTCOLLAR, 
+    'Fit': config.DICTFIT
+}
+
+
 class ClothingAnnotator():
     '''
     Rensponsible for color annotation
@@ -30,13 +46,6 @@ class ClothingAnnotator():
         if not os.path.exists(config.PRODUCT_ATTRIBUTE_MODEL_DIR):
             os.makedirs(config.PRODUCT_ATTRIBUTE_MODEL_DIR)
             
-        # Initialize Learners (5/5)
-        self.necklineLearner = load_learner(config.PRODUCT_ATTRIBUTE_MODEL_DIR, config.MODEL_NECKLINE)
-        self.sleeveLearner = load_learner(config.PRODUCT_ATTRIBUTE_MODEL_DIR, config.MODELSLEEVE)
-        self.lengthLearner = load_learner(config.PRODUCT_ATTRIBUTE_MODEL_DIR, config.MODEL_LENGTH)
-        self.collarLearner = load_learner(config.PRODUCT_ATTRIBUTE_MODEL_DIR, config.MODEL_COLLAR)
-        self.fitLearner = load_learner(config.PRODUCT_ATTRIBUTE_MODEL_DIR, config.MODEL_FIT)
-
         # Select Products to execute the text based annotation
         filters = config.PRODUCT_ATTRIBUTES + ['Oid', 'ImageSource', 'Image']
         table = 'Product'
@@ -49,14 +58,33 @@ class ClothingAnnotator():
         else:
             params = {attr: 'NULL' for attr in config.ATTRIBUTE_COLUMNS}
             params['table'] = table
-            self.products_df = self.db_manager.runSelectQuery(params, filters=filters)
 
+            attSelect = ', '.join(['PRD.%s' % attr for attr in  config.ATTRIBUTE_COLUMNS])
+            where = ' OR '.join(['PRD.%s is NULL' % attr for attr in  config.ATTRIBUTE_COLUMNS])
+            query = '''SELECT PRD.Oid, PRD.ImageSource, PRD.Image, %s
+                FROM %s.dbo.%s AS PRD 
+                WHERE %s''' % (attSelect, config.DB_NAME, table, where)
+
+            self.products_df = self.db_manager.runSimpleQuery(query, get_identity=True)
+
+    def annotate(self, modelName, image, productID):
+        # Initialize Learner
+        model = load_learner(config.PRODUCT_ATTRIBUTE_MODEL_DIR, MODEL_DICT[modelName])
+        labels = LABEL_DICT[modelName]
+        # Annotate
+        try:
+            product = self.helper.updateAttribute(labels, image, model)
+        except Exception as e:
+            self.logger.warn_and_trace(e, extra={'Product': productID})
+            self.logger.warning('Failed to infer %s for Product with Oid %s' % (modelName, productID), 
+                    extra={'Product': productID})
+        return product
 
     def execute_annotation(self,):
         start_time = time.time() 
         table = 'Product'
         # Each entry
-        self.logger.info("Executing product attribute annotation for %s unlabeled products" % len(self.products_df))
+        self.logger.info("Executing product attribute annotation for %s unlabeled product(s)" % len(self.products_df))
         for index, row in self.products_df.iterrows():
             productID = row['Oid']
             self.logger.debug('Clothing annotation for product %s' % productID, extra={'Product': productID})
@@ -66,54 +94,9 @@ class ClothingAnnotator():
             else:
                 image = self.helper.getWebImage(row['ImageSource'])
             image = self.helper.convertCVtoPIL(image)
-            # Neckline
-            try:
-                if pd.isna(row['NeckDesign']):
-                    self.products_df.loc[index, 'NeckDesign'] = self.helper.updateAttribute(config.DICTNECKLINE, image,
-                            self.necklineLearner)
-            except Exception as e:
-                self.logger.warn_and_trace(e, extra={'Product': productID})
-                self.logger.warning('Failed to infer Neckline for Product with Oid %s' % productID, extra={'Product': productID})
-
-            # Sleeve
-            try:                
-                if pd.isna(row['Sleeve']):
-                    self.products_df.loc[index, 'Sleeve'] = self.helper.updateAttribute(config.DICTSLEEVE, image,
-                            self.sleeveLearner)
-
-            except Exception as e:
-                self.logger.warn_and_trace(e, extra={'Product': productID})
-                self.logger.warning('Failed to infer Sleeve for for Product with Oid %s' % productID, extra={'Product': productID})
-
-            # Length
-            try:  
-                if pd.isna(row['Length']):
-                    self.products_df.loc[index, 'Length'] = self.helper.updateAttribute(config.DICTLENGTH, image,
-                            self.lengthLearner)
-
-            except Exception as e:
-                self.logger.warn_and_trace(e, extra={'Product': productID})
-                self.logger.warning('Failed to infer Length for for Product with Oid %s' % productID, extra={'Product': productID})
-
-            # Collar
-            try:  
-                if pd.isna(row['CollarDesign']):
-                    self.products_df.loc[index, 'CollarDesign'] = self.helper.updateAttribute(config.DICTCOLLAR, image,
-                            self.collarLearner)
-
-            except Exception as e:
-                self.logger.warn_and_trace(e, extra={'Product': productID})
-                self.logger.warning('Failed to infer Collar for for Product with Oid %s' % productID, extra={'Product': productID})
-
-            # Fit
-            try:  
-                if pd.isna(row['Fit']):
-                    self.products_df.loc[index, 'Fit'] = self.helper.updateAttribute(config.DICTFIT, image,
-                            self.fitLearner)                
-                
-            except Exception as e:
-                self.logger.warn_and_trace(e, extra={'Product': productID})
-                self.logger.warning('Failed to infer Fit for for Product with Oid %s' % productID, extra={'Product': productID})
+            
+            for modelName in ['NeckDesign', 'Sleeve', 'Length', 'CollarDesign', 'Fit']:
+                self.products_df.loc[index, modelName] = self.annotate(modelName, image, productID)
 
         # Batch update Product table
         self.logger.info('Updating Product table after product attribute annotation')
