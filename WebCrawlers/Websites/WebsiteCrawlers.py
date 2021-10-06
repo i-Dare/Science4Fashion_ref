@@ -75,7 +75,7 @@ class AsosCrawler:
             uniq_params = {'table': 'Product', 'URL': url}
             params = {'table': 'Product', 'Description': self.searchTerm, 'Active':  True, 'Gender': genderID,
                     'ColorsDescription': color, 'Ordering': 0, 'ProductCode': sku, 'ProductTitle': head, 
-                    'SiteHeadline': head, 'Metadata': meta, 'RetailPrice': price, 'URL': url, 
+                    'SiteHeadline': head, 'Metadata': meta, 'RetailPriceSoldRegular': price, 'URL': url, 
                     'ImageSource': imgURL, 'Brand': brand, 'ProductCategory': prodCatID, 'ProductSubCategory': prodSubCatID}
             productID = self.helper.registerData(self.crawlSearchID, self.standardUrl, referenceOrder, trendOrder, 
                     uniq_params, params)
@@ -102,7 +102,7 @@ class AsosCrawler:
                 uniq_params = {'table': 'Product', 'URL': url}
                 params = {'table': 'Product', 'Description': self.searchTerm, 'Active':  True, 'Gender': genderID,
                         'ColorsDescription': color, 'Ordering': 0, 'ProductCode': sku, 'ProductTitle': head, 
-                        'SiteHeadline': head, 'Metadata': meta, 'RetailPrice': price, 'URL': url, 
+                        'SiteHeadline': head, 'Metadata': meta, 'RetailPriceSoldRegular': price, 'URL': url, 
                         'ImageSource': imgURL, 'Brand': brand, 'ProductCategory': prodCatID, 'ProductSubCategory': prodSubCatID}
                 productID = self.helper.registerData(self.crawlSearchID, self.standardUrl, referenceOrder, 
                         trendOrder, uniq_params, params)
@@ -178,7 +178,7 @@ class SOliverCrawler:
             uniq_params = {'table': 'Product', 'URL': url}
             params = {'table': 'Product', 'Description': self.searchTerm, 'Active':  True, 'Gender': genderID,
                     'ColorsDescription': color, 'Ordering': 0, 'ProductCode': sku, 'ProductTitle': head, 
-                    'SiteHeadline': head, 'Metadata': meta, 'RetailPrice': price, 'URL': url, 
+                    'SiteHeadline': head, 'Metadata': meta, 'RetailPriceSoldRegular': price, 'URL': url, 
                     'ImageSource': imgURL, 'Brand': brand, 'ProductCategory': prodCatID, 
                     'ProductSubcategory': prodSubCatID}
             productID = self.helper.registerData(self.crawlSearchID, self.standardUrl, referenceOrder, trendOrder,  
@@ -249,7 +249,7 @@ class ZalandoCrawler:
             paramsFromProductPage = self.helper.parseZalandoFields(productPage, self.crawlSearchID)
             paramsFromSearchPage = {'table': 'Product', 'Description': self.searchTerm, 'Active':  True, 
                     'Ordering': 0, 'ProductCode': sku, 'ProductTitle': head, 'SiteHeadline': head, 
-                    'RetailPrice': price, 'URL': productPage, 'ImageSource': imgURL, 'Brand': brand}
+                    'RetailPriceSoldRegular': price, 'URL': productPage, 'ImageSource': imgURL, 'Brand': brand}
             uniq_params = {'table': 'Product', 'URL': productPage}
             params = dict(paramsFromProductPage, **paramsFromSearchPage)
             # Register product information
