@@ -155,14 +155,35 @@ class Helper():
 
     def convertCVtoPIL(self, img):
         ###Convert image fron OpenCV to PIL
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        im_pil = PILImage.fromarray(img)
-        return im_pil    
+        if type(img) != PIL.Image.Image:
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            im_pil = PILImage.fromarray(img)
+            return im_pil    
 
 
-    def openUnicodeImgPath(self, imgPath):
-        imgArray = np.fromfile(imgPath, dtype=np.uint8)
-        return cv2.imdecode(imgArray, cv2.IMREAD_UNCHANGED)
+    def openUnicodeImgPath(self, imageFilePath):
+        if os.path.exists(imageFilePath):
+            imgArray = np.fromfile(imageFilePath, dtype=np.uint8)
+            return cv2.imdecode(imgArray, cv2.IMREAD_UNCHANGED)
+
+    def imageExtraction(self, row):
+        '''
+            Selects the proper method for image extraction depending the 
+            data availability in fields 'Image', 'ImageSource', 'Photo',
+            'Sketch' of the database
+        '''
+        image_method_dict = {'Image': self.convertBlobToImage, 
+                             'ImageSource': self.getWebImage, 
+                             'Photo': self.openUnicodeImgPath, 
+                             'Sketch': self.openUnicodeImgPath}
+        for col in image_method_dict.keys():
+            if pd.notna(row[col]):
+                try:
+                    image = image_method_dict[col](row[col])
+                    return image
+                except:
+                    pass
+        
 
     ## Set image destination path 
     #
@@ -434,7 +455,7 @@ class Helper():
         search_df = self.db_manager.runSelectQuery(params={'table': 'CrawlSearch', 'Oid': crawlSearchID})
         searchDate = pd.to_datetime(search_df['CreatedOn'].values[0])
 
-        productID, price = products_df.loc[0, ['Oid', 'RetailPrice']]
+        productID, price = products_df.loc[0, ['Oid', 'RetailPriceSoldRegular']]
         uniq_params = {'table': 'ProductHistory', 'Product': productID, 'CrawlSearch': crawlSearchID}
         params = {'table': 'ProductHistory', 'Product': productID, 'ReferenceOrder': referenceOrder, 
                   'TrendingOrder': trendOrder, 'Price': price, 'CrawlSearch': crawlSearchID, 'SearchDate': searchDate} 
@@ -452,7 +473,7 @@ class Helper():
         search_df = self.db_manager.runSelectQuery(params={'table': 'CrawlSearch', 'Oid': crawlSearchID})
         searchDate = pd.to_datetime(search_df['CreatedOn'].values[0])
 
-        productID, price = products_df.loc[0, ['Oid', 'RetailPrice']]
+        productID, price = products_df.loc[0, ['Oid', 'RetailPriceSoldRegular']]
 
         uniq_params = {'table': 'ProductHistory', 'Product': productID, 'CrawlSearch': crawlSearchID}
         params = {'table': 'ProductHistory', 'UpdatedBy': self.user, 'Price': price, 'TrendingOrder': trendOrder,  

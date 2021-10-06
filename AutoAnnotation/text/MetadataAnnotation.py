@@ -45,7 +45,7 @@ class MetadataAnnotator():
             # Select from products with missing attributes
             where = ' OR '.join(['PRD.%s is NULL' % attr for attr in  PRODUCT_ATTRIBUTES])
 
-        query = '''SELECT PRD.Oid, PRD.Description, PRD.Metadata,
+        query = '''SELECT PRD.Oid, PRD.Description, PRD.Metadata, PRD.Composition, PRD.ForeignComposition,
                     C.Label, C.LabelDetailed, C.Red, C.Blue, C.Green,
                     PC.Ranking,
                     %s
@@ -68,7 +68,7 @@ class MetadataAnnotator():
         # 
         start_time = time.time() 
         attributes_df = products_df.groupby('Oid').first()[PRODUCT_ATTRIBUTES + 
-                ['Metadata', 'Description']]
+                ['Metadata', 'Description', 'Composition', 'ForeignComposition']]
         # Color data merging
         grouped_products_df = (products_df.groupby('Oid')
                 .apply( lambda row:  list(row['Label'] ))
@@ -76,13 +76,13 @@ class MetadataAnnotator():
                 .str.split(',', expand=True))
         attributes_df.loc[:, ['ColorRanking%s' % n for n in grouped_products_df.columns]] = grouped_products_df.values
         # Text merging
-        text_columns = config.PRODUCT_ATTRIBUTES + ['Label', 'LabelDetailed']
+        text_columns = config.PRODUCT_ATTRIBUTES + ['Label', 'LabelDetailed', 'Composition', 'ForeignComposition']
         attributes_df['extended_metadata'] = (products_df.groupby('Oid')
                 .apply( lambda row:  [list(set(row[col])) for col in text_columns ] )
                 .apply( lambda row:  [r.replace(' ', '_') for r in (sum(row, []))  if not pd.isna(r)] )
                 .str.join(' ')).values
         # Text preprocessing
-        attributes_df.loc[:, 'Metadata'] = (attributes_df.loc[:, 'Metadata']
+        attributes_df.loc[:, 'Metadata'] = (attributes_df.loc[:, 'Metadata'].fillna('')
                 .apply(self.helper.preprocess_metadata))
         attributes_df.loc[:, 'processed_extended_metadata'] = (attributes_df.loc[:, 'extended_metadata']
                 .apply(self.helper.preprocess_metadata))
@@ -214,7 +214,7 @@ class MetadataAnnotator():
                         if pd.isna(self.products_df.loc[self.products_df['Oid']==row['Oid_x'], attr].values[0]):
                             productID =  row['Oid_x']
                             attrID = row['Oid_y']
-                            attrVal = dfDict[str(attr)+'_DB'].loc[attrID, 'Description']
+                            attrVal = dfDict[str(attr)+'_DB'].set_index('Oid').loc[attrID, 'Description']
 
                             self.logger.debug("Update %s attribute of %s with %s" % (attr,productID, attrVal), 
                                     extra={'Product': productID})

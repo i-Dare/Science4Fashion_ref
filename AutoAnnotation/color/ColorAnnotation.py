@@ -43,18 +43,18 @@ class ColorAnnotator():
         # Prepare query
         dbName = config.DB_NAME
         if len(oids) > 0 and isinstance(oids, Iterable):
-            where = ' OR '.join(['PR.Oid=%s' % i for i in  oids])
-            query = '''SELECT PR.Oid, PR.Image, PR.ImageSource, PR.Photo 
-                        FROM %s.dbo.Product AS PR
+            where = ' OR '.join(['PRD.Oid=%s' % i for i in  oids])
+            query = '''SELECT PRD.Oid, PRD.Image, PRD.ImageSource, PRD.Photo, PRD.Sketch 
+                        FROM %s.dbo.Product AS PRD
                         LEFT JOIN %s.dbo.ProductColor AS PC
-                        ON PR.Oid=PC.Product
+                        ON PRD.Oid=PC.Product
                         WHERE %s''' % (str(dbName), str(dbName), where)
 
         else:        
-            query = '''SELECT PR.Oid, PR.Image, PR.ImageSource, PR.Photo 
-                        FROM %s.dbo.Product AS PR
+            query = '''SELECT PRD.Oid, PRD.Image, PRD.ImageSource, PRD.Photo, PRD.Sketch
+                        FROM %s.dbo.Product AS PRD
                         LEFT JOIN %s.dbo.ProductColor AS PC
-                        ON PR.Oid=PC.Product
+                        ON PRD.Oid=PC.Product
                         WHERE PC.Oid IS NULL''' % (str(dbName), str(dbName))
         # Read data from database
         self.products_df = self.db_manager.runSimpleQuery(query, get_identity=True)
@@ -63,37 +63,31 @@ class ColorAnnotator():
     def execute_annotation(self,):
         start_time = time.time() 
         self.logger.info("Executing color annotation for %s unlabeled products" % len(self.products_df))
+        cnt = 0
         #Colors dataframe
-        for _, row in self.products_df.iterrows():
-            productID = row['Oid']
-            # Image source
-            imgSrc = row['Photo']
-            # try:
-            if os.path.exists(imgSrc):            
-                # Open image for unicode file paths
-                image = self.helper.openUnicodeImgPath(imgSrc)
+        for row in self.products_df.itertuples():
+            productID = row.Oid
+            image = self.helper.imageExtraction(row._asdict())
+            if image is not None:
+                try:
+                    _ = self.colorExtraction(image, row._asdict())
+                except Exception as e:
+                    self.logger.warning('Failed to extract color informantion for product %s' % 
+                            productID, extra={'Product': productID})
             else:
-                imageBlob = row['Image']
-                image = self.helper.convertBlobToImage(imageBlob)
-                # If image fails to load from binary, retrieve it from the image URL
-                if image is None:
-                    image = self.helper.getWebImage(row['ImageSource'])
-                imgSrc = 'Extracted image %s' % productID
-            _ = self.colorExtraction(image, imgSrc, row)
-
+                cnt += 1
+                self.logger.warning('Failed to extract image for product %s' % productID, 
+                        extra={'Product': productID})
         # End Counting Time
-        self.logger.info("--- Finished color annotation of %s records in %s seconds ---" % (len(self.products_df), 
-                round(time.time() - start_time, 2)))
+        self.logger.info("--- Finished color annotation of %s records in %s seconds ---" 
+                % (len(self.products_df) - cnt, round(time.time() - start_time, 2)))
         self.logger.close()
 
-    def colorExtraction(self, image, imgSrc, row):
+    def colorExtraction(self, image, row):
         productID = row['Oid']
-        if image is None:
-            self.logger.warning('Failed to load image for Product with Oid %s' % productID, extra={'Product': productID})
-            return -1
         self.logger.debug('Processing image of Product with Oid %s' % productID, extra={'Product': productID})
         # Initialize Cloth seperation module
-        cloth = Cloth(imgSrc, imgBGR=image)
+        cloth = Cloth('', imgBGR=image)
 
         # Check for skin in the image
         kernel = np.ones((5,5), np.uint8)
@@ -110,7 +104,6 @@ class ColorAnnotator():
             cloth.extractColor(clothImg2D)
         except Exception as e:
             self.logger.warn_and_trace(e, extra={'Product': productID})
-            self.logger.warning('Failed to extract color informantion for image %s' % imgSrc, extra={'Product': productID})
             # In case of an error color RGB = (-1, -1, -1)
             color_fail = -1 * np.ones(3, dtype=int)
             cloth.colors = [(0., color_fail)] * 5

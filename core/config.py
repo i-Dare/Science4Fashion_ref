@@ -17,6 +17,7 @@ DB_NAME = config['db_name']
 ENGINE = sqlalchemy.create_engine(DB_CONNECTION + DB_NAME)
 DEFAULT_LOGGING_LEVEL = config['default_logging_level']
 BATCH_STEP = config['batch_step']
+FINANCIAL_ATTRIBUTES = config['financial_attributes']
 
 #
 ########### Modules paths ###########
@@ -107,7 +108,7 @@ MODEL_FIT = config['resources']['models']['product_attribute_model']['model']['f
 #
 # KModes clustering variables
 # Number of clusters
-CLUSTERING_PRODUCT_ATTRIBUTES = ['RetailPrice', 'Gender'] + PRODUCT_ATTRIBUTES
+CLUSTERING_PRODUCT_ATTRIBUTES = ['RetailPriceSoldRegular', 'Gender'] + PRODUCT_ATTRIBUTES
 MODEL_CONSENSUS = config['resources']['models']['clustering_models']['consensus']
 MODEL_KMEANS = config['resources']['models']['clustering_models']['kmeans']
 MODEL_BIRCH = config['resources']['models']['clustering_models']['birch']

@@ -47,7 +47,7 @@ class ClothingAnnotator():
             os.makedirs(config.PRODUCT_ATTRIBUTE_MODEL_DIR)
             
         # Select Products to execute the text based annotation
-        filters = config.PRODUCT_ATTRIBUTES + ['Oid', 'ImageSource', 'Image']
+        filters = config.ATTRIBUTE_COLUMNS + ['Oid', 'ImageSource', 'Image', 'Sketch', 'Photo']
         table = 'Product'
 
         if len(oids) > 0:
@@ -59,9 +59,9 @@ class ClothingAnnotator():
             params = {attr: 'NULL' for attr in config.ATTRIBUTE_COLUMNS}
             params['table'] = table
 
-            attSelect = ', '.join(['PRD.%s' % attr for attr in  config.ATTRIBUTE_COLUMNS])
-            where = ' OR '.join(['PRD.%s is NULL' % attr for attr in  config.ATTRIBUTE_COLUMNS])
-            query = '''SELECT PRD.Oid, PRD.ImageSource, PRD.Image, %s
+            attSelect = ' ,'.join(map('PRD.{0}'.format, filters)) 
+            where = ' AND '.join(['PRD.%s is NULL' % attr for attr in  config.ATTRIBUTE_COLUMNS])
+            query = '''SELECT %s
                 FROM %s.dbo.%s AS PRD 
                 WHERE %s''' % (attSelect, config.DB_NAME, table, where)
 
@@ -83,30 +83,63 @@ class ClothingAnnotator():
     def execute_annotation(self,):
         start_time = time.time() 
         table = 'Product'
-        # Each entry
-        self.logger.info("Executing product attribute annotation for %s unlabeled product(s)" % len(self.products_df))
-        for index, row in self.products_df.iterrows():
-            productID = row['Oid']
-            self.logger.debug('Clothing annotation for product %s' % productID, extra={'Product': productID})
-            # check if there is a blob or to skip it
-            if not pd.isna(row['Image']):
-                image = self.helper.convertBlobToImage(row['Image'])
-            else:
-                image = self.helper.getWebImage(row['ImageSource'])
-            image = self.helper.convertCVtoPIL(image)
-            
-            for modelName in ['NeckDesign', 'Sleeve', 'Length', 'CollarDesign', 'Fit']:
-                self.products_df.loc[index, modelName] = self.annotate(modelName, image, productID)
+        cnt = 0
 
-        # Batch update Product table
-        self.logger.info('Updating Product table after product attribute annotation')
-        table = 'Product'
-        columns = ['Oid'] + config.PRODUCT_ATTRIBUTES
-        self.db_manager.runBatchUpdate(table, self.products_df[columns], 'Oid')
+        self.logger.info("Executing product attribute annotation for %s unlabeled product(s)" % len(self.products_df))
+        # Batch iteration
+        step = config.BATCH_STEP
+        for i in self.products_df.index[::step]:
+            chunk = self.products_df.loc[self.products_df.index[i:i+step]]
+            for row in chunk.itertuples():
+                productID = row.Oid
+                self.logger.debug('Clothing annotation for product %s' % productID, extra={'Product': productID})
+                image = self.helper.imageExtraction(row._asdict())          
+                if image is not None:
+                    image = self.helper.convertCVtoPIL(image)
+                    for modelName in ['NeckDesign', 'Sleeve', 'Length', 'CollarDesign', 'Fit']:
+                        try:
+                            chunk.loc[row.Index, modelName] = self.annotate(modelName, image, productID)
+                        except Exception as e:
+                            self.logger.warning('Failed to extract %s informantion for product %s' % 
+                                    (modelName, productID), extra={'Product': productID})
+                else:
+                    cnt += 1
+                    self.logger.warning('Failed to extract image for product %s' % productID, 
+                            extra={'Product': productID})
+            # Batch update Product table
+            self.logger.info('Updating Product table after product attribute annotation')
+            table = 'Product'
+            columns = ['Oid'] + config.ATTRIBUTE_COLUMNS
+            self.db_manager.runBatchUpdate(table, chunk[columns], 'Oid')
+
+
+        # for row in self.products_df.itertuples():
+        #     productID = row.Oid
+        #     self.logger.debug('Clothing annotation for product %s' % productID, extra={'Product': productID})
+        #     image = self.helper.imageExtraction(row._asdict())          
+        #     if image is not None:
+        #         image = self.helper.convertCVtoPIL(image)
+        #         for modelName in ['NeckDesign', 'Sleeve', 'Length', 'CollarDesign', 'Fit']:
+        #             try:
+        #                 self.products_df.loc[row.Index, modelName] = self.annotate(modelName, image, productID)
+        #             except Exception as e:
+        #                 self.logger.warning('Failed to extract %s informantion for product %s' % 
+        #                         (modelName, productID), extra={'Product': productID})
+        #     else:
+        #         cnt += 1
+        #         self.logger.warning('Failed to extract image for product %s' % productID, 
+        #                 extra={'Product': productID})
+
+
+        # # Batch update Product table
+        # self.logger.info('Updating Product table after product attribute annotation')
+        # table = 'Product'
+        # columns = ['Oid'] + config.ATTRIBUTE_COLUMNS
+        # self.db_manager.runBatchUpdate(table, self.products_df[columns], 'Oid')
 
         # End Counting Time
-        self.logger.info("--- Finished product attribute annotation of %s records in %s seconds ---" % (len(self.products_df), 
-                round(time.time() - start_time, 2)))
+        self.logger.info("--- Finished product attribute annotation of %s records in %s seconds ---" 
+                % (len(self.products_df) - cnt, round(time.time() - start_time, 2)))
         self.logger.close()
 
 if __name__ == "__main__":
