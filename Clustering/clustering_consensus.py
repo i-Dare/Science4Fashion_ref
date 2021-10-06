@@ -111,7 +111,7 @@ class ConsensusClustering:
       ## Merging results
       # 
       attributes_df = products_df.groupby('Oid').first()[config.PRODUCT_ATTRIBUTES + 
-            ['Gender', 'RetailPrice', 'Description']]
+            ['Gender', 'RetailPriceSoldRegular', 'Description']]
       # Color data merging
       grouped_products_df = (products_df.groupby('Oid')
                 .apply( lambda row:  list(row['Label'] ))
@@ -273,7 +273,7 @@ class ConsensusClustering:
          attJoin += ' LEFT JOIN %s.dbo.%s AS attr%s\nON PRD.%s = attr%s.Oid ' \
                % (config.DB_NAME, attr, i, attr, i) 
 
-      query = '''SELECT PRD.Oid, PRD.RetailPrice, PRD.Description,
+      query = '''SELECT PRD.Oid, PRD.RetailPriceSoldRegular, PRD.Description,
                   C.Label, C.LabelDetailed, C.Red, C.Blue, C.Green,
                   PC.Ranking,
                   G.Description as Gender,
