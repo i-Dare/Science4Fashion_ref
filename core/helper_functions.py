@@ -629,7 +629,7 @@ class Helper():
         except:
             self.logger.warning(
                 'Result parser error: \"order\" argument is either \"reference\" or \"trend\"')
-            return None
+            return pd.DataFrame()
         pageNo = 1
         # results' ordering
         rule = '' if ordering == orderDict['reference'] else '&sort=freshness'
@@ -643,8 +643,10 @@ class Helper():
         # Prepare ajax request URL
         # Capture hidden parameters of ajax request for the image loading
         try:
-            jsonUnparsed = [script for script in soup.findAll('script') if 'ANALYTICS_REMOVE_PENDING_EVENT' in str(script)]
-            jsonInfo = json.loads(re.findall(r'JSON\.parse.+({\"(?=analytics).+products\".+\]}}})', str(jsonUnparsed))[0].replace('\\', ''))
+            # jsonUnparsed = [script for script in soup.findAll('script') if 'ANALYTICS_REMOVE_PENDING_EVENT' in str(script)]
+            # jsonInfo = json.loads(re.findall(r'JSON\.parse.+({\"(?=analytics).+products\".+\]}}})', str(jsonUnparsed))[0].replace('\\', ''))
+            jsonUnparsed = [script for script in soup.findAll('script') if 'searchTerm' in str(script) and 'products' in str(script)]
+            jsonInfo =  json.loads(re.findall(r'JSON\.parse.+({\"router\".+?{.+}}})', str(jsonUnparsed))[0].replace('\\', ''))
             articles = jsonInfo['search']['products']
             # Check for duplicates by accessing the DB Product table 
             adapter = self.getAdapter()
@@ -655,6 +657,7 @@ class Helper():
             products = [a for a in articles if 'https://www.asos.com/uk/' + a['url'] not in existing_articles]
         except Exception as e:        
             self.logger.warn_and_trace(e)
+            return pd.DataFrame()
 
         self.logger.info('Prepare to fetch results according to %s order' % order)
         # DataFrame to hold results
@@ -677,9 +680,11 @@ class Helper():
                 try:
                     # Prepare ajax request URL
                     # Capture hidden parameters of ajax request for the image loading
-                    _jsonUnparsed = [script for script in _soup.findAll('script') if 'ANALYTICS_REMOVE_PENDING_EVENT' in str(script)]
-                    _jsonInfo = json.loads(re.findall(r'JSON\.parse.+({\"(?=analytics).+products\".+\]}}})', 
-                            str(_jsonUnparsed))[0].replace('\\', ''))
+                    # _jsonUnparsed = [script for script in _soup.findAll('script') if 'ANALYTICS_REMOVE_PENDING_EVENT' in str(script)]
+                    # _jsonInfo = json.loads(re.findall(r'JSON\.parse.+({\"(?=analytics).+products\".+\]}}})', 
+                    #         str(_jsonUnparsed))[0].replace('\\', ''))
+                    _jsonUnparsed = [script for script in soup.findAll('script') if 'searchTerm' in str(script) and 'products' in str(script)]
+                    _jsonInfo =  json.loads(re.findall(r'JSON\.parse.+({\"router\".+?{.+}}})', str(jsonUnparsed))[0].replace('\\', ''))
                     articles = _jsonInfo['search']['products']                    
                     if len(articles)==0:
                         break
@@ -698,9 +703,11 @@ class Helper():
                 try:
                     # Prepare ajax request URL
                     # Capture hidden parameters of ajax request for the image loading
-                    _jsonUnparsed = [script for script in _soup.findAll('script') if 'ANALYTICS_REMOVE_PENDING_EVENT' in str(script)]
-                    _jsonInfo = json.loads(re.findall(r'JSON\.parse.+({\"(?=analytics).+products\".+\]}}})', 
-                            str(_jsonUnparsed))[0].replace('\\', ''))
+                    # _jsonUnparsed = [script for script in _soup.findAll('script') if 'ANALYTICS_REMOVE_PENDING_EVENT' in str(script)]
+                    # _jsonInfo = json.loads(re.findall(r'JSON\.parse.+({\"(?=analytics).+products\".+\]}}})', 
+                    #         str(_jsonUnparsed))[0].replace('\\', ''))
+                    _jsonUnparsed = [script for script in soup.findAll('script') if 'searchTerm' in str(script) and 'products' in str(script)]
+                    _jsonInfo =  json.loads(re.findall(r'JSON\.parse.+({\"router\".+?{.+}}})', str(_jsonUnparsed))[0].replace('\\', ''))
                     articles = _jsonInfo['search']['products']
                     if len(articles)==0:
                         break

@@ -72,7 +72,7 @@ class DataAnnotator:
    def run(self,):
       self.initAnnotation()
       executeAutoAnnotation(self.logger, self.user, self.oids, self.loglevel)
-      self.executeClustering(train=True)
+      # self.executeClustering(train=True)
 
 # --------------------------------------------------------------------------                        
 #          AutoAnnotation functionality

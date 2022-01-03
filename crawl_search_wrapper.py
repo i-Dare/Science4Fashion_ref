@@ -45,12 +45,13 @@ class WebCrawlers:
    def initCrawling(self,):
       # Fetch search information from CrawlSearch table
       search_df = QueryManager().runSelectQuery(params={'table': 'CrawlSearch', 'Oid': self.crawlSearchID})
+      print('test:',search_df)	  
       #
       # Assign query parameters to the parameters "searchTerm", "NumberOfProductsToReturn", "user", 
       # and "adapters"      
       self.numberResults = search_df.iloc[0]['NumberOfProductsToReturn']
       self.user = search_df.iloc[0]['UpdatedBy']
-      self.adapters = [col.lower() for col in search_df.columns 
+      self.adapters = [col.lower() for col in search_df.columns
             if search_df.iloc[0][col] and col.lower() in self.allAdapters]
       self.initSearchTerm = search_df.iloc[0]['InitialSearchTerm']
       self.disableSpellCheck = search_df.iloc[0]['DisableSpellCheck']
@@ -153,7 +154,7 @@ class WebCrawlers:
    def run(self,):
       self.executeWebCrawler()
       executeAutoAnnotation(self.logger, self.user, self.oids, self.loglevel)
-      self.executeClustering(train=True)
+      #self.executeClustering(train=True) kostas
 
 if __name__ == "__main__":
    webCrawler = WebCrawlers()
