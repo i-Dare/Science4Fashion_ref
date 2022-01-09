@@ -59,8 +59,8 @@ class PinterestCrawler(Pinterest):
         results = [r for r in results if r['type'] == 'pin' and r['videos'] == None]
         # Discard duplicates by accessing the DB Product table
         adapter = self.helper.getAdapter()
-        existing_articles = self.db_manager.runSelectQuery(params={'table': 'Product', 'Adapter': adapter}, 
-                filters=['URL']).squeeze().tolist()
+        existing_articles = list(self.db_manager.runSelectQuery(params={'table': 'Product', 'Adapter': adapter}, 
+                filters=['URL']).squeeze())
         results = [r for r in results if r['link'] not in existing_articles and r['link']]
         if len(results)>0:            
             query_result = []
@@ -159,6 +159,8 @@ class InstagramCrawler():
         self.base_url = 'https://www.instagram.com/p/'        
         self.fashion_att = self.helper.get_fashion_attributes()
 
+        self.isLogged = False
+
     def login(self,):
         try:
             self.instagram.login(self.username, self.password)
@@ -166,6 +168,9 @@ class InstagramCrawler():
             self.logger.warn_and_trace(ex)
             self.logger.warn('Login failed, attempting to login with Firefox session.', extra={'CrawlSearch': self.crawlSearchID})
             cookiefile = self.get_cookiefile()
+            self.isLogged = bool(cookiefile)
+            if not self.isLogged:
+                return
             session_path = os.path.join(config.RESOURCESDIR, 'data', 'instagram_session')
             username = self.import_session(cookiefile, session_path)
             self.instagram.load_session_from_file(username, session_path)
@@ -179,7 +184,8 @@ class InstagramCrawler():
         }.get(system(), "~/.mozilla/firefox/*/cookies.sqlite")
         cookiefiles = glob(expanduser(default_cookiefile))
         if not cookiefiles:
-            raise SystemExit("No Firefox cookies.sqlite file found. Use -c COOKIEFILE.")
+            self.logger.error("No Firefox cookies.sqlite file found. Login using Firefox and try again.")
+            return
         return cookiefiles[0]
 
     def import_session(self, cookiefile, session_path):
@@ -206,7 +212,10 @@ class InstagramCrawler():
     def search_query(self,):
         # Override due to unsolved #874: https://github.com/instaloader/instaloader/issues/874
         hashtag = self.searchTerm.replace(' ','')
-        jsonData = self.instagram.context.get_json(path="explore/tags/" + hashtag + "/", params={"__a": 1})
+        try:
+            jsonData = self.instagram.context.get_json(path="explore/tags/" + hashtag + "/", params={"__a": 1})
+        except:
+            return []
         query_result = []
         n_exists = 0
         hasNextPage = True
@@ -277,6 +286,8 @@ class InstagramCrawler():
     def executeCrawling(self,):
         # Login to Instagram
         self.login()
+        if not self.isLogged:
+            return []
         # Execute crawling in Instagram 
         start_time_all = time.time()
         query_result = self.search_query()
