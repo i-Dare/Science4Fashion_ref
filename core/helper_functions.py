@@ -1152,42 +1152,49 @@ class Helper():
                 'Result parser error: \"order\" argument is either \"reference\" or \"trend\"')
             return None
         # results' ordering
-        rule = '&sort=popularity' if ordering == orderDict['reference'] else '&sort=activation_date'
+        rule = '&order=popularity' if ordering == orderDict['reference'] else '&order=activation_date'
+        # rule = '&sort=popularity' if ordering == orderDict['reference'] else '&sort=activation_date'
         resultsURL = keyUrl + rule
         
         # Fetch initial search result page
         url, soup = self.get_content(resultsURL)
-        jsonInfo = json.loads(str(soup))
+        jsonUnparsed = soup.find_all('script', class_="re-data-el-hydrate")
         # Capture query error
-        if not jsonInfo['articles']:
+        if not jsonUnparsed:
             self.logger.warning('Your search produced no results.')
             return 0
 
+        jsonInfo = json.loads(jsonUnparsed[0].string)
+        articles = [data['data']['product'] for data in list(jsonInfo['graphqlCache'].values()) if 'product' in data['data'].keys()]
+
         # Handle pagination and gather all products
-        articles = jsonInfo['articles']
         # Check for duplicates by accessing the DB Product table 
         adapter = self.getAdapter()
         existing_articles = self.db_manager.runSelectQuery(params={'table': 'Product', 'Adapter': adapter}, 
                 filters=['ImageSource'])
         # Convert to list                
         existing_articles = existing_articles.squeeze().to_list() if isinstance(existing_articles, pd.DataFrame) else existing_articles.to_list()
-        new_articles = [a for a in articles 
-                if 'https://img01.ztat.net/article/' + a['media'][0]['path'] not in existing_articles]
+        mediaList = [ a['largeDefaultMedia']['uri'] if 'largeDefaultMedia' in a.keys() else a['largeMedia'][0]['uri']  for a in articles]
+        new_articles = [ a for a,l in zip(articles, mediaList) if l not in existing_articles ]
         products = new_articles
         ## Capture product information according to the 'threshold'
         # maxItems are equal to the caprured max_items minus the initial added articles
         # if 'threshold' is less than the 'maxItems' return 'threshold' items
         # Otherwise parse additional result pages
-        maxItems = jsonInfo['total_count']
+        try:
+            maxItems = int(list(jsonInfo['graphqlCache'].values())[0]['data']['collection']['entities']['totalCount'])
+        except:
+            maxItems = len(products)
+        articles = articles[:maxItems]
         remainingItems = maxItems - len(articles)
-        threshold = threshold if threshold <= remainingItems else remainingItems
+        threshold = threshold if threshold <= maxItems else maxItems
         offset, limit = len(products), 84
         # DataFrame to hold results
         resultsDF = pd.DataFrame(columns=[ordering, 'URL', 'imgURL'])
         if order=='reference':  
             threshold = len(filterDF)   
             while len(products) < remainingItems:
-                urlList = ['https://www.zalando.co.uk/%s.html' % a['url_key'] for a in new_articles]
+                urlList = [ a['uri'] for a in new_articles ]
                 if not filterDF[filterDF['URL'].isin(urlList)].empty:
                     resultsDF = resultsDF.append(filterDF[filterDF['URL'].isin(urlList)], ignore_index=True)
                 if len(resultsDF) >= len(filterDF): # Exit condition for reference order
@@ -1196,36 +1203,36 @@ class Helper():
                 # Prepare next request
                 _resultsURL = resultsURL + '&offset=%s' % offset
                 url, _soup = self.get_content(_resultsURL)
-                _jsonInfo = json.loads(str(_soup))
-                articles = _jsonInfo['articles']
-                remainingItems -= len(articles)
-                new_articles = [a for a in articles 
-                        if 'https://img01.ztat.net/article/' + a['media'][0]['path'] not in existing_articles]
+                _jsonUnparsed = soup.find_all('script', class_="re-data-el-hydrate")
+                _jsonInfo = json.loads(_jsonUnparsed[0].string)
+                articles = [data['data']['product'] for data in list(_jsonInfo['graphqlCache'].values()) if 'product' in data['data'].keys()]
+                mediaList = [ a['largeDefaultMedia']['uri'] if 'largeDefaultMedia' in a.keys() else a['largeMedia'][0]['uri']  for a in articles]
+                new_articles = [ a for a,l in zip(articles, mediaList) if l not in existing_articles ]
                 offset += limit
                 products += new_articles
         else:
             while len(products) < remainingItems:
                 _resultsURL = resultsURL + '&offset=%s' % offset
                 url, _soup = self.get_content(_resultsURL)
-                _jsonInfo = json.loads(str(_soup))
-                articles = _jsonInfo['articles']
-                remainingItems -= len(articles)
-                new_articles = [a for a in articles 
-                        if 'https://img01.ztat.net/article/' + a['media'][0]['path'] not in existing_articles]
+                _jsonUnparsed = soup.find_all('script', class_="re-data-el-hydrate")
+                _jsonInfo = json.loads(_jsonUnparsed[0].string)
+                articles = [data['data']['product'] for data in list(_jsonInfo['graphqlCache'].values()) if 'product' in data['data'].keys()]
+                mediaList = [ a['largeDefaultMedia']['uri'] if 'largeDefaultMedia' in a.keys() else a['largeMedia'][0]['uri']  for a in articles]
+                new_articles = [ a for a,l in zip(articles, mediaList) if l not in existing_articles ]
                 products += new_articles
                 offset += limit      
-            products = products[:threshold]  
-            # Iterate result pages
-            for product in products:
-                # Capture actual products information from json fields
-                series = pd.Series([])
-                series['Brand'] = product['brand_name']
-                series['Head'] = product['name']
-                series['SKU'] = product['sku']
-                series['Price'] = float(''.join(re.findall(r'[0-9\.]', product['price']['original'])))
-                series['URL'] = 'https://www.zalando.co.uk/%s.html' % product['url_key']
-                series['imgURL'] = 'https://img01.ztat.net/article/' + product['media'][0]['path']            
-                resultsDF = resultsDF.append(series, ignore_index=True)
+        products = products[:threshold]  
+        # Iterate result pages
+        for product in products:
+            # Capture actual products information from json fields
+            series = pd.Series([])
+            series['Brand'] = product['brand']['name']
+            series['Head'] = product['name']
+            series['SKU'] = product['sku']
+            series['Price'] = float(product['displayPrice']['current']['amount'])/100
+            series['URL'] = product['uri']
+            series['imgURL'] = product['largeDefaultMedia']['uri'] if 'largeDefaultMedia' in product.keys() else product['largeMedia'][0]['uri']
+            resultsDF = resultsDF.append(series, ignore_index=True)
         # Set ordering                
         resultsDF[ordering] = range(1, len(resultsDF)+1)
         return resultsDF
@@ -1255,15 +1262,16 @@ class Helper():
                 return {}
         
         try:
-            jsonUnparsed = soup.find('script', attrs={'id': re.compile(r'z-vegas-pdp-props')})
-            jsonInfo = re.findall(r'{.+}', str(jsonUnparsed))[0]
-            productInfo = json.loads(jsonInfo)
+            jsonUnparsed = [s for s in list(soup.find_all('script')) if 'primaryImage' in str(s)][0].string
+            jsonInfo = json.loads(jsonUnparsed)
+            productInfo = [v for v in jsonInfo['graphqlCache'].values() if 'primaryImage' in str(v)][0]['data']['product']
+            productAttrs = [v for v in jsonInfo['graphqlCache'].values() if 'silhouette' in str(v)][0]['data']['entity']
         except Exception as e:        
             self.logger.warn_and_trace(e, extra={'CrawlSearch': crawlSearchID})
             return {}
         # Color 
         try:
-            color = productInfo['model']['articleInfo']['color']
+            color = productInfo['color']['name']
         except Exception as e:
             color = None
             self.logger.warn_and_trace(e, extra={'CrawlSearch': crawlSearchID})
@@ -1271,8 +1279,8 @@ class Helper():
         # category - sub category
         try:
             # Capture category information
-            prodCatStr = productInfo['model']['articleInfo']['silhouette_code']
-            prodSubCatStr = productInfo['model']['articleInfo']['category_tag']
+            prodCatStr = productAttrs['silhouette']
+            prodSubCatStr = productInfo['category']
             prodCatID, prodSubCatID = self.categorySelection(prodCat=prodCatStr, prodSubCat=prodSubCatStr)
             
         except Exception as e:
@@ -1282,9 +1290,8 @@ class Helper():
             self.logger.warning("ProductCategory and ProductSubcategory not captured at %s" % url, extra={'CrawlSearch': crawlSearchID})
         # Gender
         try:
-            gender = [g for g in ['MEN', 'WOMEN', 'KID', 'MAN', 'WOMAN', 'KIDS', 'UNISEX']  \
-                    if g.lower() in map(lambda x: x.lower(), 
-                    productInfo['model']['articleInfo']['categories'])][0].lower()
+            gender = list(set(['MEN', 'WOMEN', 'KID', 'MAN', 'WOMAN', 'KIDS', 'UNISEX'] )
+                            .intersection(set([productAttrs['navigationTargetGroup']])))[0].lower()
             genderID = self.getGender(gender)
         except Exception as e:
             genderID = None
@@ -1292,12 +1299,15 @@ class Helper():
             self.logger.warn("Gender not captured at %s" % url, extra={'CrawlSearch': crawlSearchID})
         # Metadata
         try:
-            attributes = productInfo['model']['articleInfo']['attributes']
-            meta_names = [data['name'] for attr in attributes for data in attr['data'] 
-                    if attr['category'] in ['heading_material', 'heading_details']]
-            meta_values = [data['values'] for attr in attributes for data in attr['data'] 
-                    if attr['category'] in ['heading_material', 'heading_details']]
-            meta = '. '.join(meta_names + meta_values)
+            attributeSuperClusters = [v for v in jsonInfo['graphqlCache'].values() if 
+                    'attributeSuperClusters' in str(v)][0]['data']['product']['attributeSuperClusters']
+            material = [v['value']  for v in [cluster for cluster in attributeSuperClusters 
+                    if cluster['id']=='material_care'][0]['clusters'][0]['attributes']][0].split(',')
+            details =  [v['value'] for v in [cluster for cluster in attributeSuperClusters 
+                    if cluster['id']=='details'][0]['clusters'][0]['attributes']]
+            fit =  [v['value'] for v in [cluster for cluster in attributeSuperClusters 
+                    if cluster['id']=='size_fit'][0]['clusters'][0]['attributes']]
+            meta = ' '.join(material + details + fit )
         except Exception as e:
             meta = ''
             self.logger.warn_and_trace(e, extra={'CrawlSearch': crawlSearchID})

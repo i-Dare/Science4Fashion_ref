@@ -80,14 +80,14 @@ class DataAnnotator:
 # Execute AutoAnnotation module
 def executeAutoAnnotation(logger, user, oids, loglevel):
 
-   # try:
-   #    # Clothing annotation
-   #    clothing_annotator = ClothingAnnotation.ClothingAnnotator(user, *oids, loglevel=loglevel) \
-   #          if oids else ClothingAnnotation.ClothingAnnotator(user, loglevel=loglevel)
-   #    clothing_annotator.execute_annotation()
-   # except Exception as e:
-   #    logger.warn_and_trace(e)
-   #    logger.warning('Clothing annotation for products failed')
+   try:
+      # Clothing annotation
+      clothing_annotator = ClothingAnnotation.ClothingAnnotator(user, *oids, loglevel=loglevel) \
+            if oids else ClothingAnnotation.ClothingAnnotator(user, loglevel=loglevel)
+      clothing_annotator.execute_annotation()
+   except Exception as e:
+      logger.warn_and_trace(e)
+      logger.warning('Clothing annotation for products failed')
 
    try:
       # Color annotation

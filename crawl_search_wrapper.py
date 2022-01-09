@@ -49,11 +49,11 @@ class WebCrawlers:
       #
       # Assign query parameters to the parameters "searchTerm", "NumberOfProductsToReturn", "user", 
       # and "adapters"      
-      self.numberResults = search_df.iloc[0]['NumberOfProductsToReturn']
+      self.numberResults = search_df.iloc[0]['NumberOfProductsToCrawl']
       self.user = search_df.iloc[0]['UpdatedBy']
       self.adapters = [col.lower() for col in search_df.columns
             if search_df.iloc[0][col] and col.lower() in self.allAdapters]
-      self.initSearchTerm = search_df.iloc[0]['InitialSearchTerm']
+      self.searchTerm = search_df.iloc[0]['SearchTerm']
       self.disableSpellCheck = search_df.iloc[0]['DisableSpellCheck']
       #
       # Init logger
@@ -68,15 +68,20 @@ class WebCrawlers:
       self.spellCheck()
    
    def spellCheck(self,):
-      if self.disableSpellCheck:
-         self.searchTerm = self.initSearchTerm
-      else:
+      
+      if not self.searchTerm:
+         self.logger.error('No search term is provided.')
+
+      if not self.disableSpellCheck:
          # Perform spelling correction
-         self.searchTerm = TextBlob(self.initSearchTerm).correct().string
-      # Update CrawlSearch record with search term
-      uniq_params = {'table': 'CrawlSearch', 'Oid': self.crawlSearchID}
-      params = {'table': 'CrawlSearch', 'SearchTerm': self.searchTerm}
-      self.db_manager.runCriteriaUpdateQuery(uniq_params=uniq_params, params=params)
+         initSearchTerm = self.searchTerm
+         self.searchTerm = TextBlob(self.searchTerm).correct().string
+         
+         # Update CrawlSearch record with search term
+         uniq_params = {'table': 'CrawlSearch', 'Oid': self.crawlSearchID}
+         params = {'table': 'CrawlSearch', 'SearchTerm': self.searchTerm, 
+               'InitialSearchTerm': initSearchTerm}
+         self.db_manager.runCriteriaUpdateQuery(uniq_params=uniq_params, params=params)
 
    # Update CrawlSearch table
    def updateCrawlSearchTable(self, description, adapter, numberResults):
@@ -99,22 +104,7 @@ class WebCrawlers:
 # ------------------------------------------------------------
    # Execute Website Crawler process
    def executeWebCrawler(self,):
-      # Get all modules from SocialMediaCrawlers
-      socialMediaCrawlersMods = [obj  for _, obj in inspect.getmembers(sys.modules['WebCrawlers.SocialMedia']) 
-            if inspect.ismodule(obj)]
-      # Get all modules from WebsiteCrawlers
-      websiteCrawlersMods = [obj  for _, obj in inspect.getmembers(sys.modules['WebCrawlers.Websites']) 
-            if inspect.ismodule(obj)]
-      adapterModules = socialMediaCrawlersMods + websiteCrawlersMods
-      adapterModulesDict = {name: obj for mod in adapterModules 
-            for name, obj in inspect.getmembers(sys.modules[mod.__name__])   
-            if inspect.isclass(obj) and name.endswith('Crawler')}
-      # Create a list with all the adapter classes that should be executed during this search
-      adapterClassList = [
-            list(filter(re.compile('%s' % a, re.I).match, list(adapterModulesDict.keys())))[0]  
-            for a in self.adapters if list(filter(re.compile('%s' % a, re.I).match, 
-                  list(adapterModulesDict.keys())))
-         ]
+      adapterClassList, adapterModulesDict = self.getAdapterClassList()
 
       # Store in a list the Product IDs for all the newly added products to be later used during 
       # Auto Annotation
@@ -135,6 +125,26 @@ class WebCrawlers:
                      self.loglevel)
          productIDs = adapterClass.executeCrawling()
          self.oids += productIDs
+
+   # Defines the list of the selected adapter classes to be executed according to the user's choice
+   def getAdapterClassList(self, ):
+      # Get all modules from SocialMediaCrawlers
+      socialMediaCrawlersMods = [obj  for _, obj in inspect.getmembers(sys.modules['WebCrawlers.SocialMedia']) 
+            if inspect.ismodule(obj)]
+      # Get all modules from WebsiteCrawlers
+      websiteCrawlersMods = [obj  for _, obj in inspect.getmembers(sys.modules['WebCrawlers.Websites']) 
+            if inspect.ismodule(obj)]
+      adapterModules = socialMediaCrawlersMods + websiteCrawlersMods
+      adapterModulesDict = {name: obj for mod in adapterModules 
+            for name, obj in inspect.getmembers(sys.modules[mod.__name__])   
+            if inspect.isclass(obj) and name.endswith('Crawler')}
+      # Create a list with all the adapter classes that should be executed during this search
+      adapterClassList = [
+            list(filter(re.compile('%s' % a, re.I).match, list(adapterModulesDict.keys())))[0]  
+            for a in self.adapters if list(filter(re.compile('%s' % a, re.I).match, 
+                  list(adapterModulesDict.keys())))
+         ]
+      return adapterClassList, adapterModulesDict
 
    # Execute product clustering module
    def executeClustering(self, train=False):

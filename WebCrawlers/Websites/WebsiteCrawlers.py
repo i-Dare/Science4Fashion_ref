@@ -207,10 +207,11 @@ class ZalandoCrawler:
         self.helper = Helper(self.logging)
 
         # Webpage URL
-        self.standardUrl = 'https://www.zalando.co.uk/api/catalog/articles?&query='
+        self.standardUrl = 'https://www.zalando.co.uk/catalog/?q='
+        # self.standardUrl = 'https://www.zalando.co.uk/api/catalog/articles?&query='
         self.site = str((self.standardUrl.split('.')[1]).capitalize())
-
-        self.query_url = self.standardUrl + '%20'.join(searchTerm.split())
+        self.query_url = self.standardUrl + '+'.join(self.searchTerm.split())
+        # self.query_url = self.standardUrl + '%20'.join(self.searchTerm.split())
         self.logger.info('Parsing: ' + str(self.query_url), extra={'CrawlSearch': self.crawlSearchID})
 
 
