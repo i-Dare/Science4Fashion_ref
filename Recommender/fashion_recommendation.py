@@ -37,6 +37,7 @@ class FashionRecommender:
         # Assign query parameters to the parameters "searchTerm"
         self.searchTerm = search_df.iloc[0]['SearchTerm']        
         self.user = search_df.iloc[0]['CreatedBy']        
+        self.numberResults = search_df.iloc[0]['NumberOfProductsToReturn']  
 
         # Logger setup
         self.logging = S4F_Logger('FashionRecommender', user=self.user, level=self.loglevel)
@@ -115,7 +116,7 @@ class FashionRecommender:
         final_score = np.sum( [mult * products_df[score] for score,mult in zip(scoring_measures, scoring_factors) 
                 if score in products_df.columns], axis=0)
         
-        products_df['final_score'] = final_score
+        products_df['final_score'] = final_score.round(3)
 
         # Return items sorted according to final score
         products_df.sort_values('final_score', ascending=False, inplace=True)
@@ -123,7 +124,7 @@ class FashionRecommender:
 
     def executeRecommendation(self, ):
         # Get search information
-        self.searchID, self.searchTerm, self.numberResults = self.get_search_details()
+        # self.searchID, self.searchTerm, self.numberResults = self.get_search_details()
         # Get all product ranking attributes
         products_df = self.getAttributes()
 
@@ -254,14 +255,20 @@ class FashionRecommender:
     def split_ids(self, products_df):
         '''Splits data to seen (rated) and useen (unrated)'''
         seen_rating_ids = products_df.loc[(products_df['GradeByUser']>=0) | (products_df['IsIrrelevant']), 'Oid']
-        irrelevant_ids = products_df.loc[(products_df['IsIrrelevant']) | (products_df['GradeByUser']>=0), 'Oid']
+        # irrelevant_ids = products_df.loc[(products_df['IsIrrelevant']) | (products_df['GradeByUser']>=0), 'Oid']
+        irrelevant_ids = products_df.loc[products_df['IsIrrelevant'], 'Oid']
         
-        unseen_ids = products_df.loc[(products_df['GradeByUser']<0) & (~products_df['IsIrrelevant']), 'Oid']
+        unseen_ids = products_df.loc[(products_df['GradeByUser'].isna()) & (~products_df['IsIrrelevant']), 'Oid']
         return seen_rating_ids, irrelevant_ids, unseen_ids
     
     def make_prediction(self, data, train_ids, test_ids, action):
         # Argument assertion
         assert (action in ['rating', 'irrelevance']), 'Action is \"rating\" or \"irrelevance\"'
+        
+        # If no training data are found return
+        if train_ids.empty:
+            data.loc[:, action] = 0 if action == 'rating' else False
+            return data
         
         online_classifiers = {
             'SGD': SGDClassifier(random_state = 42),
@@ -306,12 +313,9 @@ class FashionRecommender:
         # predition
         prediction = model.predict(test_x)
         # Save prediction to products dataframe
-        if action=='rating':
-            data.loc[data['Oid'].isin(train_ids), 'rating'] = train_y.tolist()
-            data.loc[data['Oid'].isin(test_ids), 'rating'] = prediction.tolist()
-        if action=='irrelevance':
-            data.loc[data['Oid'].isin(train_ids), 'irrelevance'] = train_y.tolist()
-            data.loc[data['Oid'].isin(test_ids), 'irrelevance'] = prediction.tolist()
+        data.loc[data['Oid'].isin(train_ids), action] = train_y.tolist()
+        data.loc[data['Oid'].isin(test_ids), action] = prediction.tolist()
+   
         return data
 
     def registerRecommendation(self, products_df):
