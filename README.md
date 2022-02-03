@@ -4,9 +4,9 @@
 The Science4Fashion project aims at facilitating the design of clothing products, particularly in the field of product concept development, by providing personalized proposals to the designer as inspiration, by developing tool based on Artificial Intelligence methods. The tools will work in addition to existing support systems for the development of clothing products such as Life Cycle Management Systems, CAD (Graphics), 3D Modeling systems, commonly used by companies and designers.
 
 The System is comprised of the following components:
-1. [Data Collection](#data_collection)
-2. [Data Annotation](#image_annotation)
-3. [Clothing Recommender with User Feedback Component](##3.-clothing-recommender-with-user-feedback)
+1. [Data Collection](#1-data-collection)
+2. [Data Annotation](#2-image-annotation)
+3. [Clothing Recommender with User Feedback Component](#3-clothing-recommender-with-user-feedback)
 
 ## 1. Data Collection
 With regards to data collection, the system targets a number of well known online resources and collects images, text and metadata according to a user defined query. There data sources can be grouped to website-based, that are accessed  via a number of web crawlers that collect the necessary information and social media-based that usually contain trending content that is rich but noisy. The data sources are referred  as `adapters`, and each adapter is responsible for a single data source. Namely, the web-based adapters are Asos, sOliver, and Zalando, whereas the social media-based are Instagram and Pinterest.
