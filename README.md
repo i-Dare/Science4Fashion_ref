@@ -102,14 +102,14 @@ The recommendation engine refines the recommended items by providing an updated 
 1. Anaconda installation
 	* download windows anaconda https://repo.anaconda.com/archive/Anaconda3-2020.11-Windows-x86_64.exe
 	* install Anaconda with add to PATH option
-	
-2. Github desktop https://central.github.com/deployments/desktop/desktop/latest/win32
-	* Log in as i-Dare 
-	* clone Science4Fashion_ref repository (C:\Users\User\Documents\GitHub-Repos\Science4Fashion_ref)
-	
-3. Download editors
+
+2. Download editors 
 	* notepad++ https://notepad-plus-plus.org/repository/7.x/7.0/npp.7.Installer.x64.exe
-	* vscode https://code.visualstudio.com/download
+	* vscode https://code.visualstudio.com/download (only for developers)
+	
+3. Github desktop https://central.github.com/deployments/desktop/desktop/latest/win32 
+	* Log in as i-Dare (only for developers)
+	* clone [Science4Fashion_ref repository](https://github.com/i-Dare/Science4Fashion_ref/edit/main/README.md) to a dedicated path ex. `C:\Users\User\Documents\GitHub-Repos\Science4Fashion_ref`
 
 4. Define enviroment variables:
 
@@ -118,7 +118,7 @@ The recommendation engine refines the recommended items by providing an updated 
 	* Define `PYTHONPATH` same as `PYTHONHOME`
 	* Append `PROJECT_HOME` enviroment variable to `PYTHONPATH`
 	
-	Should be similar to this:
+	Should be similar to these:
 	* **PROJECT_HOME:** `C:\Users\User\Documents\GitHub-Repos\Science4Fashion_ref`
    	* **PYTHONHOME:** `C:\Users\User\anaconda3`   
 	* **PYTHONPATH:** `C:\Users\User\anaconda3;%PROJECT_HOME%`
@@ -128,7 +128,6 @@ The recommendation engine refines the recommended items by providing an updated 
 	* ```$ pip install kmodes==0.10.2```
 	* ```$ pip install scikit-fuzzy==0.4.2```
 	* ```$ pip install textblob==0.15.3```
-	* ```$ pip install instaloader==4.7.2```
 	* ```$ pip install plotly==4.14.3```
 	* ```$ pip install prince==0.7.1```
 	* ```$ pip install webcolors==1.11.1```
@@ -140,7 +139,7 @@ The recommendation engine refines the recommended items by providing an updated 
 	* ```$ pip install fastai==1.0.61```
 	* ```$ pip install wordsegment```
 	* ```$ pip install py3-pinterest==1.2.2```
-
+	* ```$ pip install instaloader==4.7.2```
 
 ---
 
