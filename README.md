@@ -21,32 +21,19 @@ Wrapper script for website crawling and automatic annotation of the results. Rec
 * Text based annotation
 * Color annotation
 * Apparel annotation
-* Clustering
+~~* Clustering~~
 
 #### Arguments:
 ```
--s|--searchTerm (required): sets the search query term
-
--a|--adapter (required): sets one or more adapters to perform the query
-
--n|--numberResults (optional): sets the number of results to return
-
--u|--user (optional): sets the information of the user that conducts the search request
+* -i or -id (required): the CrawlSearch ID
+* -l or --loglevel (optional): the logging level
 ```
 
 
 #### Examples:
-`$ python %PROJECT_HOME%/crawl_search_wrapper.py -s "red maxi dress" -a "Pinterest" -n 500`
+`$ python %PROJECT_HOME%/crawl_search_wrapper.py -i 13 -l debug`
 
-Retrieves from Pinterest, 500 or less (if already in DB) results for search terms "red maxi dress" and saves them in the S4F database.
-
-`$ python %PROJECT_HOME%/crawl_search_wrapper.py --searchTerm "red maxi dress" --adapter "Pinterest" -n 500`
-
-Same as first example, uses full argument names
-
-`$ python %PROJECT_HOME%/crawl_search_wrapper.py -s "red maxi dress" -a "Pinterest" "Instagram" "Asos"  -n 500`
-
-Executes the query for multiple adapters
+Retrieves the CrawlSearch record with ID 13 and performs the data retrieval according to the record's fields (search term, number of results, adapter)
 
 ---
 
@@ -55,15 +42,57 @@ Executes the query for multiple adapters
 ---
 
 
-
 ## [2. Image Annotation](#image_annotation)
 The image annotation process is executed at the end of the adapter and is responsible for extracting the main product attributes. At this time, the system will attempt to capture the five most dominant colors of the product. Firstly, the product image is processed and the background is extracted. Secondly, the algorith discards any parts of the foreground that may contain skin color information, thus creating a mask for the clothing article. Finally, the color information inside the mask will be decomposed to the 5 most dominant colors and each color will be stored in the database along with the product ID.
 
 Apart from the color information, the rest of the product's attributes regarding the collar style, length, neckline, sleeve type and general fit of the article are infered through a pretrained Deep Neural Network. The DNN is trained on on popular fashion datasets and employs adopted architectures such as VGG16, ResNet50 and ResNet50v2. 
 
-## [3. Clustering](#clustering)
-## [4. Clothing Recommender with User Feedback](#recommender)
+The data annotation process is triggered from the user by providing appropriate arguments to invoke the data_annotation_wrapper.py script. Apart from data annotation, the script is also responsible for invoking the clustering module. 
 
+data_annotation_wrapper.py:
+Invokes the data annotation process by providing appropriate arguments. The annotation process consists of the following steps:
+* Text based annotation
+* Color annotation
+* Apparel annotation
+~~* Clustering~~
+
+#### Arguments:
+```
+* -i or --id (optional): the product ID (“Oid”) list
+* -u or -user (required): the user’s unique identifier
+* -l or --loglevel (optional): the logging level
+```
+
+#### Examples:
+`python %PROJECT_HOME%/data_annotation_wrapper.py -u 8D31B96A-02AC-4531-976F-A455686F8FE2 -i 4622 4623 4624 --l debug`
+Annotates products with Oid "4624", "4623", and "4622" at debug level, expecting extensive event logging.
+
+`python %PROJECT_HOME%/data_annotation_wrapper.py -u 8D31B96A-02AC-4531-976F-A455686F8FE2`
+When no Oid argument (-i) is provided, the script annotates all non-annotated products at default logging level, expecting typical event logging.
+
+## [3. Clothing Recommender with User Feedback](#recommender)
+The fashion_recommendation.py script is responsible for triggering the execution of the Recommendation Module’s processes, as part of the Science4Fashion backend. The script handles recommendation production as a two-state process. 
+
+The initial state presents the recommendation results according to semantic similarity to the search term and the processed metadata of the “Product” table. On the other hand, the recalculation state, assumes that the user has provided feedback by rating and/or discarding any recommendation results by flagging them as irrelevant. The provided feedback is used to predict the rating and relevance of the initially recommended items that were not evaluated by the user, thus refining the recommendation. If no feedback is provided, the recalculation state will produce the same recommendations as the initial.
+
+The recommendation process is triggered when the user performs a new search with the desired search terms. The new search is logged to the “RecommenderSearch” table of the S4F database by the front-end and a unique RecommenderSearch ID is provided as input to the recommendation script. 
+
+fashion_recommendation.py:
+Triggers the fashion recommendation process.
+
+#### Arguments:
+```
+* -i or -id (required): the RecommenderSearch ID
+* -l or --loglevel (optional): the logging level
+* -r or --recalc(optional): recalculation flag to trigger the recommendation after user’s feedback
+```
+
+#### Examples:
+`python %PROJECT_HOME%/Recommender/fashion_recommendation.py -i 45 -l debug`
+The Recommender retrieves the query information with id 45 from the RecommenderSearch table, expecting extensive event logging.
+
+`python %PROJECT_HOME%/Recommender/fashion_recommendation.py -i 45 -l debug -r`
+The recommendation engine refines the recommended items by providing an updated list which is taking into account the User’s feedback.
 
 ## Science4Fashion Installation Guide:
 
