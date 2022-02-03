@@ -64,10 +64,12 @@ Invokes the data annotation process by providing appropriate arguments. The anno
 ```
 
 #### Examples:
-`python %PROJECT_HOME%/data_annotation_wrapper.py -u 8D31B96A-02AC-4531-976F-A455686F8FE2 -i 4622 4623 4624 --l debug`
+```python %PROJECT_HOME%/data_annotation_wrapper.py -u 8D31B96A-02AC-4531-976F-A455686F8FE2 -i 4622 4623 4624 --l debug```
+
 Annotates products with Oid "4624", "4623", and "4622" at debug level, expecting extensive event logging.
 
-`python %PROJECT_HOME%/data_annotation_wrapper.py -u 8D31B96A-02AC-4531-976F-A455686F8FE2`
+```python %PROJECT_HOME%/data_annotation_wrapper.py -u 8D31B96A-02AC-4531-976F-A455686F8FE2```
+
 When no Oid argument (-i) is provided, the script annotates all non-annotated products at default logging level, expecting typical event logging.
 
 ## [3. Clothing Recommender with User Feedback](#recommender)
@@ -88,10 +90,12 @@ Triggers the fashion recommendation process.
 ```
 
 #### Examples:
-`python %PROJECT_HOME%/Recommender/fashion_recommendation.py -i 45 -l debug`
+```python %PROJECT_HOME%/Recommender/fashion_recommendation.py -i 45 -l debug```
+
 The Recommender retrieves the query information with id 45 from the RecommenderSearch table, expecting extensive event logging.
 
-`python %PROJECT_HOME%/Recommender/fashion_recommendation.py -i 45 -l debug -r`
+```python %PROJECT_HOME%/Recommender/fashion_recommendation.py -i 45 -l debug -r```
+
 The recommendation engine refines the recommended items by providing an updated list which is taking into account the User’s feedback.
 
 ## Science4Fashion Installation Guide:
