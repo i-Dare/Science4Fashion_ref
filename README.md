@@ -6,9 +6,9 @@ The Science4Fashion project aims at facilitating the design of clothing products
 The System is comprised of the following components:
 1. [Data Collection](#data_collection)
 2. [Data Annotation](#image_annotation)
-3. [Clothing Recommender with User Feedback Component](#recommender)
+3. [Clothing Recommender with User Feedback Component](#3.-clothing-recommender-with-user-feedback)
 
-## [1. Data Collection](#data_collection)
+## 1. Data Collection
 With regards to data collection, the system targets a number of well known online resources and collects images, text and metadata according to a user defined query. There data sources can be grouped to website-based, that are accessed  via a number of web crawlers that collect the necessary information and social media-based that usually contain trending content that is rich but noisy. The data sources are referred  as `adapters`, and each adapter is responsible for a single data source. Namely, the web-based adapters are Asos, sOliver, and Zalando, whereas the social media-based are Instagram and Pinterest.
 
 The data collection process is initiated by the user who provides a search term and a valid adaptor invoking the `crawl_search_wrapper.py` script. Apart from data retrieval, the script is also responsible to invoke the data annotation and clustering modules as well. Firstly, the contains all the implemented adapters and receives as arguments the name of the adapter, a search term and optionally the maximum number of results and the user ID. The search term should contain keywords that would otherwise be used as a query to a fashion retailers eshop or to a search engine and they should best describe the desired content. Afterwards, the selected adapter will query the respective source for the desired content and attempt to capture a number of attributes for each result. The product name, brand, image, description, genre, price and other metadata will be stored in the system's database. 
@@ -41,7 +41,7 @@ Retrieves the CrawlSearch record with ID 13 and performs the data retrieval acco
 ---
 
 
-## [2. Image Annotation](#image_annotation)
+## 2. Image Annotation
 The image annotation process is executed at the end of the adapter and is responsible for extracting the main product attributes. At this time, the system will attempt to capture the five most dominant colors of the product. Firstly, the product image is processed and the background is extracted. Secondly, the algorith discards any parts of the foreground that may contain skin color information, thus creating a mask for the clothing article. Finally, the color information inside the mask will be decomposed to the 5 most dominant colors and each color will be stored in the database along with the product ID.
 
 Apart from the color information, the rest of the product's attributes regarding the collar style, length, neckline, sleeve type and general fit of the article are infered through a pretrained Deep Neural Network. The DNN is trained on on popular fashion datasets and employs adopted architectures such as VGG16, ResNet50 and ResNet50v2. 
@@ -71,7 +71,7 @@ Annotates products with Oid "4624", "4623", and "4622" at debug level, expecting
 
 When no Oid argument (-i) is provided, the script annotates all non-annotated products at default logging level, expecting typical event logging.
 
-## [3. Clothing Recommender with User Feedback](#recommender)
+## 3. Clothing Recommender with User Feedback
 The fashion_recommendation.py script is responsible for triggering the execution of the Recommendation Module’s processes, as part of the Science4Fashion backend. The script handles recommendation production as a two-state process. 
 
 The initial state presents the recommendation results according to semantic similarity to the search term and the processed metadata of the “Product” table. On the other hand, the recalculation state, assumes that the user has provided feedback by rating and/or discarding any recommendation results by flagging them as irrelevant. The provided feedback is used to predict the rating and relevance of the initially recommended items that were not evaluated by the user, thus refining the recommendation. If no feedback is provided, the recalculation state will produce the same recommendations as the initial.
