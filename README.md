@@ -20,7 +20,7 @@ Wrapper script for website crawling and automatic annotation of the results. Rec
 * Text based annotation
 * Color annotation
 * Apparel annotation
-~~* Clustering~~
+* ~~Clustering~~
 
 #### Arguments:
 ```
