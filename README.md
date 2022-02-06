@@ -108,7 +108,9 @@ The recommendation engine refines the recommended items by providing an updated 
 	* notepad++ https://notepad-plus-plus.org/repository/7.x/7.0/npp.7.Installer.x64.exe
 	* vscode https://code.visualstudio.com/download (only for developers)
 	
-3. Github desktop https://central.github.com/deployments/desktop/desktop/latest/win32 
+3. Clone or [download](https://github.com/i-Dare/Science4Fashion_ref/archive/refs/heads/main.zip) S4F code to a dedicated path ex. `C:\Users\User\Documents\GitHub-Repos\Science4Fashion_ref`
+ 	For cloning:
+	* Download Github desktop https://central.github.com/deployments/desktop/desktop/latest/win32 
 	* Log in as i-Dare (only for developers)
 	* clone [Science4Fashion_ref repository](https://github.com/i-Dare/Science4Fashion_ref) to a dedicated path ex. `C:\Users\User\Documents\GitHub-Repos\Science4Fashion_ref`
 
