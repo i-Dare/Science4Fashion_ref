@@ -110,7 +110,7 @@ The recommendation engine refines the recommended items by providing an updated 
 	
 3. Github desktop https://central.github.com/deployments/desktop/desktop/latest/win32 
 	* Log in as i-Dare (only for developers)
-	* clone [Science4Fashion_ref repository](https://github.com/i-Dare/Science4Fashion_ref/edit/main/README.md) to a dedicated path ex. `C:\Users\User\Documents\GitHub-Repos\Science4Fashion_ref`
+	* clone [Science4Fashion_ref repository](https://github.com/i-Dare/Science4Fashion_ref) to a dedicated path ex. `C:\Users\User\Documents\GitHub-Repos\Science4Fashion_ref`
 
 4. Define enviroment variables:
 
