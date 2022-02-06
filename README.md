@@ -128,21 +128,21 @@ The recommendation engine refines the recommended items by providing an updated 
 	
 5. Install python packages:
 
-	* ```$ pip install kmodes==0.10.2```
-	* ```$ pip install scikit-fuzzy==0.4.2```
-	* ```$ pip install textblob==0.15.3```
-	* ```$ pip install plotly==4.14.3```
-	* ```$ pip install prince==0.7.1```
-	* ```$ pip install webcolors==1.11.1```
-	* ```$ pip install light-famd```
-	* ```$ conda install -c pytorch pytorch=1.7.1 torchvision=0.8.2```
-	* ```$ pip install pymssql```
-	* ```$ pip install opencv-python==4.5.1.48```
-	* ```$ pip install tensorflow==2.4.1```
-	* ```$ pip install fastai==1.0.61```
-	* ```$ pip install wordsegment```
-	* ```$ pip install py3-pinterest==1.2.2```
-	* ```$ pip install instaloader==4.7.2```
+	* ```pip install kmodes==0.10.2```
+	* ```pip install scikit-fuzzy==0.4.2```
+	* ```pip install textblob==0.15.3```
+	* ```pip install plotly==4.14.3```
+	* ```pip install prince==0.7.1```
+	* ```pip install webcolors==1.11.1```
+	* ```pip install light-famd```
+	* ```conda install -c pytorch pytorch=1.7.1 torchvision=0.8.2```
+	* ```pip install pymssql```
+	* ```pip install opencv-python==4.5.1.48```
+	* ```pip install tensorflow==2.4.1```
+	* ```pip install fastai==1.0.61```
+	* ```pip install wordsegment```
+	* ```pip install py3-pinterest==1.2.2```
+	* ```pip install instaloader==4.7.2```
 
 ---
 
