@@ -141,6 +141,7 @@ The recommendation engine refines the recommended items by providing an updated 
 	* ```pip install tensorflow==2.4.1```
 	* ```pip install fastai==1.0.61```
 	* ```pip install wordsegment```
+	* ```pip install --upgrade pip setuptools wheel```
 	* ```pip install py3-pinterest==1.2.2```
 	* ```pip install instaloader==4.7.2```
 
