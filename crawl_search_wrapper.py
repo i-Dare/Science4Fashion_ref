@@ -45,7 +45,7 @@ class WebCrawlers:
    def initCrawling(self,):
       # Fetch search information from CrawlSearch table
       search_df = QueryManager().runSelectQuery(params={'table': 'CrawlSearch', 'Oid': self.crawlSearchID})
-
+      print('test:',search_df)	  
       #
       # Assign query parameters to the parameters "searchTerm", "NumberOfProductsToReturn", "user", 
       # and "adapters"      
@@ -65,7 +65,7 @@ class WebCrawlers:
       self.db_manager = QueryManager(user=self.user)
       #
       # Check spelling option
-      self.spellCheck()
+      self.spellCheck()      
    
    def spellCheck(self,):
       
@@ -110,6 +110,17 @@ class WebCrawlers:
       # Auto Annotation
       self.oids = []
       for adapter in adapterClassList:
+         self.logger.info('''
+               ******** Initiate new crawl search ********
+                      Search ID      : %s               
+                      Search term    : %s               
+                      Adapter        : %s               
+                      Requested items: %s               
+               *******************************************''' % (self.crawlSearchID, 
+                                                                                 self.searchTerm,
+                                                                                 adapter,
+                                                                                 self.numberResults))
+
          self.logger.info('Execute search for "%s" on "%s"' % (self.searchTerm, adapter), 
                extra={'CrawlSearch': self.crawlSearchID})
 
