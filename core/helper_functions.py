@@ -653,8 +653,11 @@ class Helper():
             existing_articles = self.db_manager.runSelectQuery(params={'table': 'Product', 'Adapter': adapter}, 
                     filters=['URL'])
             # Convert to list
-            existing_articles = existing_articles.squeeze().to_list() if isinstance(existing_articles, pd.DataFrame) else existing_articles.to_list()
-            products = [a for a in articles if 'https://www.asos.com/uk/' + a['url'] not in existing_articles]
+            if existing_articles.empty:
+                 products = [a for a in articles if 'https://www.asos.com/uk/' + a['url']]
+            else:
+                existing_articles = existing_articles.squeeze().to_list() if isinstance(existing_articles, pd.DataFrame) else existing_articles.to_list()
+                products = [a for a in articles if 'https://www.asos.com/uk/' + a['url'] not in existing_articles]
         except Exception as e:        
             self.logger.warn_and_trace(e)
             return pd.DataFrame()
