@@ -45,7 +45,7 @@ class WebCrawlers:
    def initCrawling(self,):
       # Fetch search information from CrawlSearch table
       search_df = QueryManager().runSelectQuery(params={'table': 'CrawlSearch', 'Oid': self.crawlSearchID})
-      print('test:',search_df)	  
+
       #
       # Assign query parameters to the parameters "searchTerm", "NumberOfProductsToReturn", "user", 
       # and "adapters"      
