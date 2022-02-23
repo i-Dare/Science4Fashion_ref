@@ -921,11 +921,14 @@ class Helper():
         existing_articles = self.db_manager.runSelectQuery(params={'table': 'Product', 'Adapter': adapter}, 
                 filters=['URL'])
         # Convert to list
-        existing_articles = existing_articles['URL'].to_list() if isinstance(existing_articles, pd.DataFrame) else existing_articles.to_list()
-        articlesURLs = ['https://www.soliver.eu' + \
-            a.find('a', {'class': re.compile("js-ovlistview-productdetaillink")}).get('href') for a in articles]
-        productsIndex = [i for i, a in enumerate(articlesURLs) if a not in existing_articles]
-        products = [articles[i] for i in productsIndex]
+        if existing_articles.empty:
+            products = articles
+        else:
+            existing_articles = existing_articles['URL'].to_list() if isinstance(existing_articles, pd.DataFrame) else existing_articles.to_list()
+            articlesURLs = ['https://www.soliver.eu' + \
+                a.find('a', {'class': re.compile("js-ovlistview-productdetaillink")}).get('href') for a in articles]
+            productsIndex = [i for i, a in enumerate(articlesURLs) if a not in existing_articles]
+            products = [articles[i] for i in productsIndex]
         # DataFrame to hold results
         resultsDF = pd.DataFrame(columns=[ordering, 'URL', 'imgURL'])
         if order=='reference':
@@ -1175,9 +1178,10 @@ class Helper():
         adapter = self.getAdapter()
         existing_articles = self.db_manager.runSelectQuery(params={'table': 'Product', 'Adapter': adapter}, 
                 filters=['ImageSource'])
-        # Convert to list                
-        existing_articles = existing_articles.squeeze().to_list() if isinstance(existing_articles, pd.DataFrame) else existing_articles.to_list()
-        mediaList = [ a['largeDefaultMedia']['uri'] if 'largeDefaultMedia' in a.keys() else a['largeMedia'][0]['uri']  for a in articles]
+        # Convert to list
+        if not existing_articles.empty:
+            existing_articles = existing_articles['ImageSource'].to_list() if isinstance(existing_articles, pd.DataFrame) else existing_articles.to_list()
+        mediaList = [a['largeDefaultMedia']['uri'] if 'largeDefaultMedia' in a.keys() else a['largeMedia'][0]['uri']  for a in articles]
         new_articles = [ a for a,l in zip(articles, mediaList) if l not in existing_articles ]
         products = new_articles
         ## Capture product information according to the 'threshold'
