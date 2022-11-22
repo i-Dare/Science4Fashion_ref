@@ -138,6 +138,7 @@ The recommendation engine refines the recommended items by providing an updated 
 	* ```conda install -c pytorch pytorch=1.7.1 torchvision=0.8.2```
 	* ```pip install pymssql```
 	* ```pip install opencv-python==4.5.1.48```
+	* ```pip install protobuf==3.19.0```
 	* ```pip install tensorflow==2.4.1```
 	* ```pip install fastai==1.0.61```
 	* ```pip install wordsegment```
